@@ -1,0 +1,17 @@
+env:
+  initial_cash: 1000000
+  transaction_cost_bps: 5
+  lookback: 21
+  long_only: true
+  include_cash: true
+reward:
+  lambda_vol: 0.20
+  lambda_dd: 0.30
+  lambda_turnover: 0.02
+  lambda_contagion: 0.15
+  lambda_stress: 0.10
+  lambda_alpha: 0.25
+training:
+  total_timesteps: 2000
+  train_fraction: 0.70
+  validation_fraction: 0.15

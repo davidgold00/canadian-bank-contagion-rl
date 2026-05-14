@@ -1,0 +1,7 @@
+banks:
+  RY.TO: {name: Royal Bank of Canada, domestic_retail: 0.8, mortgage_exposure: 0.72, cre_exposure: 0.35, capital_markets: 0.55, wealth: 0.65}
+  TD.TO: {name: Toronto-Dominion Bank, domestic_retail: 0.75, mortgage_exposure: 0.69, cre_exposure: 0.32, us_banking: 0.7, capital_markets: 0.35}
+  BMO.TO: {name: Bank of Montreal, domestic_retail: 0.62, mortgage_exposure: 0.58, cre_exposure: 0.45, us_banking: 0.62, capital_markets: 0.42}
+  BNS.TO: {name: Bank of Nova Scotia, domestic_retail: 0.55, mortgage_exposure: 0.52, cre_exposure: 0.34, international: 0.65, capital_markets: 0.33}
+  CM.TO: {name: Canadian Imperial Bank of Commerce, domestic_retail: 0.82, mortgage_exposure: 0.78, cre_exposure: 0.38, capital_markets: 0.28}
+  NA.TO: {name: National Bank of Canada, domestic_retail: 0.70, mortgage_exposure: 0.62, cre_exposure: 0.30, capital_markets: 0.40, wealth: 0.45}

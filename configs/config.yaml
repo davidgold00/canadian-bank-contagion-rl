@@ -1,0 +1,8 @@
+project_name: Canadian Bank Contagion Simulator Using Graph Reinforcement Learning
+data_dir: data
+start_date: '2012-01-01'
+end_date: null
+frequency: B
+synthetic_fallback: true
+rebalance_frequency: W-FRI
+risk_free_rate: 0.02

@@ -1,0 +1,9 @@
+edge_weights:
+  correlation: 0.35
+  tail_dependence: 0.20
+  balance_sheet_similarity: 0.15
+  etf_overlap: 0.10
+  shock_transmission: 0.10
+  credit_stress: 0.10
+correlation_windows: [21, 63, 126]
+minimum_edge_weight: 0.05

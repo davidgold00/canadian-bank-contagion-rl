@@ -1,0 +1,9 @@
+[project]
+name = "canadian-bank-contagion-rl"
+version = "0.1.0"
+description = "Canadian Bank Contagion Simulator Using Graph Reinforcement Learning"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
