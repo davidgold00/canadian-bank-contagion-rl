@@ -1,4 +1,3 @@
-import math
 from pathlib import Path
 
 import networkx as nx
@@ -11,380 +10,345 @@ import streamlit as st
 st.set_page_config(page_title="Systemic Bank Network", layout="wide")
 
 BANKS = ["RY.TO", "TD.TO", "BMO.TO", "BNS.TO", "CM.TO", "NA.TO"]
-BANK_NAMES = {
-    "RY.TO": "Royal Bank of Canada",
-    "TD.TO": "Toronto-Dominion Bank",
-    "BMO.TO": "Bank of Montreal",
-    "BNS.TO": "Bank of Nova Scotia",
-    "CM.TO": "CIBC",
-    "NA.TO": "National Bank",
-}
 
 
-def repo_root() -> Path:
+def root() -> Path:
     return Path(__file__).resolve().parents[3]
 
 
 @st.cache_data
-def load_prices() -> pd.DataFrame:
-    root = repo_root()
-    candidates = [
-        root / "data" / "processed" / "prices.csv",
-        root / "data" / "raw" / "market_prices.csv",
-        root / "data" / "sample" / "market_prices.csv",
-    ]
-
-    for path in candidates:
+def load_prices():
+    for path in [
+        root() / "data" / "raw" / "market_prices.csv",
+        root() / "data" / "sample" / "market_prices.csv",
+    ]:
         if path.exists():
             df = pd.read_csv(path)
             date_col = "date" if "date" in df.columns else "Date"
             df[date_col] = pd.to_datetime(df[date_col])
             df = df.rename(columns={date_col: "date"}).set_index("date").sort_index()
-            return df[[c for c in df.columns if c in BANKS or c in ["XFN.TO", "XIU.TO", "^VIX", "CL=F", "CADUSD=X"]]]
+            return df[[c for c in BANKS if c in df.columns]].dropna()
 
-    raise FileNotFoundError("No price file found. Run scripts/download_data.py first.")
-
-
-def rolling_corr_matrix(prices: pd.DataFrame, window: int) -> pd.DataFrame:
-    returns = prices[BANKS].pct_change()
-    corr = returns.tail(window).corr()
-    return corr.fillna(0)
+    st.error("No market price data found.")
+    st.stop()
 
 
-def tail_corr_matrix(prices: pd.DataFrame, window: int, stress_quantile: float = 0.20) -> pd.DataFrame:
-    returns = prices[BANKS].pct_change()
-    recent = returns.tail(window).dropna()
+def build_adj(prices, window, edge_type):
+    rets = prices.pct_change().dropna()
 
-    if "XFN.TO" in prices.columns:
-        market_ret = prices["XFN.TO"].pct_change().reindex(recent.index)
-        stress_days = market_ret <= market_ret.quantile(stress_quantile)
-        recent = recent.loc[stress_days]
+    if edge_type == "Tail-stress correlation":
+        market = rets.mean(axis=1)
+        rets = rets.loc[market <= market.quantile(0.20)]
 
-    if len(recent) < 10:
-        recent = returns.tail(window).dropna()
-
-    return recent.corr().fillna(0)
+    recent = rets.tail(window)
+    corr = recent.corr().fillna(0)
+    return corr
 
 
-def build_network(adj: pd.DataFrame, threshold: float) -> nx.Graph:
-    graph = nx.Graph()
+def build_graph(adj, threshold):
+    g = nx.Graph()
 
-    for bank in BANKS:
-        graph.add_node(bank)
+    for b in BANKS:
+        g.add_node(b)
 
-    for i, source in enumerate(BANKS):
-        for target in BANKS[i + 1:]:
-            weight = float(adj.loc[source, target])
-            if abs(weight) >= threshold:
-                graph.add_edge(source, target, weight=weight, abs_weight=abs(weight))
+    for i, a in enumerate(BANKS):
+        for b in BANKS[i + 1:]:
+            w = float(adj.loc[a, b])
+            if abs(w) >= threshold:
+                g.add_edge(a, b, weight=w, abs_weight=abs(w))
 
-    return graph
+    return g
 
 
-def calculate_node_stress(prices: pd.DataFrame) -> pd.Series:
-    returns = prices[BANKS].pct_change()
-    vol = returns.tail(21).std() * np.sqrt(252)
+def node_stress(prices):
+    rets = prices.pct_change()
+    vol = rets.tail(21).std() * np.sqrt(252)
+    dd = prices.iloc[-1] / prices.tail(63).max() - 1
 
-    recent_drawdown = {}
-    for bank in BANKS:
-        px = prices[bank].dropna()
-        recent_drawdown[bank] = px.iloc[-1] / px.tail(63).max() - 1 if len(px) > 63 else 0
-
-    drawdown = pd.Series(recent_drawdown)
     vol_score = 100 * (vol - vol.min()) / (vol.max() - vol.min() + 1e-9)
-    dd_score = 100 * ((-drawdown) - (-drawdown).min()) / ((-drawdown).max() - (-drawdown).min() + 1e-9)
+    dd_score = 100 * ((-dd) - (-dd).min()) / ((-dd).max() - (-dd).min() + 1e-9)
 
-    return (0.60 * vol_score + 0.40 * dd_score).fillna(50).clip(0, 100)
-
-
-def network_layout(graph: nx.Graph) -> dict:
-    if graph.number_of_edges() == 0:
-        return nx.circular_layout(graph)
-    return nx.spring_layout(graph, seed=42, weight="abs_weight")
+    return (0.6 * vol_score + 0.4 * dd_score).clip(0, 100)
 
 
-def plot_network(graph: nx.Graph, node_stress: pd.Series, title: str) -> go.Figure:
-    pos = network_layout(graph)
+def network_fig(g, stress):
+    pos = nx.spring_layout(g, seed=11, weight="abs_weight") if g.edges else nx.circular_layout(g)
 
     edge_x, edge_y = [], []
-    edge_text = []
+    for a, b in g.edges:
+        x0, y0 = pos[a]
+        x1, y1 = pos[b]
+        edge_x += [x0, x1, None]
+        edge_y += [y0, y1, None]
 
-    for source, target, data in graph.edges(data=True):
-        x0, y0 = pos[source]
-        x1, y1 = pos[target]
-        edge_x.extend([x0, x1, None])
-        edge_y.extend([y0, y1, None])
-        edge_text.append(f"{source} ↔ {target}: {data['weight']:.2f}")
+    centrality = nx.eigenvector_centrality_numpy(g) if g.number_of_edges() else {n: 0 for n in g.nodes}
 
-    edge_trace = go.Scatter(
-        x=edge_x,
-        y=edge_y,
-        line=dict(width=1.5, color="rgba(80,80,80,0.45)"),
-        hoverinfo="none",
-        mode="lines",
-    )
+    node_x, node_y, sizes, colors, labels, hover = [], [], [], [], [], []
 
-    node_x, node_y, node_size, node_color, node_text = [], [], [], [], []
-
-    centrality = nx.eigenvector_centrality_numpy(graph) if graph.number_of_edges() > 0 else {n: 0 for n in graph.nodes}
-
-    for node in graph.nodes:
-        x, y = pos[node]
-        stress = float(node_stress.get(node, 50))
-        importance = float(centrality.get(node, 0))
-
+    for n in g.nodes:
+        x, y = pos[n]
         node_x.append(x)
         node_y.append(y)
-        node_size.append(28 + 45 * importance)
-        node_color.append(stress)
-        node_text.append(
-            f"<b>{node}</b><br>"
-            f"{BANK_NAMES[node]}<br>"
-            f"Node stress: {stress:.1f}/100<br>"
-            f"Eigenvector centrality: {importance:.2f}<br>"
-            f"Interpretation: larger nodes are more systemically central."
+        labels.append(n)
+        colors.append(float(stress[n]))
+        sizes.append(35 + 65 * centrality.get(n, 0))
+        hover.append(
+            f"<b>{n}</b><br>"
+            f"Node stress: {stress[n]:.1f}/100<br>"
+            f"Systemic centrality: {centrality.get(n, 0):.2f}<br>"
+            f"Larger node = more connected to important banks"
         )
 
-    node_trace = go.Scatter(
-        x=node_x,
-        y=node_y,
-        mode="markers+text",
-        text=list(graph.nodes),
-        textposition="top center",
-        hovertext=node_text,
-        hoverinfo="text",
-        marker=dict(
-            size=node_size,
-            color=node_color,
-            colorscale="RdYlGn_r",
-            showscale=True,
-            colorbar=dict(title="Node<br>Stress"),
-            line=dict(width=2, color="white"),
-        ),
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=edge_x,
+            y=edge_y,
+            mode="lines",
+            line=dict(width=2, color="rgba(90,90,90,0.35)"),
+            hoverinfo="skip",
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=node_x,
+            y=node_y,
+            mode="markers+text",
+            text=labels,
+            textposition="top center",
+            hovertext=hover,
+            hoverinfo="text",
+            marker=dict(
+                size=sizes,
+                color=colors,
+                colorscale="RdYlGn_r",
+                cmin=0,
+                cmax=100,
+                showscale=True,
+                colorbar=dict(title="Stress"),
+                line=dict(width=2, color="white"),
+            ),
+        )
     )
 
-    fig = go.Figure(data=[edge_trace, node_trace])
     fig.update_layout(
-        title=title,
-        height=650,
-        margin=dict(l=20, r=20, t=60, b=20),
+        height=620,
+        margin=dict(l=20, r=20, t=20, b=20),
         showlegend=False,
+        plot_bgcolor="white",
         xaxis=dict(visible=False),
         yaxis=dict(visible=False),
-        plot_bgcolor="white",
     )
     return fig
 
 
-def graph_metrics(graph: nx.Graph, adj: pd.DataFrame, node_stress: pd.Series) -> pd.DataFrame:
-    degree = nx.degree_centrality(graph)
-    between = nx.betweenness_centrality(graph, weight="abs_weight") if graph.number_of_edges() else {n: 0 for n in graph.nodes}
-    eigen = nx.eigenvector_centrality_numpy(graph) if graph.number_of_edges() else {n: 0 for n in graph.nodes}
-    clustering = nx.clustering(graph, weight="abs_weight") if graph.number_of_edges() else {n: 0 for n in graph.nodes}
+def edge_table(adj):
+    rows = []
+    for i, a in enumerate(BANKS):
+        for b in BANKS[i + 1:]:
+            rows.append(
+                {
+                    "Bank Pair": f"{a} ↔ {b}",
+                    "Correlation": float(adj.loc[a, b]),
+                    "Strength": abs(float(adj.loc[a, b])),
+                    "Interpretation": "Major contagion channel"
+                    if abs(float(adj.loc[a, b])) >= 0.70
+                    else "Moderate channel"
+                    if abs(float(adj.loc[a, b])) >= 0.40
+                    else "Weak channel",
+                }
+            )
+    return pd.DataFrame(rows).sort_values("Strength", ascending=False)
+
+
+def centrality_table(g, stress):
+    degree = nx.degree_centrality(g)
+    eigen = nx.eigenvector_centrality_numpy(g) if g.number_of_edges() else {n: 0 for n in g.nodes}
+    between = nx.betweenness_centrality(g, weight="abs_weight") if g.number_of_edges() else {n: 0 for n in g.nodes}
 
     rows = []
-    for bank in BANKS:
-        connected_edges = [abs(adj.loc[bank, other]) for other in BANKS if other != bank]
+    for b in BANKS:
         rows.append(
             {
-                "Bank": bank,
-                "Full Name": BANK_NAMES[bank],
-                "Node Stress": round(float(node_stress.get(bank, 50)), 2),
-                "Degree Centrality": round(float(degree.get(bank, 0)), 3),
-                "Eigenvector Centrality": round(float(eigen.get(bank, 0)), 3),
-                "Betweenness Centrality": round(float(between.get(bank, 0)), 3),
-                "Clustering": round(float(clustering.get(bank, 0)), 3),
-                "Avg Absolute Link Strength": round(float(np.mean(connected_edges)), 3),
+                "Bank": b,
+                "Stress Score": stress[b],
+                "Degree Centrality": degree.get(b, 0),
+                "Eigenvector Centrality": eigen.get(b, 0),
+                "Betweenness Centrality": between.get(b, 0),
+                "Plain-English Meaning": "Core systemic node"
+                if eigen.get(b, 0) > np.mean(list(eigen.values()))
+                else "Peripheral / lower systemic role",
             }
         )
+    return pd.DataFrame(rows).sort_values("Eigenvector Centrality", ascending=False)
 
-    return pd.DataFrame(rows).sort_values(["Eigenvector Centrality", "Node Stress"], ascending=False)
 
+prices = load_prices()
 
 st.title("Systemic Bank Network")
 
-st.info(
+st.markdown(
     """
-    This page converts the Big Six Canadian banks into a dynamic financial network.
-    Each bank is a node. Edges represent stress-transmission channels such as return correlation
-    or tail co-movement. This makes the project more than a stock dashboard: it becomes a simplified
-    systemic-risk map.
+    ### Executive readout
+
+    This page answers: **if stress hits one Canadian bank, which other banks are most likely to move with it?**
+
+    The network is built from recent Big Six return relationships.  
+    It is designed to show **contagion channels**, not just individual stock performance.
     """
 )
 
-prices = load_prices().dropna(how="all")
+with st.container():
+    c1, c2, c3 = st.columns([1, 1, 1])
 
-left, right = st.columns([0.72, 0.28])
+    with c1:
+        edge_type = st.selectbox("Edge definition", ["Rolling correlation", "Tail-stress correlation"])
 
-with right:
-    st.subheader("Network Controls")
-    edge_type = st.selectbox(
-        "Edge definition",
-        ["Rolling correlation", "Tail-stress correlation"],
-        help="Rolling correlation shows normal co-movement. Tail-stress correlation only looks at bad market days.",
-    )
-    window = st.slider("Lookback window", 21, 252, 63, step=21)
-    threshold = st.slider(
-        "Minimum edge strength",
-        0.00,
-        0.95,
-        0.35,
-        step=0.05,
-        help="Higher thresholds only show the strongest contagion channels.",
-    )
+    with c2:
+        window = st.selectbox("Lookback window", [21, 63, 126, 252], index=1)
 
-    st.markdown("### How to interpret")
-    st.markdown(
-        """
-        - **Large node** = systemically central bank.
-        - **Red node** = elevated recent stress.
-        - **Thick/high edge value** = stronger co-movement.
-        - **Dense network** = diversification is weakening.
-        """
-    )
+    with c3:
+        threshold = st.slider("Minimum edge strength", 0.0, 0.95, 0.35, 0.05)
 
-if edge_type == "Rolling correlation":
-    adj = rolling_corr_matrix(prices, window)
-else:
-    adj = tail_corr_matrix(prices, window)
+adj = build_adj(prices, window, edge_type)
+stress = node_stress(prices)
+g = build_graph(adj, threshold)
 
-node_stress = calculate_node_stress(prices)
-graph = build_network(adj, threshold)
+avg_corr = adj.where(~np.eye(len(adj), dtype=bool)).stack().mean()
+density = nx.density(g)
+largest_eigen = np.linalg.eigvalsh(adj.values).max()
+most_stressed = stress.sort_values(ascending=False).index[0]
 
-avg_corr = float(adj.where(~np.eye(len(adj), dtype=bool)).stack().mean())
-density = nx.density(graph)
-largest_eigenvalue = float(np.linalg.eigvalsh(adj.fillna(0).values).max())
-most_stressed = node_stress.sort_values(ascending=False).index[0]
-
-metric_cols = st.columns(4)
-metric_cols[0].metric("Average Bank Correlation", f"{avg_corr:.2f}")
-metric_cols[1].metric("Network Density", f"{density:.2f}")
-metric_cols[2].metric("Largest Corr Eigenvalue", f"{largest_eigenvalue:.2f}")
-metric_cols[3].metric("Most Stressed Bank", most_stressed)
-
-st.plotly_chart(
-    plot_network(graph, node_stress, f"{edge_type} Network | Window={window}d | Threshold={threshold:.2f}"),
-    use_container_width=True,
-)
+m1, m2, m3, m4 = st.columns(4)
+m1.metric("Average Bank Correlation", f"{avg_corr:.2f}")
+m2.metric("Network Density", f"{density:.2f}")
+m3.metric("Largest Correlation Eigenvalue", f"{largest_eigen:.2f}")
+m4.metric("Most Stressed Bank", most_stressed)
 
 st.markdown("---")
 
+left, right = st.columns([0.62, 0.38])
+
+with left:
+    st.subheader("Contagion Network Map")
+    st.plotly_chart(network_fig(g, stress), use_container_width=True)
+
+with right:
+    st.subheader("How to read this")
+    st.markdown(
+        """
+        **Nodes** are banks.  
+        **Edges** are strong co-movement links.  
+        **Redder nodes** are under more recent stress.  
+        **Larger nodes** are more systemically central.
+
+        A dense red network means the sector is behaving like one crowded trade.
+        """
+    )
+
+    if density > 0.75:
+        st.error("High network density: diversification across Big Six banks is currently weak.")
+    elif density > 0.40:
+        st.warning("Moderate density: several contagion channels are active.")
+    else:
+        st.success("Low density: bank-specific diversification is relatively stronger.")
+
+    st.markdown("### Current interpretation")
+    st.write(
+        f"""
+        The current average correlation is **{avg_corr:.2f}** and the most stressed bank is
+        **{most_stressed}**. The largest eigenvalue is **{largest_eigen:.2f}**, which measures
+        whether one common systemic factor is dominating bank returns.
+        """
+    )
+
 tab1, tab2, tab3, tab4 = st.tabs(
-    [
-        "Centrality Rankings",
-        "Correlation Heatmap",
-        "Transmission Edges",
-        "Methodology",
-    ]
+    ["Strongest Channels", "Systemic Rankings", "Correlation Matrix", "Methodology"]
 )
 
 with tab1:
-    st.subheader("Systemic Importance Rankings")
+    st.subheader("Strongest Bank-to-Bank Contagion Channels")
     st.markdown(
         """
-        This table explains which banks are most important in the network.
-
-        - **Degree centrality**: how many strong links a bank has.
-        - **Eigenvector centrality**: whether a bank is connected to other important banks.
-        - **Betweenness centrality**: whether a bank acts as a bridge in the network.
-        - **Node stress**: recent volatility and drawdown pressure.
+        This table replaces a meaningless spreadsheet with a ranked list of the most important
+        transmission channels. These are the relationships to watch during a Canadian bank selloff.
         """
     )
+    edges = edge_table(adj)
+    display = edges.copy()
+    display["Correlation"] = display["Correlation"].map(lambda x: f"{x:.2f}")
+    display["Strength"] = display["Strength"].map(lambda x: f"{x:.2f}")
+    st.dataframe(display, use_container_width=True, hide_index=True)
 
-    metrics_df = graph_metrics(graph, adj, node_stress)
-    st.dataframe(metrics_df, use_container_width=True, hide_index=True)
-
-    leader = metrics_df.iloc[0]
-    st.success(
-        f"""
-        Current interpretation: **{leader['Bank']}** ranks highest by systemic importance.
-        In a stress event, this name may matter more because it is tightly connected to the rest
-        of the Big Six network.
-        """
+    top = edges.iloc[0]
+    st.warning(
+        f"Most important channel right now: **{top['Bank Pair']}** with correlation **{top['Correlation']:.2f}**."
     )
 
 with tab2:
-    st.subheader("Bank-to-Bank Co-Movement Matrix")
+    st.subheader("Systemic Importance Ranking")
     st.markdown(
         """
-        This heatmap shows the raw relationship behind the network. Darker / stronger values mean
-        two banks have moved more similarly over the selected window. In crises, these values often rise,
-        which reduces diversification.
+        This ranking identifies which banks are most central in the network.
+        A central bank is not necessarily the riskiest stock, but it may matter more for contagion.
+        """
+    )
+    rankings = centrality_table(g, stress)
+    display = rankings.copy()
+    for col in ["Stress Score", "Degree Centrality", "Eigenvector Centrality", "Betweenness Centrality"]:
+        display[col] = display[col].map(lambda x: f"{x:.3f}")
+    st.dataframe(display, use_container_width=True, hide_index=True)
+
+with tab3:
+    st.subheader("Raw Correlation Matrix")
+    st.markdown(
+        """
+        This is the numerical input behind the graph. Values close to 1 mean two banks are moving together.
+        During systemic stress, these values often rise across the whole matrix.
         """
     )
 
     fig = go.Figure(
-        data=go.Heatmap(
+        go.Heatmap(
             z=adj.values,
             x=adj.columns,
             y=adj.index,
-            colorscale="RdBu",
             zmin=-1,
             zmax=1,
-            colorbar=dict(title="Correlation"),
+            colorscale="RdBu",
             text=np.round(adj.values, 2),
             texttemplate="%{text}",
+            colorbar=dict(title="Correlation"),
         )
     )
-    fig.update_layout(height=550, margin=dict(l=20, r=20, t=40, b=20))
+    fig.update_layout(height=520, margin=dict(l=20, r=20, t=40, b=20))
     st.plotly_chart(fig, use_container_width=True)
 
-with tab3:
-    st.subheader("Strongest Transmission Channels")
-    rows = []
-    for i, source in enumerate(BANKS):
-        for target in BANKS[i + 1:]:
-            rows.append(
-                {
-                    "Source": source,
-                    "Target": target,
-                    "Edge Weight": round(float(adj.loc[source, target]), 3),
-                    "Abs Weight": round(abs(float(adj.loc[source, target])), 3),
-                    "Interpretation": "Strong contagion channel"
-                    if abs(float(adj.loc[source, target])) >= threshold
-                    else "Below display threshold",
-                }
-            )
-
-    edge_df = pd.DataFrame(rows).sort_values("Abs Weight", ascending=False)
-    st.dataframe(edge_df, use_container_width=True, hide_index=True)
-
-    strongest = edge_df.iloc[0]
-    st.warning(
-        f"""
-        Strongest current channel: **{strongest['Source']} ↔ {strongest['Target']}**
-        with edge weight **{strongest['Edge Weight']}**. If one of these names is hit by a shock,
-        this pair is the first place to monitor for spillover.
-        """
-    )
-
 with tab4:
-    st.subheader("Why this page is valuable")
+    st.subheader("Methodology")
     st.markdown(
         """
-        A normal portfolio dashboard treats each bank as a separate investment.
-        A systemic-risk dashboard treats banks as an interconnected system.
+        ### What this page does
 
-        This matters because during stress:
+        It converts bank returns into a graph:
 
-        1. Correlations rise.
-        2. Diversification weakens.
-        3. ETF ownership can transmit selling pressure.
-        4. Common macro exposures hit multiple banks simultaneously.
-        5. The most connected banks can become risk amplifiers.
+        - each bank is a node,
+        - correlations become edges,
+        - recent volatility and drawdown become node stress,
+        - centrality measures identify systemic importance.
 
-        This page is designed to show those relationships visually and quantitatively.
-        """
-    )
+        ### Why this is valuable
 
-    st.markdown("### Senior quant extension ideas")
-    st.markdown(
-        """
-        - Replace correlation with dynamic conditional correlation models.
+        Traditional dashboards show six separate bank stocks.
+        This page shows whether the Big Six are acting like one connected risk cluster.
+
+        ### Senior quant extensions
+
         - Add ETF ownership overlap as a second edge layer.
-        - Add balance-sheet similarity from annual reports.
-        - Use Granger-style lead-lag edges.
-        - Estimate conditional tail dependence instead of ordinary correlation.
-        - Store daily adjacency matrices for temporal graph neural networks.
+        - Add balance-sheet similarity using bank annual reports.
+        - Replace rolling correlation with dynamic conditional correlation.
+        - Add tail dependence using downside-only returns.
+        - Use the graph as input to a temporal GNN.
+        - Store daily adjacency matrices for walk-forward contagion modeling.
         """
     )
