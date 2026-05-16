@@ -2,26 +2,8 @@
   "version": 2,
   "builds": [
     {
-      "src": "public/**/*",
+      "src": "*.html",
       "use": "@vercel/static"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/",
-      "dest": "/index.html"
-    },
-    {
-      "src": "/about",
-      "dest": "/index.html"
-    },
-    {
-      "src": "/(market-overview|systemic-bank-network|contagion-risk-score|stress-testing-lab|rl-portfolio-agent|model-validation|data-catalog)",
-      "dest": "/$1.html"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/$1"
     }
   ],
   "cleanUrls": true,

@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Data Catalog | Canadian Bank Contagion Command Center</title>
+  <meta name="description" content="Canadian bank contagion, macro risk, network stress, and portfolio action dashboard.">
+  <style>
+    :root {
+      --ink: #18212f;
+      --muted: #5d6877;
+      --line: #d7dde5;
+      --panel: #f7f9fc;
+      --blue: #1d5f8f;
+      --green: #1f7a5a;
+      --amber: #ad6b00;
+      --red: #b42318;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: #ffffff;
+      line-height: 1.5;
+    }
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      padding: 12px 7vw;
+      background: rgba(255, 255, 255, 0.96);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(10px);
+    }
+    .nav-link {
+      color: var(--ink);
+      text-decoration: none;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 7px 11px;
+      font-size: 0.9rem;
+      background: #fff;
+    }
+    .nav-link.active {
+      background: var(--blue);
+      border-color: var(--blue);
+      color: #fff;
+    }
+    header {
+      background: #eef4f8;
+      border-bottom: 1px solid var(--line);
+      padding: 48px 7vw 34px;
+    }
+    main {
+      padding: 30px 7vw 56px;
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(2rem, 4vw, 4.2rem);
+      letter-spacing: 0;
+      line-height: 1.04;
+    }
+    h2 {
+      margin: 42px 0 12px;
+      font-size: clamp(1.35rem, 2vw, 2rem);
+      letter-spacing: 0;
+    }
+    h3 { margin: 0 0 10px; }
+    p { max-width: 980px; color: #354153; }
+    .subtitle { font-size: 1.12rem; max-width: 980px; color: #354153; }
+    .pill {
+      display: inline-block;
+      margin: 4px 8px 4px 0;
+      padding: 5px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: white;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin: 22px 0;
+    }
+    .metric, .callout, .chart-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 1px 2px rgba(24, 33, 47, 0.04);
+    }
+    .metric { padding: 16px; }
+    .metric span { display: block; color: var(--muted); font-size: 0.88rem; }
+    .metric strong { display: block; margin-top: 5px; font-size: 1.55rem; }
+    .callout {
+      border-left: 5px solid var(--blue);
+      background: var(--panel);
+      padding: 18px 20px;
+      margin: 20px 0;
+    }
+    .callout.danger { border-left-color: var(--red); background: #fdecec; }
+    .callout.warning { border-left-color: var(--amber); background: #fff4df; }
+    .callout.success { border-left-color: var(--green); background: #e9f7ef; }
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      margin-top: 16px;
+    }
+    .chart-card { padding: 8px; overflow: hidden; }
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 14px 0 26px;
+      font-size: 0.93rem;
+    }
+    .data-table th, .data-table td {
+      border-bottom: 1px solid var(--line);
+      padding: 10px 9px;
+      text-align: left;
+      vertical-align: top;
+    }
+    .data-table th { background: var(--panel); color: var(--ink); }
+    .page-links {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+    .page-links a {
+      display: block;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      color: var(--ink);
+      text-decoration: none;
+      background: #fff;
+    }
+    footer {
+      color: var(--muted);
+      border-top: 1px solid var(--line);
+      padding-top: 22px;
+      margin-top: 40px;
+      font-size: 0.92rem;
+    }
+    @media (max-width: 980px) {
+      .grid, .chart-grid, .page-links { grid-template-columns: 1fr; }
+      header, main, .nav { padding-left: 22px; padding-right: 22px; }
+      .nav { position: static; }
+    }
+  </style>
+</head>
+<body>
+  <nav class='nav'><a class='nav-link' href='/'>About</a><a class='nav-link' href='/market-overview'>Market Overview</a><a class='nav-link' href='/systemic-bank-network'>Systemic Bank Network</a><a class='nav-link' href='/contagion-risk-score'>Contagion Risk Score</a><a class='nav-link' href='/stress-testing-lab'>Stress Testing Lab</a><a class='nav-link' href='/rl-portfolio-agent'>RL Portfolio Agent</a><a class='nav-link' href='/model-validation'>Model Validation</a><a class='nav-link active' href='/data-catalog'>Data Catalog</a></nav>
+  <header>
+    <h1>Data Catalog</h1>
+    <p class="subtitle">Every CSV explained, profiled, and connected to analytical context.</p>
+    <span class="pill">Data through 2026-05-15</span>
+    <span class="pill">Yahoo Finance prices + Bank of Canada yields</span>
+    <span class="pill">Vercel static production site</span>
+  </header>
+  <main>
+    <div class='grid'><div class='metric'><span>CSV Files Found</span><strong>9</strong></div><div class='metric'><span>Total Rows</span><strong>19,293</strong></div><div class='metric'><span>Explained Files</span><strong>9</strong></div><div class='metric'><span>Latest Dataset</span><strong>2026-05-15</strong></div></div><section class='callout info'><h3>Data Traceability</h3><p>Each CSV has a role, explanation, date range, and row count. The Streamlit Data Catalog adds per-file chart exploration; this production page keeps the public lineage visible.</p></section><h2>CSV Inventory</h2><table border="1" class="dataframe data-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>CSV</th>
+      <th>Rows</th>
+      <th>Columns</th>
+      <th>Date Range</th>
+      <th>Role</th>
+      <th>Explanation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>data/processed/model_dataset.csv</td>
+      <td>3607</td>
+      <td>134</td>
+      <td>2012-01-03 to 2026-05-15</td>
+      <td>Feature model table</td>
+      <td>The main analytical dataset. It combines returns, volatility, drawdown, beta, correlations, yield features, and the contagion score.</td>
+    </tr>
+    <tr>
+      <td>data/processed/prices.csv</td>
+      <td>3607</td>
+      <td>13</td>
+      <td>2012-01-03 to 2026-05-15</td>
+      <td>Clean aligned price panel</td>
+      <td>The price table used by pages and backtests after date parsing and incomplete-row cleanup.</td>
+    </tr>
+    <tr>
+      <td>data/raw/boc_yields.csv</td>
+      <td>6524</td>
+      <td>4</td>
+      <td>2001-01-02 to 2026-05-14</td>
+      <td>Live Bank of Canada rates and yields</td>
+      <td>Policy-rate, 2-year, 5-year, and 10-year Canadian yield history. This explains the macro rate backdrop for banks.</td>
+    </tr>
+    <tr>
+      <td>data/raw/market_prices.csv</td>
+      <td>3747</td>
+      <td>13</td>
+      <td>2012-01-02 to 2026-05-16</td>
+      <td>Live Yahoo Finance market prices</td>
+      <td>The current market-data feed used for returns, volatility, drawdowns, correlations, and the dashboard's latest charts.</td>
+    </tr>
+    <tr>
+      <td>data/sample/macro.csv</td>
+      <td>900</td>
+      <td>6</td>
+      <td>2020-01-01 to 2023-06-13</td>
+      <td>Synthetic fallback macro and yield data</td>
+      <td>Provides policy-rate and yield-curve shaped fields when live Bank of Canada data is unavailable.</td>
+    </tr>
+    <tr>
+      <td>data/sample/market_prices.csv</td>
+      <td>900</td>
+      <td>13</td>
+      <td>2020-01-01 to 2023-06-13</td>
+      <td>Synthetic fallback market prices</td>
+      <td>Lets the dashboard run when live downloads are unavailable. It should not be used as real market history.</td>
+    </tr>
+    <tr>
+      <td>data/templates/cds_template.csv</td>
+      <td>1</td>
+      <td>2</td>
+      <td>2024-01-31 to 2024-01-31</td>
+      <td>Manual credit-spread input template</td>
+      <td>A template for 5-year bank CDS or credit-spread proxies. Wider spreads imply the market is demanding more compensation for bank credit risk.</td>
+    </tr>
+    <tr>
+      <td>data/templates/etf_holdings_template.csv</td>
+      <td>6</td>
+      <td>3</td>
+      <td>2024-01-31 to 2024-01-31</td>
+      <td>ETF ownership overlap input template</td>
+      <td>Shows how much each bank is held in an ETF such as XFN. Shared ETF ownership can make selling pressure more synchronized.</td>
+    </tr>
+    <tr>
+      <td>data/templates/housing_stress_template.csv</td>
+      <td>1</td>
+      <td>6</td>
+      <td>2024-01-31 to 2024-01-31</td>
+      <td>Manual housing stress input template</td>
+      <td>A place to enter mortgage arrears, house-price, unemployment, and household-debt assumptions.</td>
+    </tr>
+  </tbody>
+</table>
+    <footer>Educational research only. Not investment advice, not a trading system, and not a regulatory bank risk model.</footer>
+  </main>
+</body>
+</html>

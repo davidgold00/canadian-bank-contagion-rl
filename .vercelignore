@@ -9,6 +9,7 @@ src
 scripts
 configs
 data
+public
 data/raw
 data/interim
 data/processed

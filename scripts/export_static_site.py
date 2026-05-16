@@ -599,8 +599,9 @@ def write_pages() -> None:
     for slug, html in pages.items():
         filename = "index.html" if slug == "about" else f"{slug}.html"
         (PUBLIC / filename).write_text(html, encoding="utf-8")
+        (ROOT / filename).write_text(html, encoding="utf-8")
     ROOT_INDEX.write_text(pages["about"], encoding="utf-8")
-    print(f"Wrote {len(pages)} pages to {PUBLIC}")
+    print(f"Wrote {len(pages)} pages to {PUBLIC} and root HTML files")
 
 
 if __name__ == "__main__":
