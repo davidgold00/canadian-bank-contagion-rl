@@ -1,8 +1,14 @@
 .env
 .venv
+.git
+.github
 .pytest_cache
 __pycache__
 *.pyc
+src
+scripts
+configs
+data
 data/raw
 data/interim
 data/processed
@@ -10,3 +16,5 @@ artifacts
 notebooks
 reports
 tests
+requirements.txt
+pyproject.toml

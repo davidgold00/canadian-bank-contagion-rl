@@ -43,8 +43,9 @@ When bank equities become volatile and highly correlated, the signal is not only
 
 The full Streamlit app remains the richest interactive experience. For public deployment, the repo also includes a Vercel-ready static production export:
 
-- `scripts/export_static_site.py` builds `index.html` from the latest processed dataset.
-- `index.html` is a standalone interactive Plotly command-center snapshot.
+- `scripts/export_static_site.py` builds the eight-page static site in `public/` from the latest processed dataset.
+- `public/index.html` through `public/data-catalog.html` mirror the dashboard pages with shared navigation.
+- `index.html` is kept as a root fallback for simple local preview.
 - `vercel.json` and `.vercelignore` keep the deployment small and cache-safe.
 
 Refresh and deploy:

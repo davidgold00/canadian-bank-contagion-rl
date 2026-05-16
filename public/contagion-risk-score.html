@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Contagion Risk Score | Canadian Bank Contagion Command Center</title>
+  <meta name="description" content="Canadian bank contagion, macro risk, network stress, and portfolio action dashboard.">
+  <style>
+    :root {
+      --ink: #18212f;
+      --muted: #5d6877;
+      --line: #d7dde5;
+      --panel: #f7f9fc;
+      --blue: #1d5f8f;
+      --green: #1f7a5a;
+      --amber: #ad6b00;
+      --red: #b42318;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: #ffffff;
+      line-height: 1.5;
+    }
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      padding: 12px 7vw;
+      background: rgba(255, 255, 255, 0.96);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(10px);
+    }
+    .nav-link {
+      color: var(--ink);
+      text-decoration: none;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 7px 11px;
+      font-size: 0.9rem;
+      background: #fff;
+    }
+    .nav-link.active {
+      background: var(--blue);
+      border-color: var(--blue);
+      color: #fff;
+    }
+    header {
+      background: #eef4f8;
+      border-bottom: 1px solid var(--line);
+      padding: 48px 7vw 34px;
+    }
+    main {
+      padding: 30px 7vw 56px;
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(2rem, 4vw, 4.2rem);
+      letter-spacing: 0;
+      line-height: 1.04;
+    }
+    h2 {
+      margin: 42px 0 12px;
+      font-size: clamp(1.35rem, 2vw, 2rem);
+      letter-spacing: 0;
+    }
+    h3 { margin: 0 0 10px; }
+    p { max-width: 980px; color: #354153; }
+    .subtitle { font-size: 1.12rem; max-width: 980px; color: #354153; }
+    .pill {
+      display: inline-block;
+      margin: 4px 8px 4px 0;
+      padding: 5px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: white;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin: 22px 0;
+    }
+    .metric, .callout, .chart-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 1px 2px rgba(24, 33, 47, 0.04);
+    }
+    .metric { padding: 16px; }
+    .metric span { display: block; color: var(--muted); font-size: 0.88rem; }
+    .metric strong { display: block; margin-top: 5px; font-size: 1.55rem; }
+    .callout {
+      border-left: 5px solid var(--blue);
+      background: var(--panel);
+      padding: 18px 20px;
+      margin: 20px 0;
+    }
+    .callout.danger { border-left-color: var(--red); background: #fdecec; }
+    .callout.warning { border-left-color: var(--amber); background: #fff4df; }
+    .callout.success { border-left-color: var(--green); background: #e9f7ef; }
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      margin-top: 16px;
+    }
+    .chart-card { padding: 8px; overflow: hidden; }
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 14px 0 26px;
+      font-size: 0.93rem;
+    }
+    .data-table th, .data-table td {
+      border-bottom: 1px solid var(--line);
+      padding: 10px 9px;
+      text-align: left;
+      vertical-align: top;
+    }
+    .data-table th { background: var(--panel); color: var(--ink); }
+    .page-links {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+    .page-links a {
+      display: block;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      color: var(--ink);
+      text-decoration: none;
+      background: #fff;
+    }
+    footer {
+      color: var(--muted);
+      border-top: 1px solid var(--line);
+      padding-top: 22px;
+      margin-top: 40px;
+      font-size: 0.92rem;
+    }
+    @media (max-width: 980px) {
+      .grid, .chart-grid, .page-links { grid-template-columns: 1fr; }
+      header, main, .nav { padding-left: 22px; padding-right: 22px; }
+      .nav { position: static; }
+    }
+  </style>
+</head>
+<body>
+  <nav class='nav'><a class='nav-link' href='/'>About</a><a class='nav-link' href='/market-overview'>Market Overview</a><a class='nav-link' href='/systemic-bank-network'>Systemic Bank Network</a><a class='nav-link active' href='/contagion-risk-score'>Contagion Risk Score</a><a class='nav-link' href='/stress-testing-lab'>Stress Testing Lab</a><a class='nav-link' href='/rl-portfolio-agent'>RL Portfolio Agent</a><a class='nav-link' href='/model-validation'>Model Validation</a><a class='nav-link' href='/data-catalog'>Data Catalog</a></nav>
+  <header>
+    <h1>Contagion Risk Score</h1>
+    <p class="subtitle">A 0-100 answer to whether Canadian bank stress signals are clustering.</p>
+    <span class="pill">Data through 2026-05-15</span>
+    <span class="pill">Yahoo Finance prices + Bank of Canada yields</span>
+    <span class="pill">Vercel static production site</span>
+  </header>
+  <main>
+    <div class='grid'><div class='metric'><span>Latest Score</span><strong>61.4/100</strong></div><div class='metric'><span>Regime</span><strong>High</strong></div><div class='metric'><span>Historical Percentile</span><strong>65%</strong></div><div class='metric'><span>Latest Date</span><strong>2026-05-15</strong></div></div><section class='callout danger'><h3>Interpretation: High Risk</h3><p>Systemic pressure is elevated; bank stocks may behave more like one crowded trade.</p></section><div class='chart-grid'><div class='chart-card'><div>                        <script>window.PlotlyConfig = {MathJaxConfig: 'local'};</script>
+        <script charset="utf-8" src="https://cdn.plot.ly/plotly-3.5.0.min.js" integrity="sha256-fHbNLP+GlIXN+efbQec78UkemUz3NJp7UmfGxC1tNxs=" crossorigin="anonymous"></script>                <div id="ce20d1ce-34bc-4946-bed6-9602d92cff33" class="plotly-graph-div" style="height:500px; width:100%;"></div>            <script>                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("ce20d1ce-34bc-4946-bed6-9602d92cff33")) {                    Plotly.newPlot(                        "ce20d1ce-34bc-4946-bed6-9602d92cff33",                        [{"marker":{"color":"#1d5f8f"},"orientation":"h","text":["11.3","33.7","45.4","50.6","61.4","66.3","75.5","78.0","88.6"],"textposition":"auto","x":{"dtype":"f8","bdata":"kA6ayXyWJkCPTGoD2N5AQEvwbf4Ks0ZAcI+dzEtMSUBM1MYSHLBOQL+sMjoUlVBAuv2Pc\u002fvfUkCilO9y239TQJZEFfJAJlZA"},"y":["Oil shock","Financials drawdown","CAD pressure","Yield curve pressure","Composite score","Global volatility","Volatility spike","Bank volatility","Bank correlation"],"type":"bar"}],                        {"template":{"data":{"histogram2dcontour":[{"type":"histogram2dcontour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"choropleth":[{"type":"choropleth","colorbar":{"outlinewidth":0,"ticks":""}}],"histogram2d":[{"type":"histogram2d","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"heatmap":[{"type":"heatmap","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"contourcarpet":[{"type":"contourcarpet","colorbar":{"outlinewidth":0,"ticks":""}}],"contour":[{"type":"contour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"surface":[{"type":"surface","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"mesh3d":[{"type":"mesh3d","colorbar":{"outlinewidth":0,"ticks":""}}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"parcoords":[{"type":"parcoords","line":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolargl":[{"type":"scatterpolargl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"scattergeo":[{"type":"scattergeo","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolar":[{"type":"scatterpolar","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"scattergl":[{"type":"scattergl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatter3d":[{"type":"scatter3d","line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermap":[{"type":"scattermap","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermapbox":[{"type":"scattermapbox","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterternary":[{"type":"scatterternary","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattercarpet":[{"type":"scattercarpet","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"type":"carpet"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}],"barpolar":[{"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"pie":[{"automargin":true,"type":"pie"}]},"layout":{"autotypenumbers":"strict","colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"hovermode":"closest","hoverlabel":{"align":"left"},"paper_bgcolor":"white","plot_bgcolor":"#E5ECF6","polar":{"bgcolor":"#E5ECF6","angularaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"radialaxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"ternary":{"bgcolor":"#E5ECF6","aaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"baxis":{"gridcolor":"white","linecolor":"white","ticks":""},"caxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]]},"xaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"yaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"scene":{"xaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"yaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"zaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"geo":{"bgcolor":"white","landcolor":"#E5ECF6","subunitcolor":"white","showland":true,"showlakes":true,"lakecolor":"white"},"title":{"x":0.05},"mapbox":{"style":"light"}}},"margin":{"l":30,"r":20,"t":55,"b":35},"title":{"text":"Current Component Scores"},"xaxis":{"title":{"text":"0-100 stress contribution"}},"height":500,"paper_bgcolor":"white","plot_bgcolor":"white"},                        {"displayModeBar": false, "responsive": true}                    )                };            </script>        </div></div><div class='chart-card'><div>                            <div id="253c43d0-98ee-4135-b852-bda25115b93f" class="plotly-graph-div" style="height:540px; width:100%;"></div>            <script>                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("253c43d0-98ee-4135-b852-bda25115b93f")) {                    Plotly.newPlot(                        "253c43d0-98ee-4135-b852-bda25115b93f",                        [{"colorbar":{"title":{"text":"Stress"}},"colorscale":[[0.0,"rgb(0,104,55)"],[0.1,"rgb(26,152,80)"],[0.2,"rgb(102,189,99)"],[0.3,"rgb(166,217,106)"],[0.4,"rgb(217,239,139)"],[0.5,"rgb(255,255,191)"],[0.6,"rgb(254,224,139)"],[0.7,"rgb(253,174,97)"],[0.8,"rgb(244,109,67)"],[0.9,"rgb(215,48,39)"],[1.0,"rgb(165,0,38)"]],"x":["2025-11-14T00:00:00.000000","2025-11-17T00:00:00.000000","2025-11-18T00:00:00.000000","2025-11-19T00:00:00.000000","2025-11-20T00:00:00.000000","2025-11-21T00:00:00.000000","2025-11-24T00:00:00.000000","2025-11-25T00:00:00.000000","2025-11-26T00:00:00.000000","2025-11-27T00:00:00.000000","2025-11-28T00:00:00.000000","2025-12-01T00:00:00.000000","2025-12-02T00:00:00.000000","2025-12-03T00:00:00.000000","2025-12-04T00:00:00.000000","2025-12-05T00:00:00.000000","2025-12-08T00:00:00.000000","2025-12-09T00:00:00.000000","2025-12-10T00:00:00.000000","2025-12-11T00:00:00.000000","2025-12-12T00:00:00.000000","2025-12-15T00:00:00.000000","2025-12-16T00:00:00.000000","2025-12-17T00:00:00.000000","2025-12-18T00:00:00.000000","2025-12-19T00:00:00.000000","2025-12-22T00:00:00.000000","2025-12-23T00:00:00.000000","2025-12-24T00:00:00.000000","2025-12-29T00:00:00.000000","2025-12-30T00:00:00.000000","2025-12-31T00:00:00.000000","2026-01-02T00:00:00.000000","2026-01-05T00:00:00.000000","2026-01-06T00:00:00.000000","2026-01-07T00:00:00.000000","2026-01-08T00:00:00.000000","2026-01-09T00:00:00.000000","2026-01-12T00:00:00.000000","2026-01-13T00:00:00.000000","2026-01-14T00:00:00.000000","2026-01-15T00:00:00.000000","2026-01-16T00:00:00.000000","2026-01-19T00:00:00.000000","2026-01-20T00:00:00.000000","2026-01-21T00:00:00.000000","2026-01-22T00:00:00.000000","2026-01-23T00:00:00.000000","2026-01-26T00:00:00.000000","2026-01-27T00:00:00.000000","2026-01-28T00:00:00.000000","2026-01-29T00:00:00.000000","2026-01-30T00:00:00.000000","2026-02-02T00:00:00.000000","2026-02-03T00:00:00.000000","2026-02-04T00:00:00.000000","2026-02-05T00:00:00.000000","2026-02-06T00:00:00.000000","2026-02-09T00:00:00.000000","2026-02-10T00:00:00.000000","2026-02-11T00:00:00.000000","2026-02-12T00:00:00.000000","2026-02-13T00:00:00.000000","2026-02-17T00:00:00.000000","2026-02-18T00:00:00.000000","2026-02-19T00:00:00.000000","2026-02-20T00:00:00.000000","2026-02-23T00:00:00.000000","2026-02-24T00:00:00.000000","2026-02-25T00:00:00.000000","2026-02-26T00:00:00.000000","2026-02-27T00:00:00.000000","2026-03-02T00:00:00.000000","2026-03-03T00:00:00.000000","2026-03-04T00:00:00.000000","2026-03-05T00:00:00.000000","2026-03-06T00:00:00.000000","2026-03-09T00:00:00.000000","2026-03-10T00:00:00.000000","2026-03-11T00:00:00.000000","2026-03-12T00:00:00.000000","2026-03-13T00:00:00.000000","2026-03-16T00:00:00.000000","2026-03-17T00:00:00.000000","2026-03-18T00:00:00.000000","2026-03-19T00:00:00.000000","2026-03-20T00:00:00.000000","2026-03-23T00:00:00.000000","2026-03-24T00:00:00.000000","2026-03-25T00:00:00.000000","2026-03-26T00:00:00.000000","2026-03-27T00:00:00.000000","2026-03-30T00:00:00.000000","2026-03-31T00:00:00.000000","2026-04-01T00:00:00.000000","2026-04-02T00:00:00.000000","2026-04-06T00:00:00.000000","2026-04-07T00:00:00.000000","2026-04-08T00:00:00.000000","2026-04-09T00:00:00.000000","2026-04-10T00:00:00.000000","2026-04-13T00:00:00.000000","2026-04-14T00:00:00.000000","2026-04-15T00:00:00.000000","2026-04-16T00:00:00.000000","2026-04-17T00:00:00.000000","2026-04-20T00:00:00.000000","2026-04-21T00:00:00.000000","2026-04-22T00:00:00.000000","2026-04-23T00:00:00.000000","2026-04-24T00:00:00.000000","2026-04-27T00:00:00.000000","2026-04-28T00:00:00.000000","2026-04-29T00:00:00.000000","2026-04-30T00:00:00.000000","2026-05-01T00:00:00.000000","2026-05-04T00:00:00.000000","2026-05-05T00:00:00.000000","2026-05-06T00:00:00.000000","2026-05-07T00:00:00.000000","2026-05-08T00:00:00.000000","2026-05-11T00:00:00.000000","2026-05-12T00:00:00.000000","2026-05-13T00:00:00.000000","2026-05-14T00:00:00.000000","2026-05-15T00:00:00.000000"],"y":["Bank volatility","Bank correlation","Financials drawdown","Global volatility","Volatility spike","Yield curve pressure","Oil shock","CAD pressure","Composite score"],"z":{"dtype":"f8","bdata":"EoJx5bnqQUDi0En7IBlCQIRiTtsA+kJAN36MKOTCRECNJvJgWY5FQG\u002fzV5jVKEdAKtUrzWNFR0BkSvc8VatJQOPMZTd8mkpAg2wIxZy2RkCesCvOXHZGQFS0EYRjR0lAnrMWYViVTECOHTGoZjFMQGgl+ijh11BAw6pUrzQPUUBx6pbf4ktRQH6MKOTCK1FAVqZz1iKMUUAXX2YzmFZRQJfc9zhxZ1BAWZXqleYxUEDIh0n9EntQQALyYVK\u002fRFFAVLIfIhEIUUB2x4stwbdQQOyQCb3UrlBAn6dqFWqZUEBqGFWsSfxPQMOvMaSCbU9AY03iz1DKT0BEKOa0DSBQQJ6sRwq4905A9E\u002fQTd\u002fkTUDRRRdddNFPQAq\u002fxpAKtklAWoswrEr1SEAm8mBZjhtIQHPb\u002fwD5MEhAuuiiiy66RkDopXbBtQdGQAXe7X6HS0ZAGkvyX2BdRkCbyINlOW5FQK1GEYdO2kZAv8tt\u002fwPkRUDlvc5Ykv9EQCzQTtgVZ0VAeq1BNJIARkAyoJ6pXHdHQNJHCb\u002fGkEtAnqdqFWoZTUBEIRdebQJPQLvf4dI73VBADKxL7nscUEDOXW\u002f0UMlOQOqV5rEiDU9ALrvh0zQOUEBhWodM6KVQQNcjBdz7nFBAtgjDqlQvUUBL8l9gXXJSQC+0En2UcFJAyIZQzGmbUkBUsSbxZyhTQOLQSfsgGVJAB9QzleuOUkChmsWY0j1TQO2DZEA9U1NALcSijCfrVUDUMpy65TdWQNcgGkkA\u002flZAu+LMZTf8VkA\u002fSAbUMxVXQMG5640eqlZAU7vg2gPlVkCgnqlcdzxXQH2PE3e+SldAD5fe6ZpDV0Cnb\u002fJeZyxXQJnNYFqHTFdAYlHGk\u002fVIV0D7IwTjynNXQN\u002fltv8BcldAvdYgGkmAV0AyoJ6pXHdXQB4txKKMp1dAhlSwLcC+V0AXXHugnLdXQKKS\u002fRCJwFdAWoZTt\u002fwWV0Bz1iIMq1JWQNI+SAbUs1VAkgLufY4aV0AcOXDueiNXQAfMaw2iEVdAhGYyn6X4VkClgXTQTGZWQKV7nqpVqFZAg2wIxZy2VkAG0kEzmc9WQDxgXmsQDVZAOmY0kQfLVUAPmNcaRCNVQEcOnLveaFVAYlK\u002fxJ4oVUATe6KOGU1UQFaleqV5rFNAhVx4tQk8U0CayXyW4k1TQBCT+iX2RFNAZTd8msYRUEAzl93waRpOQEQiEI8WYlBApINmMp+lTkDueLEl+DZOQGJUsSbx51BAmdBL7YLrUEDWIgyrUr1SQHydsST\u002fhVJA3P8A+TApUkBYmseKNBBSQGU8WY8U8FFAKt3zVK3CUkDMbvg0jaNTQKKU73Lbf1NAwXu+MW0CIkCvesNv9oEhQIrPjBneSCFAL8\u002fj2AseIUBTehovJFchQNMl+sUOuyFAwST\u002fA5g6IUBlexXxmtchQAeKJkxHsyhAKT\u002fZtF6bLUBmJFbDxQ8xQHcqjw685zNAW7BzOUmqNkBALNxR1700QBovJFdpFDZASQH6GyiaNEAbKubN6bwzQPd+r3fRgzNA5X20tVoDM0CKJkxHsxAyQEr8u5KoQjJAuP1flfHtMkDT03ghuUozQImCSf4HMDVAm4NEwH6wNUDsXE6Sqo43QFCJ1MqiXThAkLNkf60rOEApkVpZtAs8QI9mIWTXEjxAjr3gkazaPEDWag1sshQ+QEQV8kAm+D1Aq40VRg5oQECG5xx5dYZCQMpQ3Pu93kFARg8OacAoQUAW7FxOkqo+QPFAJvh5cT5Acj6HM7pFPUCGjMUQB985QEYLdi4nSTlAJK2C8+QoNUDardR0iX41QLS1WgObLDlAGoshDr4zOUAaNGLg6Gs4QKyJfQt1iDhAEF9EFpiPOEA\u002fg5t\u002frIU1QO6pka2ApzNAd3wQsxFYMkA2V76HhuE0QKwyvt2fwDdAPzEa21YVN0DR2LaqOKI1QKUBo1z6xDRAo68huKRUNkC+M7mfFkE4QBEIhejCxzdAIQ6+M7mfOkBYEa95HSE8QPQ2quV6wjlAvop4zesIOUAZ4uA7k\u002fs5QCvj2\u002f0JfDpABT3jMHGaPEBFvjITUTA9QGCUS58YjT1APeMwcZqEQEDGu5NOkQQ8QIp4zesIgUBAZs2WlfBHQEDLol2gE09AQI3CHhssMj9AckPFvDmdP0DcUde9NF9CQPgn8En8u0JArihCy6ARQ0AX67b\u002fqzJEQH8E62GMG0ZAsRoufgiDRkDDcuhtVMtHQCdIr3h30kdA3kgB+hsoSECs4Dw5SlBJQOxhjBsq5klAj2YhZNcSTECr5XrCyadLQH285c81WkxAF5WdIL3iTUA8QNR21RtOQGQqOpsr301A6MNtquTUUEBmJFbDxQ9RQJ15yK1\u002fAVFALITsWgL1UEBk2V5FvOZQQHglUYU8kFFAzubK99AwUkAlqERqZdFSQB4eHh4eHlNAnH4GN\u002f9YU0CV9N\u002fqt6VTQBsq5s3pvFNAniC94t1JVEAtK+GPYD1UQHCgaMJ0NFRAOUv217pCVEB+C3WI2GJUQDB22A1qZlRAy6ARA0dfVEASrIcxbqhUQIvNQHwRWVVAIG5TJaeeVUBLo7DHBotVQDaufbVbqVVAQxmKe7\u002fXVUDYuZwkVR1WQDS6RWUnSFZAHHob1XI9VkDNmYfc+hdWQATv+ca0CVZAgU\u002fi35VEVkBoxMDR1xBWQJZEFfJAJlZAri2J5Pa\u002fSEAWxfF7X9dKQBbF8Xtf10pAkpK220gAS0AlbbeRACRMQENP1XMeBkJA7YBaXBHKNED54dSYQnQhQPnh1JhCdCFA+eHUmEJ0IUD54dSYQnQhQNu2bdu2bUVARk3XcSAEPUB9y8Zd66Y3QPnh1JhCdCFA+eHUmEJ0IUD54dSYQnQhQPnh1JhCdCFA+eHUmEJ0IUD54dSYQnQhQPkrHXWvmT5A+eHUmEJ0IUCgqOk6DoQ8QOrMoDp88UZAjk1pBNffN0D54dSYQnQhQPnh1JhCdCFA+eHUmEJ0IUD54dSYQnQhQPnh1JhCdCFAOjOoDl98OECnD159OTRBQPnh1JhCdCFA+eHUmEJ0IUATf6Wj7rVAQM95GAw9VUhAWDrqXjPxREA0FX2nofBAQDPxVzrqXkFAhejyw6kxSEDaSv6TkLhGQBN\u002fpaPutUBAjeD6u7EpQkCPlbPeRQNHQOP4va8rC1BA6jkPg6GnTECycta7aOBLQHf349KaQE1Az548evPnTkDC0FP1nAdQQDPNMs0yzVFAdmVRHL\u002f3UEDnhVVhDE9SQKBgn2CfYE1AfKig8TIWT0DZk0dv\u002ftxMQPgH+Af4B09ACEFR03UcSUDyMhZ8qKA9QPnh1JhCdCFAQ5geT4wqSEBmURy\u002f93VNQP+TkLjZSkpAZMCICRsuSEAQFTRexoJDQByb0giuv0ZAk7bbSACSOkA4f+7syaNKQJv3LBx2rkpA+eHUmEJ0IUD54dSYQnQhQE2yTbJNskxAEabHE6PKSECgFleEMjtQQPEO8Q7xDk5AK7AGZ3RCUUCb0giuvxtUQIoIHC1lv1RAUdN1HAjBU0AntAJrcEZUQDbKNco1ylVADD1Vz3kYVkCjgcfKWW9UQL0emNUFsVNAFnyooPGyVEAMz+eFVeFVQMFj5ax30VZAcP3d2JRGVUA3gO3tyCRVQAceK2e9C1RAqnrOw2BoVUDjr3TUvWZWQE77lo27VlZA7sikNoDtU0DOehcNPNZSQI3g+ruxKVJAp33Lxl1rUUC4R7hHuMdQQKKn6jkPg0VAX1cWxfF7NUD54dSYQnQhQPnh1JhCdCFA+eHUmEJ0IUD54dSYQnQhQJjVBbG8HkBA+eHUmEJ0IUD54dSYQnQhQFheD8zqgkRAK\u002flPQuJmR0CpMoTp8URGQKkyhOnxREZANF7Ggg8VR0AFRE7Wch9FQAT9Av0C\u002fUxA+eHUmEJ0IUC7siiO3\u002fs0QPyWjbvWTUZAHAhBUdN1PED54dSYQnQhQMl\u002fEhI3W0BA+JmKvtNQMkDd2JRGcP0\u002fQECbG1KJLTRAh1RiC9DmRkD54dSYQnQhQI9MagPY3kBADiSc2AxtUkA2nDEDpc1UQAAWxk\u002fEHlZAfZ1zVZSaVUCdGl\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\u002fh0F\u002fCtAL4bQXQyhUUCuePdb8e4jQCiLBVEWC0ZAIjtgQ3bAVUBNi8yZFplXQPnM7vCZXU1ApCo0SVWoVkC1Vi5qrVxXQEsbQJU2gFdAK\u002fuRVfYjNkCC8EQD4QlCQBgmVDBMqCBAssp+ZJX9AEBxb3Dh3uASQPDvKODfURhAMS8UYl4oEEDZARuyAzYUQH6BKfwCUxBAJnBTTeCm+j\u002feb8W734onQNMGUKUNoDhAsK\u002fMYF+ZNUDkhyTHD8lHQNfKRa2Vi1JAAVXaAKo0UUCfoGY+QU1TQCapCk1S1VJAeTAT8WCmQUAS8tEj5KM2QJwUtzgpbklA6Esaz5c0LkBx\u002fQHi+gM2QCbGnkuMvU1A0ni+pPF8RUBhQgXDhAo6QKUqNElV6ExAXyjEvFAITUDOtMicaZFLQIYJFQwTqlBAwKOAf0cBUEA0n6BmPsFMQLr9j3P731JAEOCN96B8QUDmzK8lm\u002fpBQH+cldyE0EBAf5yV3ITQQEDxNThYIyJBQAjl41PubkBA8TU4WCMiQUDxNThYIyJBQAeBCnRrWkJAdQajkWShQkAHgQp0a1pCQAjl41PubkBAIIjOrkciP0BLpbEvoKk+QC4FYT91VD5AX9x57ULXP0Bf3HntQtc\u002fQEBI6p2JG0BAS6WxL6CpPkAuBWE\u002fdVQ+QMCsMjoUFT1Au8WS9AYSPEDArDI6FBU9QMCsMjoUFT1AiVMxn8ttPUBaF2GYaww5QJJD+BocrDlAuh9nJTchOkC7xZL0BhI8QLvFkvQGEjxAu8WS9AYSPEDkzmsXuo47QFoXYZhrDDlAuh9nJTchOkDlD+CN96A6QLvFkvQGEjxAu8WS9AYSPEC7xZL0BhI8QOTOaxe6jjtAWhdhmGsMOUC7xZL0BhI8QDuvXeg6jjxAu8WS9AYSPEC6H2clNyE6QN1BoALdmjhAkkP4GhysOUDkzmsXuo47QIlTMZ\u002fLbT1AsS+gqebiPUC7xZL0BhI8QOTOaxe6jjtA5Q\u002fgjfegOkCSQ\u002fgaHKw5QFoXYZhrDDlAkkP4GhysOUC6H2clNyE6QLofZyU3ITpAuh9nJTchOkC6H2clNyE6QLvFkvQGEjxAwKwyOhQVPUBwbRbcFRQ\u002fQF\u002fcee1C1z9AX9x57ULXP0BLpbEvoKk+QCCIzq5HIj9AIIjOrkciP0DxNThYIyJBQBDgjfegfEFAEOCN96B8QUDmzK8lm\u002fpBQObMryWb+kFAB4EKdGtaQkCZ+3FWchNCQObMryWb+kFAf5yV3ITQQEBASOqdiRtAQAeBCnRrWkJAEOCN96B8QUB\u002fnJXchNBAQO+a77C1AERA9OVo1kUYQ0B1BqORZKFCQHUGo5FkoUJA75rvsLUAREBwj53MS0xJQPlGqEuazktACPupo7INSkAq5nO5bXpJQKCTIJOx1klAPUqmj6ivSUAm\u002f9NzYHdIQCb\u002f03Ngd0hAPa5\u002fbyvER0Cw4mqSNzdFQDj0SUK2yEVAPa5\u002fbyvER0AMc43h2ixIQHklkBdse0dABa9SBRMsRkDRwy\u002f5n55EQAWvUgUTLEZAOPRJQrbIRUCw4mqSNzdFQO+a77C1AERABa9SBRMsRkCw4mqSNzdFQCJPo\u002fU9gUZAeSWQF2x7R0Am\u002f9NzYHdIQD2uf28rxEdABa9SBRMsRkAm\u002f9NzYHdIQGAIBo3LFEpAcI+dzEtMSUA9SqaPqK9JQGAIBo3LFEpAL\u002fp9FxOFSUAq5nO5bXpJQD1Kpo+or0lAo9SUCe\u002foSEBhP3VUtiFJQEvHOCDW4UhANlkBm0inSEBwj53MS0xJQHCPncxLTElAsxpFHDppQEBcd7zYEnxBQMDCrEYRhzxANYo4dNI+REAsyX+BdclHQGgkAfg3+FJAeLvf4dI7UUClfZAMqGdSQCjjyXqkAE9AKOPJeqQAT0A2hlSwLUBQQGkkAfg3eE9AoKGU73LbUEAIzl1v9FBPQPwcNYwq1klA0z1P1SrUR0BSvstt\u002fwNNQPc+Rw2jClBA9FWmc9YiUUDWIwXc+xxNQBlTuuepWk5Ax4wm8mBZUkAo6KZv8l5UQKxN4N3ud1RAZjCtQyZ0UkChm77Jex1RQPZFFmRDKEpACcSjhViUS0DOWoRhVapIQMxqFHHoJExAzGoUcegkTEBO2wD6KdpNQKV+iT1RR1BArUQfJfwaS0BsCMWctgFQQHfAvNYgGlNA5b\u002fAuuS+UEAq2gjCsSNJQFaqV5rHikVADaZ1yIReQEAWY0r3PFU1QKKOGU3kwUNAgm\u002fzV5hVQECCb\u002fNXmFVAQJEJvdQuuDRAgnPXGz1UNECvNoF3u98\u002fQI0iDp20Dz5AEoJx5bnqQUC90Er0UcI3QGwNopEE4DFAmsp1x4stIUAl9UvsiToeQG\u002f1Sfon6DJAms9SvNkLM0B02Q2fpnEcQNBSvNkLrSBAXH2S\u002fgm6LUDTOmRCL7UxQE\u002fTOHLg3DVAQTSSAPwbPECvOmU7YF5HQKlcd7zYEjpAAfc+Rw2jP0AB9z5HDaM\u002fQE3nrEUYVi1AUsShk\u002fZBMEAPmNcaRCMlQAu1DKdu+TVAZy+0En2UNEAiE3qpXXBAQDeBd7vf4TpAh1HFmsSfMUCOGFSzGFMaQMaW4Nv8FQZAjhhUsxhT+j+65L7HiTvvP7Awq1HEoeM\u002fPFqIRRlP9j\u002f9FG0E4djxP4o+Svg1huQ\u002f\u002fRRtBOHY4T88WohFGU\u002fmP0r5Lrf9D+A\u002fL7vh0zSO3D\u002fJg2U5bvzoP+91xpL8F+g\u002fij5K+DWG9D9K+S63\u002fQ\u002fwPxCOHTGoZvE\u002fopEE4N\u002fg6T8jB85db\u002fTgP+LWHyEYV94\u002fVa1CLcOp6z+wMKtRxKHzP2NM6Z6nauU\u002fN4B+ijaC8D+65L7HiTv\u002fP9Yq1DKcukpA8mFSv8SeEEAKv8aQCrYpQA6fpnHkwEJAWJnOWYswVEB00j5IBtROQMiBc9cbPU1AtBGEY0cMV0By48eIQq5TQMOpW36LL1NAZyvQTtgVPUDNY0UaSAdCQFmPFHDvc0BAOmY0kQfLRUBbf4RgXHlJQP0UbQTh2EFA3Pkq0zlrQkBK\u002fBlK+S5GQB4q2Q+RiFFAD5jXGkQjVUC90Er0UcJXQIRlOW78GElA6pXmsSINT0DxZD1SwL1GQHm0EIsynkNAxaCaxZjSKUCEZTlu\u002fBgpQJAOmsl8liZA+DtceqdrRkAPmNcaRCNFQPZFFmRDKEpA0z9BN32TQ0DyXW77HyBJQMiGUMxpG09AAfc+Rw2jT0D7HyAfJvVPQGNN4s9Qyk9AnqxHCrj3TkBx6pbf4stNQM1hU7j1R0ZAsSnc+iMERkAcPFuBdsJAQBw4d73RQzlAXXPYFG79OUB0z1O1CrUoQFiZzlmLMDRAv8tt\u002fwPkNUDXHS+2BN8wQKhrDpvCrS9AxaCaxZjSKUD4MpvBtA4tQMaW4Nv8FSZAMqKQC682M0COGFSzGFMqQGNM6Z6naiVAwbzWIBpJIEB+iy+zGUwTQEIzmc9SvBFA\u002fwLrkvseH0BkQi+1C64hQEE0kgD8GyxA2gbQT9FGLECwMKtRxKEzQAbc+xw1jDpA+Dd4tgLtPkDFoJrFmNJJQIlGEoB\u002fg0xA\u002fBw1jCrWSUCX4dQtv8VOQCvRRwm\u002fxk9A48tsBtM6UECEaR0yoZdQQAysS+57HFBAfZP3OmNJS0B7pIB7n6NMQJfZDKZ1yEZACrzb\u002fQ6XQ0AXYViV6pVJQEA\u002fRRtBOEFAdM9TtQq1OECtSAPpoJkyQJL\u002fAuuS+0BA9kn6J+imQUCDahZjSvc6QIRlOW78GDlAP0cNo4o1OUAbQTh2xKAyQJ2481Wmcx5AuPZAOW\u002f1IUD1TtccNoUjQNz8FWY1iihAZEMo5rQNLEDBvc9Rw6gqQJy81xlL8jVAYVajiEMnOUBrEn+GUr4zQBpIB81kPkBAyX6IRCAeR0BfZEE2hGJEQGNIBdsC7E1AtBRv9kKrUEAF2gm74kxSQCjrkQLufUpATOuQCb3UREAm9z1O3PlJQHTYFG79EUJAEI8WYlHGO0AeMK81iEZBQOPMZTd8mkpAJQH4N3i2TUAxqV9iT9RQQPgym8G0Dk1Aopbh1C2\u002fS0AuwL7IgmxOQHTUMKpYk0pA5bvc9j9ASUCT+SzFm71NQDxdc9gUbkxAiEYSgH8DUECJRRlP1iNSQAPrkvsep1NA8mU2g2mdVEBdcO2Bct5TQNgcNoVb\u002f1JAEYwrz1WnVUDNYkzpnidUQF9qF1x7IFRAG0A\u002fRRvBVEB6qGQ\u002fRCJUQCMLsiEU81RAqGYxpnRPUUBIC7Eo48lLQMKxIwbVLEtA1TGjiTxYSEA5cuDc9UZFQLnxY0QhF0BAMqKQC682Q0BoKtcdL7ZCQMmAeqZy3UJAHyAfJvVLOkBsCMWctgEwQKGV6KOEXzFAmstu+DSNK0Dqm7zXGUsiQKOHSvZDJCZAUcl+iEQgIkAm9FK74NojQM9Xmc5ZizJAgnPXGz1UNEDMaw2ikQQ6QCb0Urvg2jNAkAuvNoF3QEAwrjxXnbJCQEvwbf4Ks0ZAOZ0sparrREDQFbMaVkxGQKgQ91\u002fJ\u002fEZAZ6RsazQwR0BQFe4bVRdIQJOfqREx2UVAEDQXxbhbQ0AwvJ5Cm8FBQPLjnaWQgEFAPo\u002fq+hb6QEA5JN9G2XxAQFWksMuedUVA25d4siB4REByb+SLgT1DQO9W0riGp0JAuwZlJMFIQkA2YjXKNWVDQAbw673vi0NAksuimrOhQkC1dQqGb7JBQGaew5xRT0RATAKZNn\u002fKQkDsIt117uZEQEAcULzY8UdAy4OV8gwvRUBIWaOBtQZCQAA5fOWaVUFAoWvp3\u002fwxQUD+UFlqu7ZAQG4N3tzSbUFAMHqOWeNGQ0DNhlvPOAZFQI60cpupykFA5RrJeMk3QkCE\u002fHWzXlxFQMWi69OcDkZAa\u002f6qnKUvRUCGs\u002f1BGPpCQIp7M\u002fXDpENAvo3O2DVYRUC0p0eVcEVFQMJ0bBYvP0NASzD5XtIxQ0BmThUMtgJEQOQLg\u002fKrI0lAAY+t+nV+RkCJsGHaIvxEQN1CtKbhv0VADAS4pA5DRkCXC5bWv6pGQMTq+Yo0B0hAl5rcicVXSEAeCQ7jVulJQJgQFEqpZEhAiQ78JrWXSUCnqjcILxVJQOZc61aEz0pA64a3791ySUBcBrNRgVBGQBxmzZxMX0RA6dm6BPLDSEC\u002f2er\u002fnAlMQJ4RFV9TEktAGkztWu5+SkBJxivH1KZJQC4TBWkcJ0pAR4NcFp0oSEBZs7Dc+PdLQIJsJjP4dEtA6BVRyr92R0ACwG8ZLH1HQDAf+iYjwU1AQU1A6KKLTUDDJRdOOMBPQABHMN4wPk5AD0JZaeYCUEAZwtnbm1BRQDKLkRLzN1FANVOKQ8ADUUDcqWWPzCNRQNk5zrPq5lFAnE8a0sr9UUDwLDvjloJRQMf1LDlGN1FAIciIdGXCUUC3eKmgyv5RQJ10n7qlhFJAks9psPFmUkBQAGNomGFSQNBhIjqhGVJAvjlhWFKPUkCdDSxsYtBSQMktK826pFJAsG6ER3V3UkAnXbO3tztSQKRLK\u002fP1\u002f1FAbgHec8LaUUDI+pUlVMJRQD4zqXINI1BAXfnKnNfFTUCjQG2236tMQLkRU+\u002fybkxAq3tMz3b4S0AOAOC5aLxLQNI4AVfgFE5AjEhEnI2RS0ADhtfoDQlMQBTwPIkNUk9AsLuwdvtuT0BzK95rmnpPQIIQlCN0J09AHo+JcImlTUDn6p4iddNMQBIfMyPCy09Aw1PGNTdcSUBqNwbhfolKQFxDU6lkeU5AhDu4Rn1rTEBi\u002f0apy0RLQFjnzzT3ZU1Anj+T9d7hS0BUJs+y0eRNQAmOr3xXbkxA+Zc1oOZNT0AmIFYyu4FLQEzUxhIcsE5A","shape":"9, 126"},"zmax":100,"zmin":0,"type":"heatmap"}],                        {"template":{"data":{"histogram2dcontour":[{"type":"histogram2dcontour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"choropleth":[{"type":"choropleth","colorbar":{"outlinewidth":0,"ticks":""}}],"histogram2d":[{"type":"histogram2d","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"heatmap":[{"type":"heatmap","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"contourcarpet":[{"type":"contourcarpet","colorbar":{"outlinewidth":0,"ticks":""}}],"contour":[{"type":"contour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"surface":[{"type":"surface","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"mesh3d":[{"type":"mesh3d","colorbar":{"outlinewidth":0,"ticks":""}}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"parcoords":[{"type":"parcoords","line":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolargl":[{"type":"scatterpolargl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"scattergeo":[{"type":"scattergeo","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolar":[{"type":"scatterpolar","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"scattergl":[{"type":"scattergl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatter3d":[{"type":"scatter3d","line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermap":[{"type":"scattermap","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermapbox":[{"type":"scattermapbox","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterternary":[{"type":"scatterternary","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattercarpet":[{"type":"scattercarpet","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"type":"carpet"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}],"barpolar":[{"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"pie":[{"automargin":true,"type":"pie"}]},"layout":{"autotypenumbers":"strict","colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"hovermode":"closest","hoverlabel":{"align":"left"},"paper_bgcolor":"white","plot_bgcolor":"#E5ECF6","polar":{"bgcolor":"#E5ECF6","angularaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"radialaxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"ternary":{"bgcolor":"#E5ECF6","aaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"baxis":{"gridcolor":"white","linecolor":"white","ticks":""},"caxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]]},"xaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"yaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"scene":{"xaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"yaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"zaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"geo":{"bgcolor":"white","landcolor":"#E5ECF6","subunitcolor":"white","showland":true,"showlakes":true,"lakecolor":"white"},"title":{"x":0.05},"mapbox":{"style":"light"}}},"margin":{"l":30,"r":20,"t":55,"b":35},"title":{"text":"Stress Breadth Over the Last Six Months"},"height":540,"paper_bgcolor":"white","plot_bgcolor":"white"},                        {"displayModeBar": false, "responsive": true}                    )                };            </script>        </div></div></div><h2>Bank Contributors</h2><table border="1" class="dataframe data-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Bank</th>
+      <th>Name</th>
+      <th>21D Return</th>
+      <th>21D Volatility</th>
+      <th>63D Drawdown</th>
+      <th>Node Stress</th>
+      <th>Action Readout</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>BMO.TO</td>
+      <td>Bank of Montreal</td>
+      <td>3.4%</td>
+      <td>19.2%</td>
+      <td>-0.7%</td>
+      <td>68.3/100</td>
+      <td>Monitor closely</td>
+    </tr>
+    <tr>
+      <td>CM.TO</td>
+      <td>CIBC</td>
+      <td>4.1%</td>
+      <td>19.6%</td>
+      <td>-0.2%</td>
+      <td>64.6/100</td>
+      <td>Monitor closely</td>
+    </tr>
+    <tr>
+      <td>NA.TO</td>
+      <td>National Bank</td>
+      <td>2.8%</td>
+      <td>14.6%</td>
+      <td>-1.5%</td>
+      <td>63.2/100</td>
+      <td>Monitor closely</td>
+    </tr>
+    <tr>
+      <td>BNS.TO</td>
+      <td>Scotiabank</td>
+      <td>3.3%</td>
+      <td>17.9%</td>
+      <td>-0.7%</td>
+      <td>57.5/100</td>
+      <td>Monitor closely</td>
+    </tr>
+    <tr>
+      <td>TD.TO</td>
+      <td>Toronto-Dominion Bank</td>
+      <td>4.1%</td>
+      <td>17.0%</td>
+      <td>-0.2%</td>
+      <td>49.5/100</td>
+      <td>Monitor closely</td>
+    </tr>
+    <tr>
+      <td>RY.TO</td>
+      <td>Royal Bank of Canada</td>
+      <td>5.4%</td>
+      <td>16.3%</td>
+      <td>0.0%</td>
+      <td>36.4/100</td>
+      <td>Lower relative stress</td>
+    </tr>
+  </tbody>
+</table>
+    <footer>Educational research only. Not investment advice, not a trading system, and not a regulatory bank risk model.</footer>
+  </main>
+</body>
+</html>

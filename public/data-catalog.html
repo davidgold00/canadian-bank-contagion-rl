@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>About the Canadian Bank Contagion Simulator | Canadian Bank Contagion Command Center</title>
+  <title>Data Catalog | Canadian Bank Contagion Command Center</title>
   <meta name="description" content="Canadian bank contagion, macro risk, network stress, and portfolio action dashboard.">
   <style>
     :root {
@@ -159,16 +159,101 @@
   </style>
 </head>
 <body>
-  <nav class='nav'><a class='nav-link active' href='/'>About</a><a class='nav-link' href='/market-overview'>Market Overview</a><a class='nav-link' href='/systemic-bank-network'>Systemic Bank Network</a><a class='nav-link' href='/contagion-risk-score'>Contagion Risk Score</a><a class='nav-link' href='/stress-testing-lab'>Stress Testing Lab</a><a class='nav-link' href='/rl-portfolio-agent'>RL Portfolio Agent</a><a class='nav-link' href='/model-validation'>Model Validation</a><a class='nav-link' href='/data-catalog'>Data Catalog</a></nav>
+  <nav class='nav'><a class='nav-link' href='/'>About</a><a class='nav-link' href='/market-overview'>Market Overview</a><a class='nav-link' href='/systemic-bank-network'>Systemic Bank Network</a><a class='nav-link' href='/contagion-risk-score'>Contagion Risk Score</a><a class='nav-link' href='/stress-testing-lab'>Stress Testing Lab</a><a class='nav-link' href='/rl-portfolio-agent'>RL Portfolio Agent</a><a class='nav-link' href='/model-validation'>Model Validation</a><a class='nav-link active' href='/data-catalog'>Data Catalog</a></nav>
   <header>
-    <h1>About the Canadian Bank Contagion Simulator</h1>
-    <p class="subtitle">A financial-engineering project that turns bank, macro, and network data into decisions.</p>
+    <h1>Data Catalog</h1>
+    <p class="subtitle">Every CSV explained, profiled, and connected to analytical context.</p>
     <span class="pill">Data through 2026-05-15</span>
     <span class="pill">Yahoo Finance prices + Bank of Canada yields</span>
     <span class="pill">Vercel static production site</span>
   </header>
   <main>
-    <div class='grid'><div class='metric'><span>Contagion Risk</span><strong>61.4/100</strong></div><div class='metric'><span>Regime</span><strong>High</strong></div><div class='metric'><span>Avg Bank Vol</span><strong>17.4%</strong></div><div class='metric'><span>Avg Bank Corr</span><strong>0.79</strong></div></div><section class='callout danger'><h3>Core Question</h3><p>When stress rises in Canadian financial markets, how might it spread across the Big Six banks, and how should exposure adapt?</p></section><h2>How the System Works</h2><p>Data becomes features, features become a bank network and risk score, scenarios turn that score into stress paths, and the allocation layer translates risk into portfolio posture.</p><div class='page-links'><a href='/market-overview'><strong>Market Overview</strong><br><span>Current regime, drivers, and economic context.</span></a><a href='/systemic-bank-network'><strong>Systemic Bank Network</strong><br><span>Contagion links and systemic bank centrality.</span></a><a href='/contagion-risk-score'><strong>Contagion Risk Score</strong><br><span>Score decomposition and decision rules.</span></a><a href='/stress-testing-lab'><strong>Stress Testing Lab</strong><br><span>Scenario propagation and portfolio impact.</span></a><a href='/rl-portfolio-agent'><strong>RL Portfolio Agent</strong><br><span>Risk-aware allocation and cash posture.</span></a><a href='/model-validation'><strong>Model Validation</strong><br><span>Out-of-sample stress-prediction credibility.</span></a><a href='/data-catalog'><strong>Data Catalog</strong><br><span>CSV inventory, explanations, and data lineage.</span></a></div>
+    <div class='grid'><div class='metric'><span>CSV Files Found</span><strong>9</strong></div><div class='metric'><span>Total Rows</span><strong>19,293</strong></div><div class='metric'><span>Explained Files</span><strong>9</strong></div><div class='metric'><span>Latest Dataset</span><strong>2026-05-15</strong></div></div><section class='callout info'><h3>Data Traceability</h3><p>Each CSV has a role, explanation, date range, and row count. The Streamlit Data Catalog adds per-file chart exploration; this production page keeps the public lineage visible.</p></section><h2>CSV Inventory</h2><table border="1" class="dataframe data-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>CSV</th>
+      <th>Rows</th>
+      <th>Columns</th>
+      <th>Date Range</th>
+      <th>Role</th>
+      <th>Explanation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>data/processed/model_dataset.csv</td>
+      <td>3607</td>
+      <td>134</td>
+      <td>2012-01-03 to 2026-05-15</td>
+      <td>Feature model table</td>
+      <td>The main analytical dataset. It combines returns, volatility, drawdown, beta, correlations, yield features, and the contagion score.</td>
+    </tr>
+    <tr>
+      <td>data/processed/prices.csv</td>
+      <td>3607</td>
+      <td>13</td>
+      <td>2012-01-03 to 2026-05-15</td>
+      <td>Clean aligned price panel</td>
+      <td>The price table used by pages and backtests after date parsing and incomplete-row cleanup.</td>
+    </tr>
+    <tr>
+      <td>data/raw/boc_yields.csv</td>
+      <td>6524</td>
+      <td>4</td>
+      <td>2001-01-02 to 2026-05-14</td>
+      <td>Live Bank of Canada rates and yields</td>
+      <td>Policy-rate, 2-year, 5-year, and 10-year Canadian yield history. This explains the macro rate backdrop for banks.</td>
+    </tr>
+    <tr>
+      <td>data/raw/market_prices.csv</td>
+      <td>3747</td>
+      <td>13</td>
+      <td>2012-01-02 to 2026-05-16</td>
+      <td>Live Yahoo Finance market prices</td>
+      <td>The current market-data feed used for returns, volatility, drawdowns, correlations, and the dashboard's latest charts.</td>
+    </tr>
+    <tr>
+      <td>data/sample/macro.csv</td>
+      <td>900</td>
+      <td>6</td>
+      <td>2020-01-01 to 2023-06-13</td>
+      <td>Synthetic fallback macro and yield data</td>
+      <td>Provides policy-rate and yield-curve shaped fields when live Bank of Canada data is unavailable.</td>
+    </tr>
+    <tr>
+      <td>data/sample/market_prices.csv</td>
+      <td>900</td>
+      <td>13</td>
+      <td>2020-01-01 to 2023-06-13</td>
+      <td>Synthetic fallback market prices</td>
+      <td>Lets the dashboard run when live downloads are unavailable. It should not be used as real market history.</td>
+    </tr>
+    <tr>
+      <td>data/templates/cds_template.csv</td>
+      <td>1</td>
+      <td>2</td>
+      <td>2024-01-31 to 2024-01-31</td>
+      <td>Manual credit-spread input template</td>
+      <td>A template for 5-year bank CDS or credit-spread proxies. Wider spreads imply the market is demanding more compensation for bank credit risk.</td>
+    </tr>
+    <tr>
+      <td>data/templates/etf_holdings_template.csv</td>
+      <td>6</td>
+      <td>3</td>
+      <td>2024-01-31 to 2024-01-31</td>
+      <td>ETF ownership overlap input template</td>
+      <td>Shows how much each bank is held in an ETF such as XFN. Shared ETF ownership can make selling pressure more synchronized.</td>
+    </tr>
+    <tr>
+      <td>data/templates/housing_stress_template.csv</td>
+      <td>1</td>
+      <td>6</td>
+      <td>2024-01-31 to 2024-01-31</td>
+      <td>Manual housing stress input template</td>
+      <td>A place to enter mortgage arrears, house-price, unemployment, and household-debt assumptions.</td>
+    </tr>
+  </tbody>
+</table>
     <footer>Educational research only. Not investment advice, not a trading system, and not a regulatory bank risk model.</footer>
   </main>
 </body>
