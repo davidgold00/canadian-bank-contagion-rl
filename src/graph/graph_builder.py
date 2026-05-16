@@ -5,8 +5,9 @@ class DynamicGraphBuilder:
     def adjacency_at(self, returns, date):
         hist=returns.loc[:date,self.banks].tail(self.window).dropna()
         corr=hist.corr().fillna(0).clip(-1,1).abs()
-        np.fill_diagonal(corr.values,0)
-        return corr
+        values = corr.to_numpy(copy=True)
+        np.fill_diagonal(values,0)
+        return pd.DataFrame(values, index=corr.index, columns=corr.columns)
     def graph_at(self, returns, date, min_weight=.05):
         A=self.adjacency_at(returns,date); G=nx.Graph(); G.add_nodes_from(self.banks)
         for i in self.banks:

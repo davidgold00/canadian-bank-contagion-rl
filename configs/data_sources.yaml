@@ -4,9 +4,9 @@ boc_valet:
   base_url: https://www.bankofcanada.ca/valet
   series:
     policy_rate: V39079
-    ca_2y: V39051
-    ca_5y: V39053
-    ca_10y: V39055
+    ca_2y: BD.CDN.2YR.DQ.YLD
+    ca_5y: BD.CDN.5YR.DQ.YLD
+    ca_10y: BD.CDN.10YR.DQ.YLD
 manual_files:
   housing: data/templates/housing_stress_template.csv
   etf_holdings: data/templates/etf_holdings_template.csv

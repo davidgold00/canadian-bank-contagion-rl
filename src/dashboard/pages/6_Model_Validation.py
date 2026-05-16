@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -17,8 +18,14 @@ from sklearn.metrics import (
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+
+from src.dashboard.insight_utils import latest_valid_date
+from src.dashboard.ui_components import analyst_header, apply_dashboard_style, insight_card
+
 
 st.set_page_config(page_title="Model Validation", layout="wide")
+apply_dashboard_style()
 
 
 def repo_root() -> Path:
@@ -177,6 +184,26 @@ def plot_feature_importance(importance_df):
     return fig
 
 
+def feature_meaning(feature: str) -> str:
+    if "vol" in feature:
+        return "Volatility pressure: markets are repricing risk faster."
+    if "drawdown" in feature or "dist_52w_high" in feature:
+        return "Downside pressure: prices are far from recent highs."
+    if "corr" in feature:
+        return "Contagion pressure: banks are moving together."
+    if "beta_xfn" in feature:
+        return "Sector sensitivity: bank moves are tied to XFN."
+    if "VIX" in feature:
+        return "Global risk appetite and liquidity stress."
+    if "slope" in feature or "ca_2y" in feature or "ca_10y" in feature or "policy_rate" in feature:
+        return "Canadian rate backdrop: funding, mortgage, and margin pressure."
+    if "CL=F" in feature:
+        return "Oil-linked Canadian macro sentiment."
+    if "CADUSD" in feature:
+        return "Currency and capital-flow pressure."
+    return "Market or macro feature used by the stress classifier."
+
+
 def confusion_table(model, X_test, y_test):
     prob = model.predict_proba(X_test)[:, 1]
     pred = (prob >= 0.50).astype(int)
@@ -189,17 +216,22 @@ def confusion_table(model, X_test, y_test):
     )
 
 
-st.title("Model Validation")
+df = load_dataset()
 
-st.info(
-    """
-    This page answers the credibility question: did the machine learning layer learn anything useful,
-    or is it just producing attractive charts? Validation is done with a chronological train/test split,
-    not a random shuffle, to reduce look-ahead bias.
-    """
+analyst_header(
+    "Model Validation",
+    "Check whether the ML layer has real out-of-sample stress signal.",
+    date_text=latest_valid_date(df),
+    source_text="Chronological train/test split",
 )
 
-df = load_dataset()
+st.markdown(
+    """
+    This page is the credibility check. A useful financial ML model should be judged on future
+    data, not a shuffled sample that leaks regimes. The model predicts whether the system will
+    enter a high-stress state over the selected horizon.
+    """
+)
 
 st.sidebar.header("Validation Controls")
 horizon = st.sidebar.slider("Prediction horizon, trading days", 1, 21, 5)
@@ -215,7 +247,7 @@ c1, c2, c3, c4 = st.columns(4)
 c1.metric("Best Model", best_model_name)
 c2.metric("Best AUC", f"{metrics.iloc[0]['AUC']:.2f}")
 c3.metric("Train Rows", f"{len(X_train):,}")
-c4.metric("Test Rows", f"{len(X_test):,}")
+c4.metric("Test Stress Rate", f"{y_test.mean():.1%}", help="Share of test rows labeled as future stress events.")
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs(
     [
@@ -243,11 +275,19 @@ with tab1:
     st.dataframe(display, use_container_width=True, hide_index=True)
 
     if metrics.iloc[0]["AUC"] >= 0.65:
-        st.success("The best model shows useful stress-discrimination ability.")
+        insight_card("Model Readout", "The best model shows useful stress-discrimination ability.", status="success")
     elif metrics.iloc[0]["AUC"] >= 0.55:
-        st.warning("The model shows modest signal. It may be useful as one input, not as a standalone predictor.")
+        insight_card(
+            "Model Readout",
+            "The model shows modest signal. It may be useful as one input, not as a standalone predictor.",
+            status="warning",
+        )
     else:
-        st.error("The model is close to random. More features, better targets, or regime-specific modeling are needed.")
+        insight_card(
+            "Model Readout",
+            "The model is close to random. More features, better targets, or regime-specific modeling are needed.",
+            status="danger",
+        )
 
 with tab2:
     st.subheader("ROC Curve")
@@ -272,6 +312,7 @@ with tab3:
 
     chosen = st.selectbox("Model for feature importance", list(fitted.keys()))
     importance = feature_importance(fitted[chosen], feature_cols)
+    importance["Plain-English Meaning"] = importance["Feature"].map(feature_meaning)
 
     st.plotly_chart(plot_feature_importance(importance), use_container_width=True)
     st.dataframe(importance, use_container_width=True, hide_index=True)
@@ -291,6 +332,14 @@ with tab4:
 
     cm_df = confusion_table(best_model, X_test, y_test)
     st.dataframe(cm_df, use_container_width=True)
+    false_negatives = int(cm_df.loc["Actual stress", "Predicted calm"]) if "Actual stress" in cm_df.index else 0
+    false_positives = int(cm_df.loc["Actual calm", "Predicted stress"]) if "Actual calm" in cm_df.index else 0
+    insight_card(
+        "Classification Trade-Off",
+        f"The current threshold produces {false_negatives} missed stress events and {false_positives} false alarms. "
+        "For risk management, missed stress usually matters more than extra monitoring.",
+        status="warning" if false_negatives else "success",
+    )
 
     fig = go.Figure(
         data=go.Heatmap(

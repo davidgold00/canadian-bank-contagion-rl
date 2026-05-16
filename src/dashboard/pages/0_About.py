@@ -1,255 +1,117 @@
+import sys
+from pathlib import Path
+
 import streamlit as st
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+
+from src.dashboard.insight_utils import latest_valid_date, load_features
+from src.dashboard.ui_components import analyst_header, apply_dashboard_style, insight_card
+
+
 st.set_page_config(page_title="About | Canadian Bank Contagion RL", layout="wide")
-
-st.title("Canadian Bank Contagion Simulator Using Graph Reinforcement Learning")
-
-st.markdown("""
-## What is this project?
-
-This dashboard models how financial stress could spread across the Big Six Canadian banks:
-
-- Royal Bank of Canada
-- TD Bank
-- Bank of Montreal
-- Scotiabank
-- CIBC
-- National Bank
-
-It combines market data, macro stress features, dynamic bank correlation networks, systemic-risk scoring, supervised machine learning, stress scenario simulation, and reinforcement learning portfolio allocation.
-
-The goal is not to predict the future perfectly. The goal is to demonstrate how a risk team, quant team, or ML engineer could build a prototype system for monitoring Canadian bank contagion risk.
-""")
-
-st.markdown("---")
-
-st.header("Why this matters")
-
-st.markdown("""
-Canada is unusually exposed to a small number of large banks. These banks are affected by common macro risks:
-
-- housing stress
-- mortgage arrears
-- yield curve shocks
-- oil prices
-- CAD/USD movements
-- equity drawdowns
-- volatility spikes
-- credit stress
-- ETF ownership concentration
-
-When stress rises, banks may become more correlated. Diversification can break down. A portfolio that looks balanced in normal markets may become concentrated during crisis conditions.
-
-This project tries to answer:
-
-> When Canadian bank stress increases, which banks are most vulnerable, how does stress propagate, and how should portfolio exposure adapt?
-""")
-
-st.markdown("---")
-
-st.header("How the system works")
-
-st.markdown("""
-### 1. Data Layer
-
-Collects or generates data for:
-
-- Big Six Canadian bank prices
-- XFN Canadian financials ETF
-- broad Canadian equity ETF
-- oil
-- gold
-- CAD/USD
-- VIX
-- yield curve proxies
-- housing and mortgage stress proxies
-
-If live data fails, the system falls back to sample data so the dashboard still runs.
-
-### 2. Feature Layer
-
-Creates financial features such as:
-
-- daily, weekly, and monthly returns
-- rolling volatility
-- drawdowns
-- beta to XFN
-- beta to the market
-- distance from 52-week high
-- rolling correlations
-- yield curve stress
-- volatility stress
-
-### 3. Graph Layer
-
-Each bank is treated as a node in a network.
-
-Edges represent relationships such as:
-
-- return correlation
-- tail-risk co-movement
-- ETF ownership overlap
-- balance-sheet similarity proxies
-- shock transmission strength
-
-This lets us view Canadian banks as an interconnected financial system rather than six isolated stocks.
-
-### 4. Contagion Risk Layer
-
-The system creates a composite contagion risk score from 0 to 100.
-
-Higher values mean:
-
-- bank volatility is elevated
-- correlations are rising
-- market drawdowns are worsening
-- credit stress proxies are increasing
-- macro stress indicators are deteriorating
-
-### 5. Machine Learning Layer
-
-Supervised models estimate the probability of future stress events.
-
-These models are not meant to be perfect trading signals. They show whether historical stress features contain predictive information.
-
-### 6. Reinforcement Learning Layer
-
-The RL agent learns how to allocate across:
-
-- Canadian bank stocks
-- XFN
-- broad market ETF
-- cash
-
-The agent is rewarded for:
-
-- earning returns
-- reducing drawdowns
-- lowering exposure during contagion periods
-- avoiding excessive turnover
-- preserving upside after stress falls
-""")
-
-st.markdown("---")
-
-st.header("What each dashboard page means")
-
-st.subheader("Market Overview")
-st.markdown("""
-Shows the broad financial environment.
-
-Use this page to answer:
-
-- Are Canadian banks rising or falling?
-- Is XFN under pressure?
-- Are volatility and macro stress rising?
-- Is the contagion score elevated?
-
-This is the executive summary page.
-""")
-
-st.subheader("Bank Network")
-st.markdown("""
-Shows the Big Six banks as a financial network.
-
-Use this page to answer:
-
-- Which banks are most connected?
-- Which banks may transmit stress to others?
-- Are correlations becoming concentrated?
-- Is one bank becoming systemically important?
-
-This is the graph ML / systemic-risk page.
-""")
-
-st.subheader("Contagion Risk")
-st.markdown("""
-Explains the current systemic-risk score.
-
-Use this page to answer:
-
-- Is risk low, moderate, or high?
-- Which features are driving risk?
-- Are stress indicators rising together?
-- Which banks have elevated node stress?
-
-This is the risk-monitoring page.
-""")
-
-st.subheader("Stress Scenarios")
-st.markdown("""
-Lets you simulate hypothetical shocks.
-
-Examples:
-
-- housing crisis
-- oil crash
-- liquidity squeeze
-- yield curve inversion
-- global risk-off event
-- bank-specific shock
-
-Use this page to answer:
-
-- What happens if a shock hits one bank?
-- How does that shock propagate?
-- Which banks become most stressed?
-- What portfolio response would be defensive?
-
-This is the stress-testing page.
-""")
-
-st.subheader("RL Portfolio Agent")
-st.markdown("""
-Shows how the reinforcement learning allocation agent behaves.
-
-Use this page to answer:
-
-- Does the agent reduce bank exposure during stress?
-- Does it move into cash defensively?
-- Does it outperform equal-weight banks?
-- Does it reduce drawdowns?
-- What allocation would it recommend today?
-
-This is the quant portfolio management page.
-""")
-
-st.subheader("Model Evaluation")
-st.markdown("""
-Shows whether the models are useful.
-
-Use this page to answer:
-
-- Did the supervised model predict stress better than random?
-- How did the RL agent compare to benchmarks?
-- What were Sharpe, drawdown, and stress-period returns?
-- Are results robust or fragile?
-
-This is the validation and credibility page.
-""")
-
-st.markdown("---")
-
-st.header("How to explain this project in interviews")
-
-st.markdown("""
-A strong interview explanation:
-
-> I built a Canadian bank systemic-risk simulator that models the Big Six banks as a dynamic financial graph. It ingests market and macro data, engineers stress features, builds rolling correlation and contagion networks, creates a composite systemic-risk score, trains supervised models to predict stress events, and uses reinforcement learning to allocate a portfolio defensively under rising contagion risk.
-
-Key technical talking points:
-
-- time-series feature engineering
-- graph-based financial networks
-- dynamic adjacency matrices
-- systemic-risk scoring
-- stress scenario simulation
-- leakage-aware train/test splitting
-- reinforcement learning with custom Gymnasium environment
-- Streamlit dashboard for interpretability
-- fallback data pipeline for reproducibility
-""")
-
-st.warning("""
-Educational research only. This is not investment advice, not a trading system, and not a production bank risk model.
-""")
+apply_dashboard_style()
+
+features = load_features()
+
+analyst_header(
+    "About the Canadian Bank Contagion Simulator",
+    "A financial-engineering project that turns bank, macro, and network data into decisions.",
+    date_text=latest_valid_date(features),
+    source_text="Big Six banks, XFN/XIU, CAD, oil, gold, TSX, VIX, and BoC yields",
+)
+
+st.markdown(
+    """
+    Canada has a concentrated banking system. The Big Six banks touch mortgages, business credit,
+    capital markets, consumer deposits, ETFs, pension portfolios, and the broader TSX. When they
+    sell off together, the signal is bigger than a stock chart: it can point to tighter credit,
+    housing pressure, weaker investor confidence, and more fragile diversification.
+    """
+)
+
+insight_card(
+    "Core Question",
+    "When stress rises in Canadian financial markets, how might it spread across the Big Six banks, and how should exposure adapt?",
+)
+
+tab1, tab2, tab3, tab4 = st.tabs(["System Map", "Economic Meaning", "Dashboard Pages", "Limitations"])
+
+with tab1:
+    st.subheader("How the System Works")
+    st.markdown(
+        """
+        1. **Data:** prices, rates, currency, commodities, volatility, housing templates, CDS templates, ETF holdings templates.
+        2. **Features:** returns, rolling volatility, drawdowns, XFN beta, bank correlations, yield-curve slope, macro changes.
+        3. **Network:** each bank is a node; correlations and stress relationships become edges.
+        4. **Risk Score:** a 0-100 monitor that rises when stress channels cluster.
+        5. **Scenarios:** macro shocks propagate through the bank network.
+        6. **Portfolio Agent:** a defensive allocation policy moves between banks, ETFs, and cash.
+        7. **Validation:** chronological tests check whether the ML layer has out-of-sample signal.
+        """
+    )
+
+with tab2:
+    st.subheader("Why the Data Matters")
+    st.dataframe(
+        [
+            {
+                "Signal": "Bank returns and drawdowns",
+                "Economic Meaning": "Equity investors are marking down future earnings, credit risk, or confidence.",
+                "Decision Use": "Identify whether pressure is bank-specific or sector-wide.",
+            },
+            {
+                "Signal": "Bank correlation",
+                "Economic Meaning": "The market is pricing shared macro risk rather than idiosyncratic stories.",
+                "Decision Use": "Reduce false confidence in diversification.",
+            },
+            {
+                "Signal": "Yield curve and policy rate",
+                "Economic Meaning": "Rate levels affect funding costs, mortgage demand, net interest margins, and credit quality.",
+                "Decision Use": "Explain whether stress is tied to the Canadian rate cycle.",
+            },
+            {
+                "Signal": "CAD, oil, TSX, VIX",
+                "Economic Meaning": "Canada-sensitive macro and global risk appetite indicators.",
+                "Decision Use": "Separate domestic bank pressure from global risk-off pressure.",
+            },
+            {
+                "Signal": "ETF holdings and CDS templates",
+                "Economic Meaning": "Potential forced-selling and credit-spread channels not fully visible in stock returns.",
+                "Decision Use": "Extend the model with ownership overlap and market-implied credit risk.",
+            },
+        ],
+        use_container_width=True,
+        hide_index=True,
+    )
+
+with tab3:
+    st.subheader("What Each Page Answers")
+    st.markdown(
+        """
+        - **Market Overview:** What is the current risk regime and what should a decision-maker do today?
+        - **Systemic Bank Network:** Which banks are central contagion channels?
+        - **Contagion Risk Score:** Which features are pushing systemic risk higher?
+        - **Stress Testing Lab:** What happens under housing, oil, liquidity, rate, global, or bank-specific shocks?
+        - **RL Portfolio Agent:** How would a risk-aware allocation change across banks, ETFs, and cash?
+        - **Model Validation:** Is the ML layer learning useful future stress signal?
+        - **Data Catalog:** What does every CSV mean, and what chart explains it?
+        """
+    )
+
+with tab4:
+    st.subheader("What This Is Not")
+    st.warning(
+        """
+        This is educational financial-engineering research. It is not investment advice, not a
+        regulatory stress-testing model, not a solvency assessment of any Canadian bank, and not
+        a promise that historical relationships will hold in the future.
+        """
+    )
+    st.markdown(
+        """
+        The most important model risks are public-data limitations, proxy features for credit stress,
+        simplified stress propagation, backtest overfitting, transaction-cost assumptions, and regime
+        changes that historical data cannot fully anticipate.
+        """
+    )

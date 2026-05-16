@@ -13,7 +13,7 @@ class BankOfCanadaValetClient:
         for obs in js.get('observations',[]):
             row={'date':obs['d']}
             for sid in series_ids:
-                row[sid]=float(obs.get(sid,{}).get('v','nan'))
+                row[sid]=pd.to_numeric(obs.get(sid,{}).get('v', float('nan')), errors='coerce')
             rows.append(row)
         return pd.DataFrame(rows).assign(date=lambda d: pd.to_datetime(d.date)).set_index('date')
 

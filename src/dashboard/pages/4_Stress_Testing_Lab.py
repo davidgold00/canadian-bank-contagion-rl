@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 import networkx as nx
@@ -6,8 +7,14 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+
+from src.dashboard.insight_utils import latest_valid_date
+from src.dashboard.ui_components import analyst_header, apply_dashboard_style, insight_card
+
 
 st.set_page_config(page_title="Stress Testing Lab", layout="wide")
+apply_dashboard_style()
 
 BANKS = ["RY.TO", "TD.TO", "BMO.TO", "BNS.TO", "CM.TO", "NA.TO"]
 
@@ -71,7 +78,9 @@ def load_prices() -> pd.DataFrame:
 def adjacency_matrix(prices: pd.DataFrame, window: int) -> pd.DataFrame:
     returns = prices[BANKS].pct_change().tail(window)
     corr = returns.corr().fillna(0).clip(lower=0)
-    np.fill_diagonal(corr.values, 0)
+    values = corr.to_numpy(copy=True)
+    np.fill_diagonal(values, 0)
+    corr = pd.DataFrame(values, index=corr.index, columns=corr.columns)
     row_sums = corr.sum(axis=1).replace(0, 1)
     return corr.div(row_sums, axis=0)
 
@@ -109,18 +118,26 @@ def recommended_response(final_stress: pd.Series) -> str:
 
 
 def portfolio_impact(final_stress: pd.Series, portfolio_weights: pd.Series) -> pd.DataFrame:
-    expected_loss = -0.0015 * final_stress * portfolio_weights * 100
-    contribution = expected_loss / expected_loss.sum() if expected_loss.sum() != 0 else expected_loss
+    estimated_loss = 0.0015 * final_stress * portfolio_weights
+    contribution = estimated_loss / estimated_loss.sum() if estimated_loss.sum() != 0 else estimated_loss
 
     return pd.DataFrame(
         {
             "Bank": BANKS,
             "Portfolio Weight": [portfolio_weights.get(b, 0) for b in BANKS],
             "Final Stress": [final_stress.get(b, 0) for b in BANKS],
-            "Expected Loss Contribution": [expected_loss.get(b, 0) for b in BANKS],
-            "Loss Share": [contribution.get(b, 0) for b in BANKS],
+            "Estimated Portfolio Loss": [estimated_loss.get(b, 0) for b in BANKS],
+            "Share of Scenario Loss": [contribution.get(b, 0) for b in BANKS],
+            "Action Meaning": [
+                "Largest loss driver"
+                if contribution.get(b, 0) == contribution.max()
+                else "Meaningful contributor"
+                if contribution.get(b, 0) >= contribution.mean()
+                else "Lower contributor"
+                for b in BANKS
+            ],
         }
-    ).sort_values("Expected Loss Contribution")
+    ).sort_values("Estimated Portfolio Loss", ascending=False)
 
 
 def plot_stress_paths(paths: pd.DataFrame) -> go.Figure:
@@ -219,18 +236,23 @@ def plot_network_final(adjacency: pd.DataFrame, final_stress: pd.Series) -> go.F
     return fig
 
 
-st.title("Stress Testing Lab")
-
-st.info(
-    """
-    This page lets you run simplified institutional stress tests.
-    Choose a macro-financial scenario, shock the banks, propagate stress through the network,
-    and estimate which banks and portfolio positions are most exposed.
-    """
-)
-
 prices = load_prices()
 adj = adjacency_matrix(prices, 126)
+
+analyst_header(
+    "Stress Testing Lab",
+    "Turn a macro shock into bank stress, contagion paths, and portfolio action.",
+    date_text=latest_valid_date(prices),
+    source_text="Scenario shocks plus correlation-derived network propagation",
+)
+
+st.markdown(
+    """
+    Stress tests are useful because they force a concrete question: if housing, oil,
+    liquidity, rates, or global risk appetite breaks in the wrong direction, where does
+    the damage show up first and what should a portfolio manager reduce?
+    """
+)
 
 left, right = st.columns([0.70, 0.30])
 
@@ -277,7 +299,12 @@ m2.metric("Average Final Stress", f"{avg_final:.1f}/100")
 m3.metric("Most Stressed Bank", max_bank)
 m4.metric("Peak Bank Stress", f"{max_stress:.1f}/100")
 
-st.warning(recommended_response(final_stress))
+if avg_final >= 70:
+    insight_card("Scenario Readout", recommended_response(final_stress), status="danger")
+elif avg_final >= 40:
+    insight_card("Scenario Readout", recommended_response(final_stress), status="warning")
+else:
+    insight_card("Scenario Readout", recommended_response(final_stress), status="success")
 
 tab1, tab2, tab3, tab4 = st.tabs(
     [
@@ -324,20 +351,25 @@ with tab2:
         portfolio_weights = portfolio_weights / portfolio_weights.sum()
 
     impact = portfolio_impact(final_stress, portfolio_weights)
-    st.dataframe(impact.round(4), use_container_width=True, hide_index=True)
+    display = impact.copy()
+    for col in ["Portfolio Weight", "Estimated Portfolio Loss", "Share of Scenario Loss"]:
+        display[col] = display[col].map(lambda x: f"{x:.2%}")
+    display["Final Stress"] = display["Final Stress"].map(lambda x: f"{x:.1f}/100")
+    st.dataframe(display, use_container_width=True, hide_index=True)
 
     fig = go.Figure(
         go.Bar(
-            x=impact["Expected Loss Contribution"],
+            x=impact["Estimated Portfolio Loss"],
             y=impact["Bank"],
             orientation="h",
-            text=[f"{v:.2f}" for v in impact["Expected Loss Contribution"]],
+            text=[f"{v:.2%}" for v in impact["Estimated Portfolio Loss"]],
             textposition="auto",
         )
     )
     fig.update_layout(
         title="Estimated Loss Contribution by Bank",
-        xaxis_title="Simplified expected loss contribution",
+        xaxis_title="Estimated portfolio loss contribution",
+        xaxis_tickformat=".1%",
         height=420,
         margin=dict(l=20, r=20, t=50, b=20),
     )
@@ -358,7 +390,9 @@ with tab4:
     st.subheader("How to Interpret the Stress Test")
     st.markdown(
         """
-        This is a simplified version of a bank stress-testing workflow.
+        This is a simplified version of a bank stress-testing workflow. It is useful because it
+        connects a story to numbers: scenario shock, network transmission, bank ranking, and
+        portfolio loss attribution.
 
         ### Inputs
 
@@ -375,13 +409,12 @@ with tab4:
         - remaining stress from the previous step,
         - new stress transmitted from connected banks.
 
-        ### What this page demonstrates
+        ### How to act on the output
 
-        - graph-based contagion modeling,
-        - scenario analysis,
-        - bank-specific vulnerability,
-        - systemic-risk visualization,
-        - portfolio-level exposure attribution.
+        - if final stress is broad, reduce total bank exposure;
+        - if one bank dominates loss contribution, trim that position first;
+        - if a central bank transmits stress, hedge sector exposure rather than only one stock;
+        - rerun the scenario after changing weights to see whether the portfolio is actually safer.
 
         ### How to make this more advanced
 

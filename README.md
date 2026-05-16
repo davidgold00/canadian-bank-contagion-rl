@@ -1,50 +1,120 @@
-# Canadian Bank Contagion Simulator Using Graph Reinforcement Learning
+# Canadian Bank Contagion Command Center
 
-Institutional-style Canadian systemic-risk simulator for the Big Six banks: RY.TO, TD.TO, BMO.TO, BNS.TO, CM.TO, and NA.TO. The project combines public market data, Bank of Canada yield data hooks, mortgage/housing stress templates, dynamic financial graphs, supervised stress prediction, shock propagation, and reinforcement learning allocation.
+An interpretable financial-engineering dashboard for Canadian bank systemic risk.
 
-## Why Canadian Banks?
-Canada's equity market is concentrated in financials, energy, and materials. The Big Six banks dominate domestic banking and are exposed to mortgage credit, housing, yield curves, oil-sensitive macro conditions, liquidity, and credit spreads. Their market stress can transmit through shared exposures, ETF ownership overlap, correlation spikes, and balance-sheet similarity.
+The project models the Big Six banks as a connected market network, combines bank prices with Canadian macro-rate data, converts noisy indicators into a 0-100 contagion risk score, runs stress scenarios, and shows how a defensive allocation policy would respond.
 
-## Architecture
-```text
-Data -> Features -> Dynamic Graph -> Stress/Contagion Models -> RL Allocation -> Dashboard
- yfinance   BoC Valet   rolling correlations   stress scores      PPO/DQN      Streamlit
- templates  CSV fallbacks ETF overlap          scenarios          backtests    Plotly
-```
+This is educational research, not investment advice.
+
+## What This Answers
+
+The dashboard is designed for one practical question:
+
+> When stress rises in Canadian financial markets, how might it spread across the Big Six banks, what does it mean for the Canadian economy, and how should portfolio exposure adapt?
+
+It explains:
+
+- whether the current bank regime is low, moderate, high, or severe risk;
+- which market and macro drivers are pushing the score higher;
+- which banks are most stressed versus most systemically central;
+- how housing, oil, liquidity, rate, global, or bank-specific shocks propagate;
+- how a risk-aware portfolio policy changes bank, ETF, and cash exposure;
+- whether the ML layer has out-of-sample stress-prediction signal;
+- what every CSV means and how each file contributes to the analysis.
+
+## Why Canadian Banks Matter
+
+Canada's banking system is concentrated. Royal Bank, TD, BMO, Scotiabank, CIBC, and National Bank are deeply linked to mortgages, business credit, household deposits, capital markets, ETFs, pension portfolios, and TSX sentiment.
+
+When bank equities become volatile and highly correlated, the signal is not only about stock prices. It can reflect tightening credit conditions, mortgage stress, funding pressure, weaker investor confidence, and a loss of diversification across financial holdings.
+
+## Dashboard Pages
+
+- **About**: project map, economic meaning, page guide, limitations.
+- **Market Overview**: executive readout, risk regime, current drivers, bank performance, Canadian rate and macro-market context.
+- **Systemic Bank Network**: graph view of bank-to-bank contagion channels and systemic centrality.
+- **Contagion Risk Score**: decomposition of the 0-100 score into volatility, correlation, drawdown, VIX, rates, oil, and CAD drivers.
+- **Stress Testing Lab**: scenario controls, propagation paths, post-shock network view, and portfolio loss attribution.
+- **RL Portfolio Agent**: defensive allocation policy, benchmark comparison, drawdowns, current weights, and stress-day behavior.
+- **Model Validation**: chronological train/test validation, ROC, feature importance, confusion matrix, and model credibility readout.
+- **Data Catalog**: inventory and chart explorer for every CSV under `data/`.
 
 ## Data Sources
-- yfinance: Canadian bank equities, XFN, XIU/XIC, CAD/USD, crude oil, gold, TSX, VIX.
-- Bank of Canada Valet API: policy rate and Government of Canada yields; series IDs are configurable.
-- Manual CSV templates: housing stress, ETF holdings, CDS/credit spreads.
-- Synthetic fallback samples in `data/sample/` allow the full pipeline to run immediately.
 
-## Setup
+Live data is used when network access is available:
+
+- Yahoo Finance via `yfinance`: bank prices, XFN, XIU, CAD/USD, oil, gold, TSX, and VIX.
+- Bank of Canada Valet API: policy rate and Government of Canada 2-year, 5-year, and 10-year yields.
+- Manual templates: housing stress, ETF holdings, and CDS/credit spread proxies.
+- Synthetic sample data: reproducible fallback data so the dashboard still runs offline.
+
+Generated raw and processed files are intentionally gitignored. Recreate them with:
+
 ```bash
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
 python scripts/download_data.py
 python scripts/build_features.py
-python scripts/train_supervised.py
-python scripts/train_rl.py --agent ppo
-python scripts/train_rl.py --agent dqn
+```
+
+## CSV Guide
+
+See [data/README.md](data/README.md) and the dashboard's **Data Catalog** page. The key generated files are:
+
+- `data/raw/market_prices.csv`: live price panel from Yahoo Finance.
+- `data/raw/boc_yields.csv`: live policy-rate and Canadian yield data from Bank of Canada.
+- `data/processed/prices.csv`: cleaned aligned price panel.
+- `data/processed/model_dataset.csv`: full modeling table with engineered market, macro, network, and score features.
+
+The key tracked CSVs are:
+
+- `data/sample/market_prices.csv`: synthetic fallback market data.
+- `data/sample/macro.csv`: synthetic fallback macro/yield data.
+- `data/templates/housing_stress_template.csv`: analyst-entered housing and mortgage stress assumptions.
+- `data/templates/cds_template.csv`: analyst-entered bank credit-spread proxies.
+- `data/templates/etf_holdings_template.csv`: ETF bank ownership weights for overlap analysis.
+
+## Architecture
+
+```text
+Live/sample CSVs
+   -> market and macro feature engineering
+   -> dynamic bank graph and stress features
+   -> contagion risk score and supervised stress models
+   -> scenario propagation and RL-style portfolio allocation
+   -> Streamlit command center
+```
+
+## Setup
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+python scripts/download_data.py
+python scripts/build_features.py
 streamlit run src/dashboard/app.py
 ```
 
+Optional model runs:
+
+```bash
+python scripts/train_supervised.py
+python scripts/train_rl.py --agent ppo
+python scripts/train_rl.py --agent dqn
+```
+
 ## Methodology
-Dynamic bank graphs are built from rolling return correlations, with extensions for tail dependence, ETF ownership overlap, balance-sheet similarity, lead-lag transmission, and credit stress. The composite contagion risk score combines volatility, pairwise correlation, eigenvalue concentration proxies, drawdowns, VIX, credit stress proxies, yield-curve stress, and housing stress inputs into a 0-100 score.
 
-Supervised models predict next-week stress labels using leakage-aware time splits. The Gymnasium RL environment trains PPO with continuous target weights and DQN with discrete allocation templates. Rewards penalize volatility, drawdown, turnover, concentration, high-stress-node exposure, and contagion exposure while rewarding excess return versus XFN.
+Market features include 1-day, 5-day, and 21-day returns; rolling volatility; drawdowns; distance from 52-week highs; XFN beta; VIX changes; CAD, oil, gold, TSX, and ETF context.
 
-## Results
-Run the scripts to populate `artifacts/` with model metrics and RL backtests. Dashboard pages provide placeholders and live views once data is built.
+Macro features include policy rate, 2-year, 5-year, 10-year yields, yield-curve slope, curvature, and rolling changes.
+
+Network features treat banks as nodes and return relationships as edges. Dense networks imply lower diversification because bank stocks are moving together. Central nodes matter because they can transmit stress even when they are not the worst performer.
+
+The contagion score rises when several stress channels cluster: bank volatility, bank correlation, financial-sector drawdown, global volatility, yield-curve pressure, and macro-market stress proxies.
+
+The stress lab propagates scenario shocks through a correlation-derived adjacency matrix. The RL page connects risk measurement to allocation behavior by increasing cash and reducing high-stress bank exposure as contagion risk rises.
 
 ## Limitations
-This project is educational research, not investment advice. CDS data may be proxied, public data cannot fully replicate regulatory systemic-risk models, historical backtests can overfit, transaction costs are simplified, and future performance is not guaranteed.
 
-## Recruiting Talking Points
-- Graph ML for financial contagion networks.
-- Reinforcement learning for allocation under stress.
-- Canadian market structure and systemic-risk domain knowledge.
-- Leakage-aware time-series ML and walk-forward validation.
-- Production-grade modular ML pipeline with dashboard/product thinking.
+This is not a production bank risk model. Public market data cannot fully capture regulatory capital, liquidity, uninsured deposit flow, CRE exposure, loan-book details, or true CDS pricing for every bank. Historical correlations can break, stress propagation is simplified, and backtests can overfit. Use the dashboard as a research and explanation tool, not as a trading system.

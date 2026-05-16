@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -5,8 +6,14 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+
+from src.dashboard.insight_utils import latest_valid_date, risk_regime
+from src.dashboard.ui_components import analyst_header, apply_dashboard_style, insight_card
+
 
 st.set_page_config(page_title="RL Portfolio Agent", layout="wide")
+apply_dashboard_style()
 
 BANKS = ["RY.TO", "TD.TO", "BMO.TO", "BNS.TO", "CM.TO", "NA.TO"]
 TRADABLES = BANKS + ["XFN.TO", "XIU.TO", "cash"]
@@ -203,22 +210,27 @@ def plot_drawdowns(results: dict[str, tuple[pd.Series, pd.Series, pd.Series]]) -
     return fig
 
 
-st.title("RL Portfolio Agent")
-
-st.info(
-    """
-    This page explains the portfolio decision layer. The agent observes stress indicators,
-    bank node stress, correlations, drawdowns, and market features, then allocates across banks,
-    ETFs, and cash. Its objective is not just return; it is return adjusted for drawdown,
-    turnover, concentration, and contagion exposure.
-    """
-)
-
 prices, features = load_data()
 
 common_index = prices.index.intersection(features.index)
 prices = prices.reindex(common_index)
 features = features.reindex(common_index)
+
+analyst_header(
+    "RL Portfolio Agent",
+    "Translate bank contagion risk into allocation, cash, turnover, and drawdown decisions.",
+    date_text=latest_valid_date(features),
+    source_text="Interpretable RL-style policy plus benchmark backtests",
+)
+
+st.markdown(
+    """
+    This is the action layer of the project. The policy observes the contagion score,
+    bank-level stress, correlations, drawdowns, and recent returns, then moves between
+    bank stocks, XFN, XIU, and cash. The point is not to chase every rally; it is to avoid
+    being overexposed when the banks start behaving like one stressed trade.
+    """
+)
 
 st.sidebar.header("RL Backtest Controls")
 transaction_cost_bps = st.sidebar.slider("Transaction cost, bps", 0.0, 25.0, 5.0, step=1.0)
@@ -281,6 +293,19 @@ with tab1:
 
     st.dataframe(display_metrics, use_container_width=True, hide_index=True)
 
+    if rl_metrics["Max Drawdown"] < metrics["Max Drawdown"].median():
+        insight_card(
+            "Validation Readout",
+            "The defensive policy did not reduce drawdown versus the median benchmark in this run. Treat it as a policy prototype, not a finished trading model.",
+            status="warning",
+        )
+    else:
+        insight_card(
+            "Validation Readout",
+            "The defensive policy is doing what a risk-aware allocation layer should do: it competes on return while keeping drawdown controlled.",
+            status="success",
+        )
+
 with tab2:
     st.subheader("Current Recommended Allocation")
 
@@ -303,6 +328,7 @@ with tab2:
     )
     st.plotly_chart(fig, use_container_width=True)
 
+    current_regime = risk_regime(latest_risk)
     if latest_risk >= 70:
         explanation = "The agent is defensive because contagion risk is high. It should prefer cash and lower-stress banks."
     elif latest_risk >= 45:
@@ -310,13 +336,11 @@ with tab2:
     else:
         explanation = "The agent is risk-on because contagion risk is contained. It can hold more bank exposure."
 
-    st.success(explanation)
+    insight_card(f"Allocation Rationale: {current_regime['label']} Risk", explanation, status=current_regime["tone"])
 
-    st.dataframe(
-        latest_weights.rename("Weight").reset_index().rename(columns={"index": "Asset"}),
-        use_container_width=True,
-        hide_index=True,
-    )
+    allocation = latest_weights.rename("Weight").reset_index().rename(columns={"index": "Asset"})
+    allocation["Weight"] = allocation["Weight"].map(lambda x: f"{x:.1%}")
+    st.dataframe(allocation, use_container_width=True, hide_index=True)
 
 with tab3:
     st.subheader("How Allocations Change Over Time")
@@ -341,6 +365,13 @@ with tab3:
         it should hold more bank exposure when stress is low and increase cash or defensive exposure
         when contagion risk rises.
         """
+    )
+
+    latest_cash = strategies["RL-style defensive"]["cash"].iloc[-1]
+    insight_card(
+        "Current Behavior",
+        f"The latest cash weight is {latest_cash:.1%}. Cash rises mechanically when contagion risk is elevated, "
+        "which makes the policy easier to audit than a black-box trading signal.",
     )
 
 with tab4:
@@ -433,7 +464,8 @@ with tab5:
 
     st.warning(
         """
-        The current dashboard includes an interpretable RL-style policy visualization.
-        After training a saved PPO model, this page can be extended to load the actual model's predicted actions.
+        The current dashboard includes an interpretable RL-style policy visualization. After training
+        a saved PPO model, this page can be extended to load the actual model's predicted actions
+        beside this transparent benchmark policy.
         """
     )

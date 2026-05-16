@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -5,139 +6,50 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+
+from src.dashboard.insight_utils import (
+    BANKS,
+    bank_stress_snapshot,
+    latest,
+    latest_valid_date,
+    load_features,
+    pct,
+    percentile_rank,
+    risk_regime,
+    strongest_drivers,
+)
+from src.dashboard.ui_components import action_list, analyst_header, apply_dashboard_style, insight_card
+
 
 st.set_page_config(page_title="Contagion Risk Score", layout="wide")
+apply_dashboard_style()
 
-BANKS = ["RY.TO", "TD.TO", "BMO.TO", "BNS.TO", "CM.TO", "NA.TO"]
-
-
-def repo_root() -> Path:
-    return Path(__file__).resolve().parents[3]
+features = load_features()
 
 
-@st.cache_data
-def load_dataset() -> pd.DataFrame:
-    root = repo_root()
-    path = root / "data" / "processed" / "model_dataset.csv"
-
-    if not path.exists():
-        st.error("model_dataset.csv not found. Run scripts/build_features.py first.")
-        st.stop()
-
-    df = pd.read_csv(path)
-    date_col = "date" if "date" in df.columns else df.columns[0]
-    df[date_col] = pd.to_datetime(df[date_col])
-    return df.rename(columns={date_col: "date"}).set_index("date").sort_index()
-
-
-def percentile_rank(series: pd.Series, value: float) -> float:
-    clean = series.dropna()
-    if len(clean) == 0:
-        return 0.5
-    return float((clean <= value).mean())
-
-
-def risk_band(score: float) -> tuple[str, str]:
-    if score < 30:
-        return "Low", "Normal market conditions. Bank stress is relatively contained."
-    if score < 60:
-        return "Moderate", "Some stress indicators are active. Monitor correlations and drawdowns."
-    if score < 80:
-        return "High", "Systemic pressure is elevated. Diversification may be weakening."
-    return "Severe", "Multiple stress channels are elevated. Defensive positioning may be warranted."
-
-
-def zscore_percentile(s: pd.Series) -> pd.Series:
-    s = s.replace([np.inf, -np.inf], np.nan)
-    return 100 * s.rank(pct=True)
-
-
-def find_col(df: pd.DataFrame, options: list[str]) -> str | None:
-    for col in options:
-        if col in df.columns:
-            return col
-    return None
-
-
-def build_risk_components(df: pd.DataFrame) -> pd.DataFrame:
-    components = pd.DataFrame(index=df.index)
-
-    vol_col = find_col(df, ["avg_bank_vol_21d"])
-    corr_col = find_col(df, ["avg_pairwise_corr_63d"])
-    vix_col = find_col(df, ["VIX_level"])
-    vix_change_col = find_col(df, ["VIX_chg_5d"])
-    curve_col = find_col(df, ["slope_10y_2y", "10y_2y_slope"])
-    oil_col = find_col(df, ["CL=F_ret_5d", "CL=F_ret_21d"])
-    xfn_col = find_col(df, ["XFN.TO_drawdown_63d", "XFN.TO_ret_21d"])
-
-    if vol_col:
-        components["Bank volatility stress"] = zscore_percentile(df[vol_col])
-
-    if corr_col:
-        components["Correlation concentration"] = zscore_percentile(df[corr_col])
-
-    if vix_col:
-        components["Global volatility proxy"] = zscore_percentile(df[vix_col])
-
-    if vix_change_col:
-        components["Volatility spike"] = zscore_percentile(df[vix_change_col])
-
-    if curve_col:
-        components["Yield curve stress"] = zscore_percentile(-df[curve_col])
-
-    if oil_col:
-        components["Oil shock proxy"] = zscore_percentile(-df[oil_col])
-
-    if xfn_col:
-        components["Financials drawdown pressure"] = zscore_percentile(-df[xfn_col])
-
-    if "contagion_risk_score" in df.columns:
-        components["Composite model score"] = df["contagion_risk_score"]
-
-    return components.ffill().fillna(50).clip(0, 100)
-
-
-def build_bank_stress(df: pd.DataFrame) -> pd.DataFrame:
-    rows = []
-
-    for bank in BANKS:
-        vol_col = f"{bank}_vol_21d"
-        dd_col = f"{bank}_drawdown_63d"
-        beta_col = f"{bank}_beta_xfn_63d"
-        ret_col = f"{bank}_ret_5d"
-
-        vol = float(df[vol_col].iloc[-1]) if vol_col in df else np.nan
-        dd = float(df[dd_col].iloc[-1]) if dd_col in df else np.nan
-        beta = float(df[beta_col].iloc[-1]) if beta_col in df else np.nan
-        ret = float(df[ret_col].iloc[-1]) if ret_col in df else np.nan
-
-        score_parts = []
-        if vol_col in df:
-            score_parts.append(percentile_rank(df[vol_col], vol) * 100)
-        if dd_col in df:
-            score_parts.append(percentile_rank(-df[dd_col], -dd) * 100)
-        if beta_col in df:
-            score_parts.append(percentile_rank(df[beta_col], beta) * 100)
-
-        node_score = float(np.mean(score_parts)) if score_parts else 50
-
-        rows.append(
-            {
-                "Bank": bank,
-                "Node Stress Score": round(node_score, 1),
-                "21D Volatility": round(vol, 3) if not np.isnan(vol) else None,
-                "63D Drawdown": round(dd, 3) if not np.isnan(dd) else None,
-                "Beta to XFN": round(beta, 2) if not np.isnan(beta) else None,
-                "5D Return": round(ret, 3) if not np.isnan(ret) else None,
-                "Interpretation": "Elevated stress"
-                if node_score >= 70
-                else "Moderate stress"
-                if node_score >= 40
-                else "Contained stress",
-            }
-        )
-
-    return pd.DataFrame(rows).sort_values("Node Stress Score", ascending=False)
+def component_scores(df: pd.DataFrame) -> pd.DataFrame:
+    candidates = {
+        "Bank volatility": ("avg_bank_vol_21d", 1, "How jumpy bank returns are."),
+        "Bank correlation": ("avg_pairwise_corr_63d", 1, "Whether banks are moving together."),
+        "Financials drawdown": ("XFN.TO_drawdown_63d", -1, "How far the sector ETF has fallen from a recent high."),
+        "Global volatility": ("VIX_level", 1, "Global risk appetite and liquidity pressure."),
+        "Volatility spike": ("VIX_chg_5d", 1, "How quickly fear is rising."),
+        "Yield curve pressure": ("slope_10y_2y", -1, "Curve flattening or inversion pressure."),
+        "Oil shock": ("CL=F_ret_21d", -1, "Canada-linked macro and credit sentiment."),
+        "CAD pressure": ("CADUSD=X_ret_21d", -1, "Currency weakness as macro stress proxy."),
+    }
+    out = pd.DataFrame(index=df.index)
+    labels = {}
+    for label, (col, sign, meaning) in candidates.items():
+        if col in df:
+            s = sign * df[col]
+            out[label] = 100 * s.rank(pct=True)
+            labels[label] = meaning
+    if "contagion_risk_score" in df:
+        out["Composite score"] = df["contagion_risk_score"]
+        labels["Composite score"] = "The dashboard's overall 0-100 stress score."
+    return out.ffill().fillna(50).clip(0, 100), labels
 
 
 def gauge(score: float) -> go.Figure:
@@ -149,99 +61,71 @@ def gauge(score: float) -> go.Figure:
             title={"text": "Composite Contagion Risk"},
             gauge={
                 "axis": {"range": [0, 100]},
-                "bar": {"color": "black"},
+                "bar": {"color": "#18212f"},
                 "steps": [
-                    {"range": [0, 30], "color": "#d9f0d3"},
-                    {"range": [30, 60], "color": "#ffffbf"},
-                    {"range": [60, 80], "color": "#fdae61"},
-                    {"range": [80, 100], "color": "#d7191c"},
+                    {"range": [0, 30], "color": "#e9f7ef"},
+                    {"range": [30, 60], "color": "#fff4df"},
+                    {"range": [60, 80], "color": "#fdebd3"},
+                    {"range": [80, 100], "color": "#fdecec"},
                 ],
-                "threshold": {
-                    "line": {"color": "red", "width": 4},
-                    "thickness": 0.75,
-                    "value": 80,
-                },
             },
         )
     )
-    fig.update_layout(height=330, margin=dict(l=20, r=20, t=60, b=20))
+    fig.update_layout(height=320, margin=dict(l=20, r=20, t=50, b=20))
     return fig
 
 
-st.title("Contagion Risk Score")
+components, labels = component_scores(features)
+score_series = features["contagion_risk_score"] if "contagion_risk_score" in features else components.mean(axis=1)
+score = float(score_series.dropna().iloc[-1])
+regime = risk_regime(score)
+score_pct = percentile_rank(score_series, score)
 
-st.info(
+analyst_header(
+    "Contagion Risk Score",
+    "A 0-100 answer to: are Canadian bank stress signals clustering?",
+    date_text=latest_valid_date(features),
+    source_text="Composite of market, network, and macro stress features",
+)
+
+st.markdown(
     """
-    This page turns many noisy stress signals into one interpretable risk score.
-    The score is not a price forecast. It is a systemic-risk monitor: high values mean
-    Canadian bank stress, volatility, correlation, and macro-risk features are clustering together.
+    The score is a risk dashboard signal, not a crash forecast. It becomes important when several
+    indicators agree: volatility rises, correlations tighten, financials draw down, and macro
+    stress makes bank earnings or credit quality less forgiving.
     """
 )
 
-df = load_dataset()
-components = build_risk_components(df)
-
-score_series = df["contagion_risk_score"] if "contagion_risk_score" in df.columns else components.mean(axis=1)
-current_score = float(score_series.iloc[-1])
-band, band_text = risk_band(current_score)
-pct = percentile_rank(score_series, current_score) * 100
-
 c1, c2, c3, c4 = st.columns(4)
-c1.metric("Latest Risk Score", f"{current_score:.1f}/100", help="Composite systemic stress score.")
-c2.metric("Risk Band", band, help=band_text)
-c3.metric("Historical Percentile", f"{pct:.0f}%", help="How extreme today's score is versus its own history.")
-c4.metric("Latest Date", str(score_series.index[-1].date()))
+c1.metric("Latest Score", f"{score:.1f}/100")
+c2.metric("Regime", regime["label"], help=regime["summary"])
+c3.metric("Historical Percentile", f"{score_pct:.0%}" if score_pct == score_pct else "N/A")
+c4.metric("Latest Date", latest_valid_date(features))
 
-left, right = st.columns([0.42, 0.58])
-
+left, right = st.columns([0.40, 0.60])
 with left:
-    st.plotly_chart(gauge(current_score), use_container_width=True)
-    st.warning(f"Current interpretation: **{band} risk** — {band_text}")
-
+    st.plotly_chart(gauge(score), use_container_width=True)
 with right:
     fig = go.Figure()
-    fig.add_trace(
-        go.Scatter(
-            x=score_series.index,
-            y=score_series,
-            mode="lines",
-            name="Contagion risk score",
-        )
-    )
-    fig.add_hline(y=30, line_dash="dot", annotation_text="Low/Moderate")
-    fig.add_hline(y=60, line_dash="dot", annotation_text="Moderate/High")
-    fig.add_hline(y=80, line_dash="dot", annotation_text="Severe threshold")
+    fig.add_trace(go.Scatter(x=score_series.index, y=score_series, mode="lines", name="Score"))
+    fig.add_hline(y=30, line_dash="dot", annotation_text="Low")
+    fig.add_hline(y=60, line_dash="dot", annotation_text="High")
+    fig.add_hline(y=80, line_dash="dot", annotation_text="Severe")
     fig.update_layout(
-        title="Historical Contagion Risk Score",
-        yaxis_title="Risk score",
-        height=360,
+        title="Score History",
+        yaxis_title="0-100",
+        height=330,
         margin=dict(l=20, r=20, t=50, b=20),
     )
     st.plotly_chart(fig, use_container_width=True)
 
-st.markdown("---")
+insight_card(f"Interpretation: {regime['label']} Risk", regime["summary"], status=regime["tone"])
 
-tab1, tab2, tab3, tab4 = st.tabs(
-    [
-        "Risk Drivers",
-        "Bank Stress Table",
-        "Stress Regime Map",
-        "How to Use This",
-    ]
-)
+tab1, tab2, tab3, tab4 = st.tabs(["Driver Decomposition", "Bank Contributors", "Regime Map", "Decision Rules"])
 
 with tab1:
-    st.subheader("Current Risk Driver Decomposition")
-    st.markdown(
-        """
-        These components explain what is pushing the score higher or lower.
-        A useful systemic-risk signal usually comes from several components rising together,
-        not from one isolated spike.
-        """
-    )
-
+    st.subheader("What Is Driving the Score Today?")
     latest_components = components.iloc[-1].sort_values(ascending=True)
-
     fig = go.Figure(
         go.Bar(
             x=latest_components.values,
@@ -249,113 +133,93 @@ with tab1:
             orientation="h",
             text=[f"{v:.1f}" for v in latest_components.values],
             textposition="auto",
+            marker_color="#1d5f8f",
         )
     )
     fig.update_layout(
         title="Current Component Scores",
-        xaxis_title="Stress contribution, 0–100",
+        xaxis_title="Stress contribution, 0-100",
         height=520,
         margin=dict(l=20, r=20, t=50, b=20),
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    st.dataframe(
-        latest_components.rename("Current Component Score").reset_index().rename(columns={"index": "Component"}),
-        use_container_width=True,
-        hide_index=True,
-    )
+    drivers = strongest_drivers(features)
+    show = drivers.copy()
+    show["Stress Percentile"] = show["Stress Percentile"].map(lambda x: f"{x:.0%}" if x == x else "N/A")
+    st.dataframe(show, use_container_width=True, hide_index=True)
 
 with tab2:
-    st.subheader("Bank-Level Node Stress")
-    st.markdown(
-        """
-        This table identifies which individual banks are contributing most to systemic risk.
-        It combines volatility, drawdown pressure, and sensitivity to XFN where available.
-        """
-    )
+    st.subheader("Bank-Level Contributors")
+    bank_table = bank_stress_snapshot(features)
+    show = bank_table[
+        ["Bank", "Name", "Node Stress", "21D Return", "21D Volatility", "63D Drawdown", "Beta to XFN", "Action Readout"]
+    ].copy()
+    for col in ["21D Return", "21D Volatility", "63D Drawdown"]:
+        show[col] = show[col].map(lambda x: pct(x) if x == x else "N/A")
+    show["Node Stress"] = show["Node Stress"].map(lambda x: f"{x:.1f}/100")
+    show["Beta to XFN"] = show["Beta to XFN"].map(lambda x: f"{x:.2f}" if x == x else "N/A")
+    st.dataframe(show, use_container_width=True, hide_index=True)
 
-    bank_stress = build_bank_stress(df)
-    st.dataframe(bank_stress, use_container_width=True, hide_index=True)
-
-    leader = bank_stress.iloc[0]
-    st.error(
-        f"""
-        Highest current node stress: **{leader['Bank']}** with score **{leader['Node Stress Score']}**.
-        This does not mean the bank is impaired. It means its recent market behavior is more stressed
-        relative to the other Big Six names.
-        """
+    leader = bank_table.iloc[0]
+    insight_card(
+        "Highest Attention Name",
+        f"{leader['Bank']} has the highest current node stress at {leader['Node Stress']:.1f}/100. "
+        "That means its recent market behavior is more stressed than peers; it is not a claim about bank solvency.",
+        status="warning" if leader["Node Stress"] < 70 else "danger",
     )
 
 with tab3:
-    st.subheader("Risk Component Heatmap")
-    st.markdown(
-        """
-        This heatmap shows whether stress is broad-based or isolated.
-        Broad-based horizontal bands indicate systemic pressure.
-        """
-    )
-
-    recent_components = components.tail(126).T
-
+    st.subheader("Stress Breadth Over the Last Six Months")
+    recent = components.tail(126).T
     fig = go.Figure(
-        data=go.Heatmap(
-            z=recent_components.values,
-            x=recent_components.columns,
-            y=recent_components.index,
-            colorscale="RdYlGn_r",
+        go.Heatmap(
+            z=recent.values,
+            x=recent.columns,
+            y=recent.index,
             zmin=0,
             zmax=100,
+            colorscale="RdYlGn_r",
             colorbar=dict(title="Stress"),
         )
     )
     fig.update_layout(height=560, margin=dict(l=20, r=20, t=40, b=20))
     st.plotly_chart(fig, use_container_width=True)
-
-with tab4:
-    st.subheader("How to Read This Page")
     st.markdown(
-        """
-        Use this page like a risk officer, not like a day trader.
-
-        ### What a high score means
-
-        A high score means market conditions are becoming less forgiving:
-
-        - bank volatility is rising,
-        - correlations are increasing,
-        - drawdowns are deepening,
-        - macro stress proxies are worsening,
-        - financial-sector risk is clustering.
-
-        ### What it does not mean
-
-        It does **not** mean a crash is guaranteed.
-        It does **not** mean any bank is insolvent.
-        It does **not** provide investment advice.
-
-        ### Best use
-
-        The score is useful as an input to:
-
-        - stress testing,
-        - portfolio de-risking rules,
-        - risk dashboards,
-        - model monitoring,
-        - reinforcement learning state design,
-        - interview discussion of systemic risk.
-        """
+        "Broad horizontal red/orange bands mean stress is coming from several channels at once. "
+        "A single red cell is a warning, but broad stress is what makes contagion more plausible."
     )
 
-    st.markdown("### Risk bands")
+with tab4:
+    st.subheader("Decision Rules")
+    action_list("Current Regime Actions", regime["actions"])
     st.dataframe(
-        pd.DataFrame(
-            [
-                {"Band": "0–30", "Label": "Low", "Interpretation": "Normal conditions"},
-                {"Band": "30–60", "Label": "Moderate", "Interpretation": "Some risk signals active"},
-                {"Band": "60–80", "Label": "High", "Interpretation": "Systemic pressure elevated"},
-                {"Band": "80–100", "Label": "Severe", "Interpretation": "Multiple stress channels flashing"},
-            ]
-        ),
+        [
+            {
+                "Score Band": "0-30",
+                "Label": "Low",
+                "Business Meaning": "Normal bank-market noise.",
+                "Portfolio Posture": "Diversified bank exposure can be evaluated mainly on fundamentals.",
+            },
+            {
+                "Score Band": "30-60",
+                "Label": "Moderate",
+                "Business Meaning": "Some stress channels are active.",
+                "Portfolio Posture": "Avoid adding concentration; monitor correlations and drawdowns.",
+            },
+            {
+                "Score Band": "60-80",
+                "Label": "High",
+                "Business Meaning": "Systemic pressure is elevated.",
+                "Portfolio Posture": "Trim high-stress names, raise liquidity, run scenario tests.",
+            },
+            {
+                "Score Band": "80-100",
+                "Label": "Severe",
+                "Business Meaning": "Multiple stress channels are flashing.",
+                "Portfolio Posture": "Defensive allocation dominates until breadth improves.",
+            },
+        ],
         use_container_width=True,
         hide_index=True,
     )
