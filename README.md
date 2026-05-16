@@ -39,6 +39,23 @@ When bank equities become volatile and highly correlated, the signal is not only
 - **Model Validation**: chronological train/test validation, ROC, feature importance, confusion matrix, and model credibility readout.
 - **Data Catalog**: inventory and chart explorer for every CSV under `data/`.
 
+## Production Deployment
+
+The full Streamlit app remains the richest interactive experience. For public deployment, the repo also includes a Vercel-ready static production export:
+
+- `scripts/export_static_site.py` builds `index.html` from the latest processed dataset.
+- `index.html` is a standalone interactive Plotly command-center snapshot.
+- `vercel.json` and `.vercelignore` keep the deployment small and cache-safe.
+
+Refresh and deploy:
+
+```bash
+python scripts/download_data.py
+python scripts/build_features.py
+python scripts/export_static_site.py
+vercel --prod
+```
+
 ## Data Sources
 
 Live data is used when network access is available:

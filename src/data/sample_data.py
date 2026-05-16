@@ -28,14 +28,21 @@ def make_sample_macro_data(path="data/sample/macro.csv", n=900, seed=8):
 
 def make_templates():
     Path('data/templates').mkdir(parents=True, exist_ok=True)
-    pd.DataFrame({"date":["2024-01-31"],"mortgage_arrears_rate":[0.18],"delinquency_90d_rate":[0.22],"mortgage_credit_growth":[3.1],"house_price_index":[100],"unemployment_rate":[6.0],"mortgage_debt_level":[2200]}).to_csv('data/templates/housing_stress_template.csv',index=False)
-    rows=[]
-    weights=[.22,.20,.15,.13,.11,.06]
-    for t,w in zip(BANKS,weights): rows.append({"date":"2024-01-31","ETF ticker":"XFN.TO","holding ticker":t,"holding weight":w})
-    pd.DataFrame(rows).to_csv('data/templates/etf_holdings_template.csv',index=False)
-    pd.DataFrame({"date":["2024-01-31"],"bank":["RY.TO"],"cds_5y_bps":[75]}).to_csv('data/templates/cds_template.csv',index=False)
+    if not Path('data/templates/housing_stress_template.csv').exists():
+        pd.DataFrame({"date":["2024-01-31"],"mortgage_arrears_rate":[0.18],"delinquency_90d_rate":[0.22],"mortgage_credit_growth":[3.1],"house_price_index":[100],"unemployment_rate":[6.0],"mortgage_debt_level":[2200]}).to_csv('data/templates/housing_stress_template.csv',index=False)
+    if not Path('data/templates/etf_holdings_template.csv').exists():
+        rows=[]
+        weights=[.22,.20,.15,.13,.11,.06]
+        for t,w in zip(BANKS,weights): rows.append({"date":"2024-01-31","ETF ticker":"XFN.TO","holding ticker":t,"holding weight":w})
+        pd.DataFrame(rows).to_csv('data/templates/etf_holdings_template.csv',index=False)
+    if not Path('data/templates/cds_template.csv').exists():
+        pd.DataFrame({"date":["2024-01-31"],"bank":["RY.TO"],"cds_5y_bps":[75]}).to_csv('data/templates/cds_template.csv',index=False)
 
 def ensure_sample_data():
-    make_sample_market_data(); make_sample_macro_data(); make_templates()
+    if not Path('data/sample/market_prices.csv').exists():
+        make_sample_market_data()
+    if not Path('data/sample/macro.csv').exists():
+        make_sample_macro_data()
+    make_templates()
 
 if __name__ == '__main__': ensure_sample_data()

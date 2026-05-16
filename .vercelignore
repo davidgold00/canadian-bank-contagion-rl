@@ -1,0 +1,12 @@
+.env
+.venv
+.pytest_cache
+__pycache__
+*.pyc
+data/raw
+data/interim
+data/processed
+artifacts
+notebooks
+reports
+tests
