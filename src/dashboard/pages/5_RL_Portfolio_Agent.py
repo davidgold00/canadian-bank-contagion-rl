@@ -225,12 +225,25 @@ analyst_header(
 
 st.markdown(
     """
-    This is the action layer of the project. The policy observes the contagion score,
-    bank-level stress, correlations, drawdowns, and recent returns, then moves between
-    bank stocks, XFN, XIU, and cash. The point is not to chase every rally; it is to avoid
-    being overexposed when the banks start behaving like one stressed trade.
+    This is the research allocation-policy layer of the project. It is not a live trading
+    system. The policy observes the contagion score, bank-level stress, correlations,
+    drawdowns, and recent returns, then studies how exposure could move between bank
+    stocks, XFN, XIU, and cash. The point is not to chase every rally; it is to avoid being
+    overexposed when the banks start behaving like one stressed trade.
     """
 )
+
+ppo_path = repo_root() / "artifacts" / "rl" / "ppo_model.zip"
+if ppo_path.exists():
+    st.success(
+        "Saved PPO artifact found. This page explains the allocation-policy logic and benchmark behavior; "
+        "the Performance Tracker attempts to use the PPO artifact for the daily paper portfolio and falls back "
+        "to the transparent stress-aware policy if inference is unavailable."
+    )
+else:
+    st.info(
+        "No saved PPO artifact was found. Allocations shown here use the transparent stress-aware fallback policy."
+    )
 
 st.sidebar.header("RL Backtest Controls")
 transaction_cost_bps = st.sidebar.slider("Transaction cost, bps", 0.0, 25.0, 5.0, step=1.0)
@@ -464,8 +477,8 @@ with tab5:
 
     st.warning(
         """
-        The current dashboard includes an interpretable RL-style policy visualization. After training
-        a saved PPO model, this page can be extended to load the actual model's predicted actions
-        beside this transparent benchmark policy.
+        This page is a research allocation-policy and explainability page, not an automated
+        trading system. For the actual simulated allocation plan, including daily trades,
+        holdings, transaction costs, and benchmarks, use the Performance Tracker page.
         """
     )

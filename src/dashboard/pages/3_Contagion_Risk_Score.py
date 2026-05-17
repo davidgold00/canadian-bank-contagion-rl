@@ -16,6 +16,7 @@ from src.dashboard.insight_utils import (
     load_features,
     pct,
     percentile_rank,
+    previous,
     risk_regime,
     strongest_drivers,
 )
@@ -80,6 +81,8 @@ score_series = features["contagion_risk_score"] if "contagion_risk_score" in fea
 score = float(score_series.dropna().iloc[-1])
 regime = risk_regime(score)
 score_pct = percentile_rank(score_series, score)
+score_5d = score - previous(features, "contagion_risk_score", 5, default=np.nan)
+score_21d = score - previous(features, "contagion_risk_score", 21, default=np.nan)
 
 analyst_header(
     "Contagion Risk Score",
@@ -96,11 +99,13 @@ st.markdown(
     """
 )
 
-c1, c2, c3, c4 = st.columns(4)
+c1, c2, c3, c4, c5, c6 = st.columns(6)
 c1.metric("Latest Score", f"{score:.1f}/100")
 c2.metric("Regime", regime["label"], help=regime["summary"])
 c3.metric("Historical Percentile", f"{score_pct:.0%}" if score_pct == score_pct else "N/A")
-c4.metric("Latest Date", latest_valid_date(features))
+c4.metric("5D Change", f"{score_5d:+.1f}" if score_5d == score_5d else "N/A")
+c5.metric("21D Change", f"{score_21d:+.1f}" if score_21d == score_21d else "N/A")
+c6.metric("Latest Date", latest_valid_date(features))
 
 left, right = st.columns([0.40, 0.60])
 with left:

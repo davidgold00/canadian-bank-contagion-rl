@@ -54,14 +54,31 @@ st.markdown(
 sector_ret_21d = latest(features, "XFN.TO_ret_21d")
 sector_drawdown = latest(features, "XFN.TO_drawdown_63d")
 avg_corr = latest(features, "avg_pairwise_corr_63d")
+avg_vol = latest(features, "avg_bank_vol_21d")
 vix = latest(features, "VIX_level")
+oil_21d = latest(features, "CL=F_ret_21d")
+cad_21d = latest(features, "CADUSD=X_ret_21d")
+yield_slope = latest(features, "slope_10y_2y")
+bank_perf = bank_stress_snapshot(features)
+best_bank = bank_perf.sort_values("21D Return", ascending=False).iloc[0]
+worst_bank = bank_perf.sort_values("21D Return", ascending=True).iloc[0]
+return_dispersion = float(bank_perf["21D Return"].std()) if len(bank_perf) else float("nan")
 
-m1, m2, m3, m4, m5 = st.columns(5)
+m1, m2, m3, m4, m5, m6 = st.columns(6)
 m1.metric("Risk Regime", regime["label"], help=regime["summary"])
 m2.metric("Contagion Score", f"{score:.1f}/100", delta=signed_num(score_delta, 1))
 m3.metric("XFN 21D Return", signed_pct(sector_ret_21d))
 m4.metric("XFN 63D Drawdown", pct(sector_drawdown))
-m5.metric("Bank Correlation", f"{avg_corr:.2f}", help="Higher correlation means bank diversification is less reliable.")
+m5.metric("Avg Bank Volatility", pct(avg_vol), help="Annualized 21-day volatility averaged across the Big Six.")
+m6.metric("Bank Correlation", f"{avg_corr:.2f}", help="Higher correlation means bank diversification is less reliable.")
+
+s1, s2, s3, s4, s5, s6 = st.columns(6)
+s1.metric("Best 21D Bank", best_bank["Bank"], delta=signed_pct(best_bank["21D Return"]))
+s2.metric("Worst 21D Bank", worst_bank["Bank"], delta=signed_pct(worst_bank["21D Return"]))
+s3.metric("Return Dispersion", pct(return_dispersion), help="Cross-sectional spread of Big Six 21-day returns.")
+s4.metric("VIX Proxy", f"{vix:.1f}" if vix == vix else "N/A")
+s5.metric("Oil 21D Return", signed_pct(oil_21d))
+s6.metric("CAD 21D Return", signed_pct(cad_21d), help=f"Yield-curve slope proxy: {yield_slope:.2f}" if yield_slope == yield_slope else None)
 
 tab1, tab2, tab3, tab4 = st.tabs(
     ["Executive Readout", "Bank Risk Map", "Economic Transmission", "Data Dictionary"]
@@ -109,8 +126,6 @@ with tab2:
                 "63D Drawdown": latest(features, f"{bank}_drawdown_63d"),
             }
         )
-    bank_perf = bank_stress_snapshot(features)
-
     fig = go.Figure()
     fig.add_trace(
         go.Bar(
@@ -129,6 +144,35 @@ with tab2:
         margin=dict(l=20, r=20, t=50, b=20),
     )
     st.plotly_chart(fig, use_container_width=True)
+
+    scatter = go.Figure(
+        go.Scatter(
+            x=bank_perf["63D Drawdown"],
+            y=bank_perf["21D Volatility"],
+            mode="markers+text",
+            text=bank_perf["Bank"],
+            textposition="top center",
+            marker=dict(
+                size=18,
+                color=bank_perf["Node Stress"],
+                colorscale="RdYlGn_r",
+                cmin=0,
+                cmax=100,
+                colorbar=dict(title="Node Stress"),
+                line=dict(width=1, color="white"),
+            ),
+        )
+    )
+    scatter.update_layout(
+        title="Volatility vs Drawdown: Which Banks Are Carrying Market Stress?",
+        xaxis_title="63D drawdown",
+        yaxis_title="21D annualized volatility",
+        xaxis_tickformat=".1%",
+        yaxis_tickformat=".1%",
+        height=420,
+        margin=dict(l=20, r=20, t=50, b=20),
+    )
+    st.plotly_chart(scatter, use_container_width=True)
 
     display = bank_perf[
         ["Bank", "Name", "21D Return", "21D Volatility", "63D Drawdown", "Node Stress", "Action Readout", "Economic Lens"]

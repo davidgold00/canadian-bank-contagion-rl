@@ -181,8 +181,12 @@ with tab4:
         4. **Stress Testing Lab** turns scenarios into bank and portfolio impacts.
         5. **RL Portfolio Agent** connects the risk signal to allocation behavior.
         6. **Model Validation** checks whether the ML layer has out-of-sample signal.
-        7. **Data Catalog** explains every CSV and shows what each file contributes.
+        7. **Performance Tracker** turns daily recommendations into a simulated paper portfolio with trades, holdings, costs, and benchmarks.
+        8. **Data Catalog** explains every CSV and shows what each file contributes.
         """
     )
 
-st.caption("Educational research dashboard. Not investment advice, not a regulatory stress-testing model.")
+st.caption(
+    "Educational research dashboard. Simulated paper portfolio only. Not investment advice, "
+    "not a trading bot, and not a regulatory stress-testing model."
+)

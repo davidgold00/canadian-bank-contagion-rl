@@ -2,9 +2,9 @@
 
 An interpretable financial-engineering dashboard for Canadian bank systemic risk.
 
-The project models the Big Six banks as a connected market network, combines bank prices with Canadian macro-rate data, converts noisy indicators into a 0-100 contagion risk score, runs stress scenarios, and shows how a defensive allocation policy would respond.
+The project models the Big Six banks as a connected market network, combines bank prices with Canadian macro-rate data, converts noisy indicators into a 0-100 contagion risk score, runs stress scenarios, and shows how a defensive allocation policy would respond through a simulated paper portfolio.
 
-This is educational research, not investment advice.
+This is educational research, not investment advice. No real trades are placed.
 
 ## What This Answers
 
@@ -19,8 +19,15 @@ It explains:
 - which banks are most stressed versus most systemically central;
 - how housing, oil, liquidity, rate, global, or bank-specific shocks propagate;
 - how a risk-aware portfolio policy changes bank, ETF, and cash exposure;
+- how a $100,000 simulated paper fund would have traded those recommendations;
 - whether the ML layer has out-of-sample stress-prediction signal;
 - what every CSV means and how each file contributes to the analysis.
+
+## Portfolio Intelligence vs Trading Bot
+
+This is not an AI trading bot. It does not connect to a broker, place orders, scrape private data, or claim to predict the next bank-stock move.
+
+The allocation layer is portfolio intelligence: it translates systemic-risk signals into an auditable research policy. The dashboard asks whether a risk-aware process would have reduced concentration, raised cash during stress, rotated away from higher node-stress banks, and behaved sensibly against benchmarks. Treat it like a quant/risk analytics prototype, not an execution engine.
 
 ## Why Canadian Banks Matter
 
@@ -37,13 +44,39 @@ When bank equities become volatile and highly correlated, the signal is not only
 - **Stress Testing Lab**: scenario controls, propagation paths, post-shock network view, and portfolio loss attribution.
 - **RL Portfolio Agent**: defensive allocation policy, benchmark comparison, drawdowns, current weights, and stress-day behavior.
 - **Model Validation**: chronological train/test validation, ROC, feature importance, confusion matrix, and model credibility readout.
+- **Performance Tracker**: simulated $100,000 paper portfolio with daily target weights, trades, shares, cash, P&L, turnover, transaction costs, holdings, and benchmark comparison.
 - **Data Catalog**: inventory and chart explorer for every CSV under `data/`.
+
+## Performance Tracker
+
+The Performance Tracker answers the practical allocation-plan question:
+
+> If this model recommended weights each day, what would a fake-money portfolio have actually held, traded, gained, lost, and paid in costs?
+
+It starts with configurable paper capital, defaulting to $100,000, and simulates daily long-only allocations across:
+
+- RY.TO, TD.TO, BMO.TO, BNS.TO, CM.TO, NA.TO;
+- XFN.TO;
+- XIU.TO or XIC.TO when available;
+- cash.
+
+Daily process:
+
+1. Observe prices, features, contagion risk, bank stress, volatility, drawdown, and momentum available up to that day.
+2. Generate target weights from the trained PPO model if usable; otherwise use the transparent stress-aware fallback policy.
+3. Compare target weights with current simulated holdings.
+4. Generate paper buy/sell trades when the rebalance threshold is exceeded.
+5. Apply transaction costs.
+6. Update cash, shares, holdings, portfolio value, daily P&L, cumulative P&L, turnover, and trade reasons.
+7. Compare performance against equal-weight Big Six, XFN buy-and-hold, XIU/XIC buy-and-hold, and cash.
+
+Leakage control: the simulator does not use future prices or future features to decide today's allocation. Returns from day t to day t+1 are earned by the holdings established on day t.
 
 ## Production Deployment
 
 The full Streamlit app remains the richest interactive experience. For public deployment, the repo also includes a Vercel-ready static production export:
 
-- `scripts/export_static_site.py` builds the eight-page static site in `public/` from the latest processed dataset.
+- `scripts/export_static_site.py` builds the nine-page static site in `public/` from the latest processed dataset.
 - `public/index.html` through `public/data-catalog.html` mirror the dashboard pages with shared navigation.
 - `index.html` is kept as a root fallback for simple local preview.
 - `vercel.json` and `.vercelignore` keep the deployment small and cache-safe.
@@ -98,6 +131,7 @@ Live/sample CSVs
    -> dynamic bank graph and stress features
    -> contagion risk score and supervised stress models
    -> scenario propagation and RL-style portfolio allocation
+   -> paper portfolio simulator and benchmark analytics
    -> Streamlit command center
 ```
 
@@ -121,6 +155,12 @@ python scripts/train_rl.py --agent ppo
 python scripts/train_rl.py --agent dqn
 ```
 
+Run tests:
+
+```bash
+pytest
+```
+
 ## Methodology
 
 Market features include 1-day, 5-day, and 21-day returns; rolling volatility; drawdowns; distance from 52-week highs; XFN beta; VIX changes; CAD, oil, gold, TSX, and ETF context.
@@ -133,6 +173,28 @@ The contagion score rises when several stress channels cluster: bank volatility,
 
 The stress lab propagates scenario shocks through a correlation-derived adjacency matrix. The RL page connects risk measurement to allocation behavior by increasing cash and reducing high-stress bank exposure as contagion risk rises.
 
+The paper portfolio simulator is deliberately auditable. It records daily holdings, cash, shares, trades, transaction costs, turnover, current allocation, benchmark values, and trade reasons such as "Reduced bank exposure because contagion risk exceeded high-risk threshold" or "Rotated away from high node-stress bank."
+
 ## Limitations
 
-This is not a production bank risk model. Public market data cannot fully capture regulatory capital, liquidity, uninsured deposit flow, CRE exposure, loan-book details, or true CDS pricing for every bank. Historical correlations can break, stress propagation is simplified, and backtests can overfit. Use the dashboard as a research and explanation tool, not as a trading system.
+This is not a production bank risk model. Public market data cannot fully capture regulatory capital, liquidity, uninsured deposit flow, CRE exposure, loan-book details, or true CDS pricing for every bank. Historical correlations can break, stress propagation is simplified, and backtests can overfit.
+
+Important disclaimers:
+
+- This is a simulated paper portfolio.
+- This is not investment advice.
+- No real trades are placed.
+- Past simulated performance does not imply future returns.
+- Data may be synthetic, delayed, incomplete, or proxied.
+- Transaction costs, liquidity, taxes, and market impact are simplified.
+- Use the dashboard as a research and explanation tool, not as a trading system.
+
+## Interview Talking Points
+
+- Time-series split and no-lookahead portfolio simulation.
+- Graph-based systemic-risk framing for Canadian banks.
+- Interpretable contagion score with driver decomposition.
+- Scenario propagation similar to a simplified OSFI or Bank of Canada stress-testing workflow.
+- PPO-ready allocation layer with a transparent fallback policy.
+- Paper portfolio ledger with holdings, trades, cash, P&L, costs, and benchmark comparison.
+- Dashboard design focused on "what it means" and "what a risk analyst would do next."

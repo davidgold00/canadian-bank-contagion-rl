@@ -47,7 +47,8 @@ with tab1:
         4. **Risk Score:** a 0-100 monitor that rises when stress channels cluster.
         5. **Scenarios:** macro shocks propagate through the bank network.
         6. **Portfolio Agent:** a defensive allocation policy moves between banks, ETFs, and cash.
-        7. **Validation:** chronological tests check whether the ML layer has out-of-sample signal.
+        7. **Performance Tracker:** a simulated paper fund records target weights, trades, holdings, P&L, costs, and benchmarks.
+        8. **Validation:** chronological tests check whether the ML layer has out-of-sample signal.
         """
     )
 
@@ -95,6 +96,7 @@ with tab3:
         - **Stress Testing Lab:** What happens under housing, oil, liquidity, rate, global, or bank-specific shocks?
         - **RL Portfolio Agent:** How would a risk-aware allocation change across banks, ETFs, and cash?
         - **Model Validation:** Is the ML layer learning useful future stress signal?
+        - **Performance Tracker:** If the model gave daily weights, what would a fake-money portfolio have held and traded?
         - **Data Catalog:** What does every CSV mean, and what chart explains it?
         """
     )
@@ -104,8 +106,9 @@ with tab4:
     st.warning(
         """
         This is educational financial-engineering research. It is not investment advice, not a
-        regulatory stress-testing model, not a solvency assessment of any Canadian bank, and not
-        a promise that historical relationships will hold in the future.
+        trading bot, not a regulatory stress-testing model, not a solvency assessment of any
+        Canadian bank, and not a promise that historical relationships will hold in the future.
+        The Performance Tracker is a simulated paper portfolio only; no real trades are placed.
         """
     )
     st.markdown(

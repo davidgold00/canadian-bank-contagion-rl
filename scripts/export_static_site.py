@@ -31,6 +31,8 @@ from src.dashboard.insight_utils import (  # noqa: E402
     risk_regime,
     strongest_drivers,
 )
+from src.portfolio.paper_trader import PaperPortfolioSimulator  # noqa: E402
+from src.portfolio.performance_metrics import drawdown_series, performance_summary  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -45,6 +47,7 @@ PAGES = [
     ("stress-testing-lab", "Stress Testing Lab"),
     ("rl-portfolio-agent", "RL Portfolio Agent"),
     ("model-validation", "Model Validation"),
+    ("performance-tracker", "Performance Tracker"),
     ("data-catalog", "Data Catalog"),
 ]
 
@@ -320,6 +323,61 @@ def allocation_chart(bank_table: pd.DataFrame, score: float) -> tuple[go.Figure,
     return fig, weights
 
 
+def paper_portfolio() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, str]:
+    prices = load_prices()
+    features = load_features()
+    start_date = prices.index[max(63, int(len(prices) * 0.55))]
+    simulator = PaperPortfolioSimulator(
+        prices=prices,
+        features=features,
+        model_path=ROOT / "artifacts" / "rl" / "ppo_model.zip",
+        use_trained_model=True,
+    )
+    result = simulator.simulate(
+        initial_capital=100_000,
+        transaction_cost_bps=5,
+        rebalance_threshold=0.01,
+        start_date=start_date,
+        max_single_name_weight=0.22,
+        max_bank_exposure=0.80,
+        defensive_cash_sensitivity=1.0,
+    )
+    return result.ledger, result.trades, result.current_holdings, result.weights, result.benchmarks, result.policy_source
+
+
+def performance_value_chart(ledger: pd.DataFrame, benchmarks: pd.DataFrame) -> go.Figure:
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=ledger.index, y=ledger["portfolio_value"], mode="lines", name="Model paper portfolio", line=dict(color="#1d5f8f", width=3)))
+    for col in benchmarks.columns:
+        fig.add_trace(go.Scatter(x=benchmarks.index, y=benchmarks[col], mode="lines", name=col))
+    fig.update_layout(title="Paper Portfolio Value vs Benchmarks", yaxis_title="CAD", height=460, margin=dict(l=30, r=20, t=55, b=35), paper_bgcolor="white", plot_bgcolor="white")
+    return fig
+
+
+def performance_allocation_chart(weights: pd.DataFrame) -> go.Figure:
+    latest_weights = weights.iloc[-1].sort_values()
+    fig = go.Figure(go.Bar(x=latest_weights.values, y=latest_weights.index, orientation="h", text=[f"{x:.1%}" for x in latest_weights.values], textposition="auto", marker_color="#1d5f8f"))
+    fig.update_layout(title="Current Paper Portfolio Allocation", xaxis_title="Weight", xaxis_tickformat=".0%", height=430, margin=dict(l=30, r=20, t=55, b=35), paper_bgcolor="white", plot_bgcolor="white")
+    return fig
+
+
+def cash_risk_chart(ledger: pd.DataFrame) -> go.Figure:
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=ledger.index, y=ledger["contagion_risk_score"], name="Contagion risk", yaxis="y1"))
+    fig.add_trace(go.Scatter(x=ledger.index, y=ledger["cash_weight"], name="Cash weight", yaxis="y2"))
+    fig.update_layout(title="Cash Weight vs Contagion Risk", yaxis=dict(title="Risk score"), yaxis2=dict(title="Cash weight", overlaying="y", side="right", tickformat=".0%"), height=430, margin=dict(l=30, r=20, t=55, b=35), paper_bgcolor="white", plot_bgcolor="white")
+    return fig
+
+
+def performance_drawdown_chart(ledger: pd.DataFrame, benchmarks: pd.DataFrame) -> go.Figure:
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=ledger.index, y=drawdown_series(ledger["portfolio_value"]), mode="lines", name="Model paper portfolio"))
+    for col in benchmarks.columns:
+        fig.add_trace(go.Scatter(x=benchmarks.index, y=drawdown_series(benchmarks[col]), mode="lines", name=col))
+    fig.update_layout(title="Paper Portfolio Drawdown vs Benchmarks", yaxis_title="Drawdown", yaxis_tickformat=".0%", height=430, margin=dict(l=30, r=20, t=55, b=35), paper_bgcolor="white", plot_bgcolor="white")
+    return fig
+
+
 def normalize_prices(prices: pd.DataFrame, columns: list[str], days=252) -> pd.DataFrame:
     view = prices[[c for c in columns if c in prices]].tail(days).ffill().dropna(how="all")
     if view.empty:
@@ -510,6 +568,29 @@ def build_pages() -> dict[str, str]:
     for col in ["AUC", "Accuracy", "Precision", "Recall"]:
         metrics_display[col] = metrics_display[col].map(lambda x: f"{x:.3f}")
 
+    paper_ledger, paper_trades, paper_holdings, paper_weights, paper_benchmarks, paper_policy_source = paper_portfolio()
+    paper_summary = performance_summary(
+        paper_ledger["portfolio_value"],
+        paper_ledger["daily_return"],
+        paper_ledger["turnover"],
+        paper_ledger["transaction_costs"],
+    )
+    paper_latest = paper_ledger.iloc[-1]
+    paper_holdings_display = paper_holdings[["asset", "shares", "latest_price", "market_value", "weight", "unrealized_pnl"]].copy()
+    paper_holdings_display.columns = ["Asset", "Shares", "Latest Price", "Market Value", "Weight", "Unrealized P&L"]
+    for col in ["Latest Price", "Market Value", "Unrealized P&L"]:
+        paper_holdings_display[col] = paper_holdings_display[col].map(lambda x: f"${x:,.2f}")
+    paper_holdings_display["Shares"] = paper_holdings_display["Shares"].map(lambda x: f"{x:,.4f}")
+    paper_holdings_display["Weight"] = paper_holdings_display["Weight"].map(lambda x: f"{x:.1%}")
+    paper_trades_display = paper_trades.sort_values("date", ascending=False).head(20).copy()
+    if not paper_trades_display.empty:
+        paper_trades_display["date"] = pd.to_datetime(paper_trades_display["date"]).dt.date
+        paper_trades_display = paper_trades_display[["date", "asset", "action", "shares", "price", "notional", "transaction_cost", "reason"]]
+        paper_trades_display.columns = ["Date", "Asset", "Action", "Shares", "Price", "Notional", "Transaction Cost", "Reason"]
+        paper_trades_display["Shares"] = paper_trades_display["Shares"].map(lambda x: f"{x:,.4f}")
+        for col in ["Price", "Notional", "Transaction Cost"]:
+            paper_trades_display[col] = paper_trades_display[col].map(lambda x: f"${x:,.2f}")
+
     pages = {}
 
     about_links = "".join(
@@ -521,6 +602,7 @@ def build_pages() -> dict[str, str]:
             ("stress-testing-lab", "Stress Testing Lab", "Scenario propagation and portfolio impact."),
             ("rl-portfolio-agent", "RL Portfolio Agent", "Risk-aware allocation and cash posture."),
             ("model-validation", "Model Validation", "Out-of-sample stress-prediction credibility."),
+            ("performance-tracker", "Performance Tracker", "Paper portfolio, trades, holdings, costs, and benchmarks."),
             ("data-catalog", "Data Catalog", "CSV inventory, explanations, and data lineage."),
         ]
     )
@@ -580,6 +662,35 @@ def build_pages() -> dict[str, str]:
         + "<h2>Chronological Test Metrics</h2>" + table_html(metrics_display)
     )
     pages["model-validation"] = page_template("model-validation", "Model Validation", "Check whether the ML layer has real out-of-sample stress signal.", model_body, latest_date)
+
+    performance_body = (
+        metric_grid(
+            [
+                ("Starting Capital", "$100,000"),
+                ("Current Paper Value", f"${paper_summary['ending_value']:,.0f}"),
+                ("Cumulative Return", f"{paper_summary['cumulative_return']:.1%}"),
+                ("Policy Source", paper_policy_source),
+                ("Sharpe Ratio", f"{paper_summary['sharpe_ratio']:.2f}"),
+                ("Max Drawdown", f"{paper_summary['max_drawdown']:.1%}"),
+                ("Transaction Costs", f"${paper_summary['total_transaction_costs']:,.2f}"),
+                ("Current Cash Weight", f"{paper_latest['cash_weight']:.1%}"),
+            ]
+        )
+        + card(
+            "Simulated paper portfolio - not real trading, not investment advice",
+            "This page turns the daily allocation recommendation into a fake-money paper fund. It tracks shares, cash, trades, transaction costs, P&L, turnover, and benchmark comparisons. No broker connection exists and no real orders are placed.",
+            "warning",
+        )
+        + "<div class='chart-grid'><div class='chart-card'>" + chart_html(performance_value_chart(paper_ledger, paper_benchmarks), True) + "</div><div class='chart-card'>" + chart_html(performance_allocation_chart(paper_weights)) + "</div></div>"
+        + "<div class='chart-grid'><div class='chart-card'>" + chart_html(performance_drawdown_chart(paper_ledger, paper_benchmarks)) + "</div><div class='chart-card'>" + chart_html(cash_risk_chart(paper_ledger)) + "</div></div>"
+        + "<h2>Current Holdings</h2>" + table_html(paper_holdings_display)
+        + "<h2>Recent Simulated Trades</h2>" + table_html(paper_trades_display)
+        + card(
+            "Leakage Control",
+            "Weights for each day are generated using observations available up to that day. Returns from one day to the next are earned by the holdings established on the prior day.",
+        )
+    )
+    pages["performance-tracker"] = page_template("performance-tracker", "Performance Tracker", "A simulated paper fund that follows the model's daily allocation recommendations.", performance_body, latest_date)
 
     data_body = (
         metric_grid([("CSV Files Found", f"{len(inventory):,}"), ("Total Rows", f"{int(inventory['Rows'].fillna(0).sum()):,}"), ("Explained Files", f"{inventory['Explanation'].notna().sum():,}"), ("Latest Dataset", latest_date)])

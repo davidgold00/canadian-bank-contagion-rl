@@ -306,6 +306,15 @@ elif avg_final >= 40:
 else:
     insight_card("Scenario Readout", recommended_response(final_stress), status="success")
 
+scenario_table = pd.DataFrame(
+    {
+        "Bank": BANKS,
+        "Initial Shock": [initial.get(bank, 0.0) for bank in BANKS],
+        "Final Stress": [final_stress.get(bank, 0.0) for bank in BANKS],
+        "Incremental Impact": [final_stress.get(bank, 0.0) - initial.get(bank, 0.0) for bank in BANKS],
+    }
+)
+
 tab1, tab2, tab3, tab4 = st.tabs(
     [
         "Propagation Chart",
@@ -326,7 +335,12 @@ with tab1:
 
     st.plotly_chart(plot_stress_paths(paths), use_container_width=True)
     st.plotly_chart(plot_final_bar(final_stress), use_container_width=True)
-    st.dataframe(paths.round(2), use_container_width=True)
+    display_scenario = scenario_table.copy()
+    for col in ["Initial Shock", "Final Stress", "Incremental Impact"]:
+        display_scenario[col] = display_scenario[col].map(lambda x: f"{x:.1f}/100")
+    st.dataframe(display_scenario, use_container_width=True, hide_index=True)
+    with st.expander("Data Details: propagation path table"):
+        st.dataframe(paths.round(2), use_container_width=True)
 
 with tab2:
     st.subheader("Portfolio Loss Contribution")

@@ -262,6 +262,46 @@ with tab2:
     show["Network Centrality"] = show["Network Centrality"].map(lambda x: f"{x:.2f}")
     st.dataframe(show, use_container_width=True, hide_index=True)
 
+    c_left, c_right = st.columns(2)
+    with c_left:
+        centrality_rank = ranking.sort_values("Network Centrality", ascending=True)
+        fig = go.Figure(
+            go.Bar(
+                x=centrality_rank["Network Centrality"],
+                y=centrality_rank["Bank"],
+                orientation="h",
+                text=[f"{x:.2f}" for x in centrality_rank["Network Centrality"]],
+                textposition="auto",
+                marker_color="#1d5f8f",
+            )
+        )
+        fig.update_layout(
+            title="Systemic Centrality Ranking",
+            xaxis_title="Relative centrality",
+            height=390,
+            margin=dict(l=20, r=20, t=50, b=20),
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    with c_right:
+        stress_rank = ranking.sort_values("Node Stress", ascending=True)
+        fig = go.Figure(
+            go.Bar(
+                x=stress_rank["Node Stress"],
+                y=stress_rank["Bank"],
+                orientation="h",
+                text=[f"{x:.1f}" for x in stress_rank["Node Stress"]],
+                textposition="auto",
+                marker_color="#b42318",
+            )
+        )
+        fig.update_layout(
+            title="Node Stress Ranking",
+            xaxis_title="0-100 market stress",
+            height=390,
+            margin=dict(l=20, r=20, t=50, b=20),
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
 with tab3:
     st.subheader("Correlation Matrix")
     fig = go.Figure(

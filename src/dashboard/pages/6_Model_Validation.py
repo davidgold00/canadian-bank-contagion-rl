@@ -114,6 +114,9 @@ def fit_models(X_train, X_test, y_train, y_test):
         pred = (prob >= 0.50).astype(int)
         fpr, tpr, _ = roc_curve(y_test, prob)
         auc_score = auc(fpr, tpr)
+        top_decile_cutoff = np.quantile(prob, 0.90) if len(prob) else 1.0
+        top_decile_mask = prob >= top_decile_cutoff
+        precision_top_decile = float(y_test[top_decile_mask].mean()) if top_decile_mask.any() else 0.0
 
         rows.append(
             {
@@ -122,11 +125,47 @@ def fit_models(X_train, X_test, y_train, y_test):
                 "Accuracy": accuracy_score(y_test, pred),
                 "Precision": precision_score(y_test, pred, zero_division=0),
                 "Recall": recall_score(y_test, pred, zero_division=0),
+                "Precision@Top Decile": precision_top_decile,
                 "Positive Rate": pred.mean(),
             }
         )
 
     return fitted, pd.DataFrame(rows).sort_values("AUC", ascending=False)
+
+
+def calibration_table(model, X_test, y_test, bins: int = 5) -> pd.DataFrame:
+    prob = pd.Series(model.predict_proba(X_test)[:, 1], index=y_test.index, name="Predicted Probability")
+    buckets = pd.qcut(prob.rank(method="first"), q=bins, labels=False, duplicates="drop")
+    out = (
+        pd.DataFrame({"Predicted Probability": prob, "Actual Stress Rate": y_test.astype(float), "Bucket": buckets})
+        .groupby("Bucket", as_index=False)
+        .agg({"Predicted Probability": "mean", "Actual Stress Rate": "mean"})
+    )
+    out["Bucket"] = out["Bucket"].map(lambda x: f"Bucket {int(x) + 1}")
+    return out
+
+
+def plot_calibration(calibration: pd.DataFrame):
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=calibration["Predicted Probability"],
+            y=calibration["Actual Stress Rate"],
+            mode="markers+lines",
+            name="Observed",
+        )
+    )
+    fig.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode="lines", name="Perfect calibration", line=dict(dash="dash")))
+    fig.update_layout(
+        title="Calibration: Predicted Stress Probability vs Actual Stress Rate",
+        xaxis_title="Average predicted probability",
+        yaxis_title="Actual stress event rate",
+        xaxis_tickformat=".0%",
+        yaxis_tickformat=".0%",
+        height=430,
+        margin=dict(l=20, r=20, t=50, b=20),
+    )
+    return fig
 
 
 def plot_roc(fitted, X_test, y_test):
@@ -254,7 +293,7 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs(
         "Model Metrics",
         "ROC / Discrimination",
         "Feature Importance",
-        "Confusion Matrix",
+        "Confusion / Calibration",
         "Validation Methodology",
     ]
 )
@@ -269,7 +308,7 @@ with tab1:
     )
 
     display = metrics.copy()
-    for col in ["AUC", "Accuracy", "Precision", "Recall", "Positive Rate"]:
+    for col in ["AUC", "Accuracy", "Precision", "Recall", "Precision@Top Decile", "Positive Rate"]:
         display[col] = display[col].map(lambda x: f"{x:.3f}")
 
     st.dataframe(display, use_container_width=True, hide_index=True)
@@ -318,7 +357,7 @@ with tab3:
     st.dataframe(importance, use_container_width=True, hide_index=True)
 
 with tab4:
-    st.subheader("Confusion Matrix")
+    st.subheader("Confusion Matrix and Calibration")
     st.markdown(
         """
         This matrix shows classification behavior at a 50% probability threshold.
@@ -353,6 +392,13 @@ with tab4:
     )
     fig.update_layout(height=400, margin=dict(l=20, r=20, t=40, b=20))
     st.plotly_chart(fig, use_container_width=True)
+
+    calibration = calibration_table(best_model, X_test, y_test)
+    st.plotly_chart(plot_calibration(calibration), use_container_width=True)
+    calibration_display = calibration.copy()
+    for col in ["Predicted Probability", "Actual Stress Rate"]:
+        calibration_display[col] = calibration_display[col].map(lambda x: f"{x:.1%}")
+    st.dataframe(calibration_display, use_container_width=True, hide_index=True)
 
 with tab5:
     st.subheader("Validation Methodology")
