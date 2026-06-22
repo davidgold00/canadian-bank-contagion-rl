@@ -1,196 +1,588 @@
-import streamlit as st
+"""
+Premium UI components for the Canadian Bank Contagion Command Center.
+
+Design language: professional financial terminal — dark accent palette,
+monospace data, color-coded risk indicators, clear signal typography.
+"""
+
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import streamlit as st
+
+# ── Shared colour tokens ────────────────────────────────────────────────────
+PALETTE = {
+    "bg": "#0f1923",
+    "surface": "#16202d",
+    "card": "#1c2a38",
+    "border": "#2a3a4a",
+    "border_accent": "#334455",
+    "ink": "#e8edf2",
+    "muted": "#7a91a6",
+    "blue": "#1e88e5",
+    "blue_light": "#42a5f5",
+    "green": "#00c853",
+    "green_muted": "#1b5e20",
+    "amber": "#ffb300",
+    "amber_muted": "#ff6f00",
+    "red": "#f44336",
+    "red_muted": "#b71c1c",
+    "teal": "#00bcd4",
+}
+
+PLOTLY_TEMPLATE = dict(
+    layout=go.Layout(
+        paper_bgcolor="#16202d",
+        plot_bgcolor="#0f1923",
+        font=dict(family="'JetBrains Mono', 'SF Mono', 'Fira Code', monospace", color="#e8edf2", size=12),
+        title=dict(font=dict(size=15, color="#e8edf2"), x=0.02),
+        xaxis=dict(
+            gridcolor="#2a3a4a",
+            linecolor="#2a3a4a",
+            tickfont=dict(color="#7a91a6"),
+            title_font=dict(color="#7a91a6"),
+        ),
+        yaxis=dict(
+            gridcolor="#2a3a4a",
+            linecolor="#2a3a4a",
+            tickfont=dict(color="#7a91a6"),
+            title_font=dict(color="#7a91a6"),
+        ),
+        legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(color="#e8edf2")),
+        colorway=["#1e88e5", "#00c853", "#ffb300", "#f44336", "#00bcd4", "#e040fb"],
+        margin=dict(l=20, r=20, t=50, b=20),
+    )
+)
 
 
-def apply_dashboard_style():
+def _apply_plotly_template(fig: go.Figure, height: int = 430) -> go.Figure:
+    fig.update_layout(
+        **{k: v for k, v in PLOTLY_TEMPLATE["layout"].to_plotly_json().items()},
+        height=height,
+    )
+    return fig
+
+
+def apply_dashboard_style() -> None:
     st.markdown(
         """
         <style>
+        /* ── Fonts ─────────────────────────────── */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+        /* ── Root tokens ──────────────────────── */
         :root {
-            --ink: #18212f;
-            --muted: #5d6877;
-            --line: #d7dde5;
-            --panel: #f7f9fc;
-            --blue: #1d5f8f;
-            --green: #1f7a5a;
-            --amber: #ad6b00;
-            --red: #b42318;
+            --bg:            #0f1923;
+            --surface:       #16202d;
+            --card:          #1c2a38;
+            --border:        #2a3a4a;
+            --border-accent: #334455;
+            --ink:           #e8edf2;
+            --muted:         #7a91a6;
+            --blue:          #1e88e5;
+            --blue-light:    #42a5f5;
+            --green:         #00c853;
+            --amber:         #ffb300;
+            --red:           #f44336;
+            --teal:          #00bcd4;
+            --radius:        10px;
         }
+
+        /* ── Page & body ────────────────────────── */
+        html, body, [data-testid="stAppViewContainer"], [data-testid="stApp"] {
+            background-color: var(--bg) !important;
+            color: var(--ink) !important;
+            font-family: 'Inter', ui-sans-serif, system-ui, sans-serif !important;
+        }
+
+        /* Hide Streamlit hamburger/branding */
+        #MainMenu, footer, [data-testid="stToolbar"] { display: none !important; }
+
+        /* ── Sidebar ─────────────────────────── */
+        [data-testid="stSidebar"] {
+            background: var(--surface) !important;
+            border-right: 1px solid var(--border) !important;
+        }
+        [data-testid="stSidebar"] * { color: var(--ink) !important; }
+        [data-testid="stSidebar"] [data-testid="stMarkdown"] p {
+            color: var(--muted) !important;
+        }
+
+        /* ── Main block container ─────────────── */
         .block-container {
-            padding-top: 2.1rem;
-            padding-bottom: 3rem;
-            max-width: 1360px;
+            padding-top: 2rem !important;
+            padding-bottom: 3rem !important;
+            max-width: 1440px !important;
+            background: var(--bg) !important;
         }
-        h1, h2, h3 {
-            letter-spacing: 0 !important;
-            color: var(--ink);
+
+        /* ── Typography ────────────────────────── */
+        h1 {
+            font-size: clamp(1.6rem, 3vw, 2.4rem) !important;
+            font-weight: 700 !important;
+            letter-spacing: -0.02em !important;
+            color: var(--ink) !important;
+            margin-bottom: 0.2rem !important;
         }
+        h2 { font-weight: 600 !important; color: var(--ink) !important; }
+        h3 { font-weight: 600 !important; color: var(--ink) !important; }
+        h4 { font-weight: 500 !important; color: var(--ink) !important; margin-bottom: 0.3rem !important; }
+        p, li { color: #c5d1db !important; line-height: 1.55 !important; }
+        .stMarkdown p { color: #c5d1db !important; }
+
+        /* ── Metric cards ──────────────────────── */
         div[data-testid="stMetric"] {
-            background: #ffffff;
-            border: 1px solid var(--line);
-            border-radius: 8px;
-            padding: 0.85rem 0.95rem;
-            box-shadow: 0 1px 2px rgba(24, 33, 47, 0.04);
+            background: var(--card) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: var(--radius) !important;
+            padding: 1rem 1.1rem !important;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.3) !important;
+            transition: border-color 0.2s !important;
+        }
+        div[data-testid="stMetric"]:hover {
+            border-color: var(--border-accent) !important;
         }
         div[data-testid="stMetricLabel"] p {
-            color: var(--muted);
-            font-size: 0.86rem;
+            color: var(--muted) !important;
+            font-size: 0.78rem !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.06em !important;
+            font-weight: 500 !important;
         }
         div[data-testid="stMetricValue"] {
+            color: var(--ink) !important;
+            font-size: 1.55rem !important;
+            font-family: 'JetBrains Mono', monospace !important;
+            font-weight: 500 !important;
+        }
+        div[data-testid="stMetricDelta"] {
+            font-family: 'JetBrains Mono', monospace !important;
+            font-size: 0.85rem !important;
+        }
+
+        /* ── Tabs ──────────────────────────────── */
+        button[data-baseweb="tab"] {
+            font-size: 0.88rem !important;
+            color: var(--muted) !important;
+            font-weight: 500 !important;
+            border-radius: 6px 6px 0 0 !important;
+            background: transparent !important;
+            border: none !important;
+        }
+        button[data-baseweb="tab"][aria-selected="true"] {
+            color: var(--blue-light) !important;
+            border-bottom: 2px solid var(--blue-light) !important;
+        }
+        div[data-baseweb="tab-panel"] { padding-top: 1rem !important; }
+
+        /* ── Selectbox / slider / checkbox ──────── */
+        div[data-testid="stSelectbox"] label,
+        div[data-testid="stSlider"] label,
+        div[data-testid="stCheckbox"] label {
+            color: var(--muted) !important;
+            font-size: 0.82rem !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.04em !important;
+        }
+        [data-baseweb="select"] div {
+            background: var(--card) !important;
+            border-color: var(--border) !important;
+            color: var(--ink) !important;
+        }
+
+        /* ── Dataframes ────────────────────────── */
+        [data-testid="stDataFrame"] {
+            border-radius: var(--radius) !important;
+            overflow: hidden !important;
+        }
+        [data-testid="stDataFrame"] th {
+            background: var(--surface) !important;
+            color: var(--muted) !important;
+            font-size: 0.78rem !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.05em !important;
+        }
+        [data-testid="stDataFrame"] td {
+            color: var(--ink) !important;
+            font-family: 'JetBrains Mono', monospace !important;
+            font-size: 0.86rem !important;
+        }
+
+        /* ── Expanders ─────────────────────────── */
+        details { border-color: var(--border) !important; }
+        details summary {
+            color: var(--blue-light) !important;
+            font-weight: 500 !important;
+        }
+
+        /* ── Dividers ──────────────────────────── */
+        hr { border-color: var(--border) !important; opacity: 0.6 !important; }
+
+        /* ── Custom components (defined below) ─── */
+        .cc-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.1rem 1.2rem;
+            margin: 0.4rem 0 0.9rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+        }
+        .cc-card h4 {
+            margin: 0 0 0.5rem;
+            font-size: 0.95rem;
+            font-weight: 600;
             color: var(--ink);
-            font-size: 1.6rem;
         }
-        .analysis-card {
-            background: var(--panel);
-            border: 1px solid var(--line);
-            border-radius: 8px;
-            padding: 1rem 1.1rem;
-            margin: 0.3rem 0 1rem 0;
-        }
-        .analysis-card h4 {
-            margin: 0 0 0.45rem 0;
-            color: var(--ink);
-        }
-        .analysis-card p, .analysis-card li {
-            color: #354153;
-            line-height: 1.45;
-        }
-        .source-pill {
+        .cc-card p { color: #c5d1db; font-size: 0.9rem; margin: 0; }
+
+        .cc-card.success { border-left: 4px solid var(--green); background: #0d2318; }
+        .cc-card.warning { border-left: 4px solid var(--amber); background: #1f1700; }
+        .cc-card.danger  { border-left: 4px solid var(--red);   background: #1f0a08; }
+        .cc-card.info    { border-left: 4px solid var(--blue);  background: #0a1929; }
+        .cc-card.teal    { border-left: 4px solid var(--teal);  background: #001f26; }
+
+        /* Signal badges */
+        .sig-buy    { display:inline-block; padding:3px 10px; border-radius:999px; background:#0d2318; color:var(--green);  border:1px solid var(--green);  font-size:0.78rem; font-weight:700; letter-spacing:0.05em; }
+        .sig-hold   { display:inline-block; padding:3px 10px; border-radius:999px; background:#1f1700; color:var(--amber);  border:1px solid var(--amber);  font-size:0.78rem; font-weight:700; letter-spacing:0.05em; }
+        .sig-reduce { display:inline-block; padding:3px 10px; border-radius:999px; background:#1f0a08; color:var(--red);    border:1px solid var(--red);    font-size:0.78rem; font-weight:700; letter-spacing:0.05em; }
+
+        /* Source pills */
+        .cc-pill {
             display: inline-block;
-            padding: 0.25rem 0.55rem;
-            border: 1px solid var(--line);
+            padding: 4px 10px;
+            border: 1px solid var(--border);
             border-radius: 999px;
-            background: #ffffff;
+            background: var(--surface);
             color: var(--muted);
-            font-size: 0.82rem;
-            margin-right: 0.35rem;
-            margin-bottom: 0.35rem;
+            font-size: 0.78rem;
+            margin-right: 6px;
+            margin-bottom: 6px;
         }
-        .small-note {
-            color: var(--muted);
-            font-size: 0.9rem;
+
+        /* Action list */
+        .cc-action-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.6rem;
+            margin-bottom: 0.55rem;
+            font-size: 0.88rem;
+            color: #c5d1db;
         }
+        .cc-action-bullet {
+            flex-shrink: 0;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--blue-light);
+            margin-top: 6px;
+        }
+
+        /* Regime banner */
+        .regime-banner {
+            border-radius: var(--radius);
+            padding: 1rem 1.4rem;
+            margin: 1rem 0;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            font-size: 0.95rem;
+        }
+        .regime-banner .regime-label {
+            font-size: 1.4rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            white-space: nowrap;
+        }
+
+        /* Small text / caption */
+        .cc-caption { color: var(--muted); font-size: 0.8rem; margin-top: 0.6rem; }
+
+        /* Conviction stars */
+        .cv-star-filled  { color: var(--amber); }
+        .cv-star-empty   { color: var(--border-accent); }
+
         </style>
         """,
         unsafe_allow_html=True,
     )
 
 
-def analyst_header(title, subtitle, date_text=None, source_text=None):
+# ── Header components ───────────────────────────────────────────────────────
+
+def analyst_header(title: str, subtitle: str, date_text: str | None = None, source_text: str | None = None) -> None:
     st.title(title)
-    st.markdown(f"### {subtitle}")
-    details = []
+    st.markdown(f"<p style='font-size:1.05rem;color:#9bb4c8;margin-top:-0.4rem'>{subtitle}</p>", unsafe_allow_html=True)
+    pills = []
     if date_text:
-        details.append(f"<span class='source-pill'>Data through {date_text}</span>")
+        pills.append(f"<span class='cc-pill'>Data through {date_text}</span>")
     if source_text:
-        details.append(f"<span class='source-pill'>{source_text}</span>")
-    if details:
-        st.markdown(" ".join(details), unsafe_allow_html=True)
+        pills.append(f"<span class='cc-pill'>{source_text}</span>")
+    if pills:
+        st.markdown(" ".join(pills), unsafe_allow_html=True)
 
 
-def page_header(title, subtitle, why_it_matters, how_to_read):
+def page_header(title: str, subtitle: str, why_it_matters: str, how_to_read: str) -> None:
     st.title(title)
-    st.markdown(f"### {subtitle}")
-
-    c1, c2 = st.columns([1, 1])
-
+    st.markdown(f"<p style='font-size:1.05rem;color:#9bb4c8;margin-top:-0.4rem'>{subtitle}</p>", unsafe_allow_html=True)
+    c1, c2 = st.columns(2)
     with c1:
-        st.info(f"**Why this matters**\n\n{why_it_matters}")
-
+        insight_card("Why This Matters", why_it_matters, status="teal")
     with c2:
-        st.success(f"**How to read this page**\n\n{how_to_read}")
-
+        insight_card("How to Read This Page", how_to_read, status="info")
     st.divider()
 
 
-def risk_badge(score):
-    if score >= 75:
-        st.error(f"High systemic stress: {score:.1f}/100")
-    elif score >= 50:
-        st.warning(f"Moderate systemic stress: {score:.1f}/100")
-    else:
-        st.success(f"Low systemic stress: {score:.1f}/100")
+# ── Card components ─────────────────────────────────────────────────────────
 
-
-def explain_metric(label, value, explanation, delta=None):
-    st.metric(label, value, delta=delta, help=explanation)
-
-
-def insight_card(title, body, status="info"):
-    colors = {
-        "success": "#e9f7ef",
-        "warning": "#fff4df",
-        "danger": "#fdecec",
-        "info": "#f7f9fc",
-    }
-    border = {
-        "success": "#8fd2ad",
-        "warning": "#e5b75c",
-        "danger": "#e49a94",
-        "info": "#d7dde5",
-    }
+def insight_card(title: str, body: str, status: str = "info") -> None:
+    status_class = {
+        "success": "success",
+        "warning": "warning",
+        "danger": "danger",
+        "info": "info",
+        "teal": "teal",
+    }.get(status, "info")
     st.markdown(
-        f"""
-        <div class="analysis-card" style="background:{colors.get(status, colors['info'])}; border-color:{border.get(status, border['info'])};">
-            <h4>{title}</h4>
-            <p>{body}</p>
-        </div>
-        """,
+        f"""<div class="cc-card {status_class}">
+              <h4>{title}</h4>
+              <p>{body}</p>
+            </div>""",
         unsafe_allow_html=True,
     )
 
 
-def action_list(title, actions):
-    st.markdown(f"#### {title}")
-    for action in actions:
-        st.markdown(f"- {action}")
-
-
-def format_table_percent(df, columns):
-    out = df.copy()
-    for col in columns:
-        if col in out.columns:
-            out[col] = out[col].map(lambda x: f"{x:.2%}" if pd.notna(x) else "N/A")
-    return out
-
-
-def plot_time_series(df, y, title, explanation=None):
-    fig = px.line(df, y=y, title=title)
-    fig.update_layout(
-        height=420,
-        margin=dict(l=20, r=20, t=50, b=20),
-        paper_bgcolor="white",
-        plot_bgcolor="white",
-        font=dict(color="#18212f"),
+def action_list(title: str, actions: list[str]) -> None:
+    items_html = "".join(
+        f"<div class='cc-action-item'><div class='cc-action-bullet'></div><span>{a}</span></div>"
+        for a in actions
     )
-    st.plotly_chart(fig, use_container_width=True)
-    if explanation:
-        st.caption(explanation)
+    st.markdown(
+        f"""<div class="cc-card info">
+              <h4>{title}</h4>
+              {items_html}
+            </div>""",
+        unsafe_allow_html=True,
+    )
 
 
-def plot_heatmap(matrix, title, explanation=None):
+def regime_banner(label: str, summary: str, score: float, tone: str) -> None:
+    bg_map = {
+        "success": "#0d2318",
+        "warning": "#1f1700",
+        "danger": "#1f0a08",
+        "info": "#0a1929",
+    }
+    border_map = {
+        "success": "#00c853",
+        "warning": "#ffb300",
+        "danger": "#f44336",
+        "info": "#1e88e5",
+    }
+    color_map = {
+        "success": "#00c853",
+        "warning": "#ffb300",
+        "danger": "#f44336",
+        "info": "#1e88e5",
+    }
+    bg = bg_map.get(tone, bg_map["info"])
+    border = border_map.get(tone, border_map["info"])
+    color = color_map.get(tone, color_map["info"])
+    st.markdown(
+        f"""<div class="regime-banner" style="background:{bg};border:1px solid {border};">
+              <div class="regime-label" style="color:{color};">{score:.0f}/100</div>
+              <div>
+                <div style="font-weight:700;color:{color};margin-bottom:3px;">{label} Risk Regime</div>
+                <div style="color:#c5d1db;font-size:0.88rem;">{summary}</div>
+              </div>
+            </div>""",
+        unsafe_allow_html=True,
+    )
+
+
+def signal_badge(signal: str) -> str:
+    """Return HTML badge for BUY / HOLD / REDUCE inline use."""
+    if signal.upper() in ("BUY", "▲ BUY"):
+        return "<span class='sig-buy'>▲ BUY</span>"
+    if signal.upper() in ("REDUCE", "▼ REDUCE", "SELL"):
+        return "<span class='sig-reduce'>▼ REDUCE</span>"
+    return "<span class='sig-hold'>◆ HOLD</span>"
+
+
+def conviction_stars_html(n: int) -> str:
+    filled = "★" * n
+    empty = "☆" * (5 - n)
+    return f"<span class='cv-star-filled'>{filled}</span><span class='cv-star-empty'>{empty}</span>"
+
+
+def signal_table(signals_df: pd.DataFrame) -> None:
+    """Render the investment signals table with colored badges."""
+    if signals_df.empty:
+        st.info("No signal data available.")
+        return
+
+    rows_html = ""
+    for _, row in signals_df.iterrows():
+        sig_html = signal_badge(str(row.get("Signal", "HOLD")))
+        conv = int(row.get("Conviction", 3))
+        stars_html = conviction_stars_html(conv)
+        comp = row.get("Composite Score", 0)
+        stress = row.get("Node Stress", 0)
+        tgt = row.get("Target Weight", 0)
+        delta = row.get("Weight Delta", 0)
+        ret = row.get("21D Return", float("nan"))
+        delta_str = f"{delta:+.1%}" if pd.notna(delta) else "N/A"
+        ret_str = f"{ret:+.1%}" if pd.notna(ret) else "N/A"
+        ret_color = "#00c853" if pd.notna(ret) and ret > 0 else "#f44336"
+        delta_color = "#00c853" if pd.notna(delta) and delta > 0 else "#f44336"
+
+        rows_html += f"""
+        <tr>
+          <td style="font-weight:600;color:#e8edf2">{row.get('Bank','')}</td>
+          <td>{row.get('Name','')}</td>
+          <td>{sig_html}</td>
+          <td>{stars_html}</td>
+          <td style="font-family:monospace">{comp:.1f}</td>
+          <td style="font-family:monospace">{stress:.1f}</td>
+          <td style="font-family:monospace;color:{ret_color}">{ret_str}</td>
+          <td style="font-family:monospace">{tgt:.1%}</td>
+          <td style="font-family:monospace;color:{delta_color}">{delta_str}</td>
+        </tr>"""
+
+    st.markdown(
+        f"""<table style="width:100%;border-collapse:collapse;font-size:0.88rem;color:#c5d1db">
+          <thead>
+            <tr style="background:#16202d;text-transform:uppercase;font-size:0.72rem;letter-spacing:0.05em;color:#7a91a6">
+              <th style="padding:10px 8px;text-align:left">Ticker</th>
+              <th style="padding:10px 8px;text-align:left">Bank</th>
+              <th style="padding:10px 8px;text-align:left">Signal</th>
+              <th style="padding:10px 8px;text-align:left">Conviction</th>
+              <th style="padding:10px 8px;text-align:left">Score</th>
+              <th style="padding:10px 8px;text-align:left">Stress</th>
+              <th style="padding:10px 8px;text-align:left">21D Ret</th>
+              <th style="padding:10px 8px;text-align:left">Target Wt</th>
+              <th style="padding:10px 8px;text-align:left">Δ Wt</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows_html}
+          </tbody>
+        </table>""",
+        unsafe_allow_html=True,
+    )
+
+
+# ── Risk badge ──────────────────────────────────────────────────────────────
+
+def risk_badge(score: float) -> None:
+    if score >= 80:
+        st.error(f"Severe Stress — {score:.1f}/100")
+    elif score >= 60:
+        st.warning(f"High Stress — {score:.1f}/100")
+    elif score >= 30:
+        st.info(f"Moderate Stress — {score:.1f}/100")
+    else:
+        st.success(f"Low Stress — {score:.1f}/100")
+
+
+# ── Plotly chart helpers ─────────────────────────────────────────────────────
+
+def styled_line(
+    df: pd.DataFrame,
+    y: list[str] | str,
+    title: str,
+    yaxis_title: str = "",
+    yaxis_format: str = "",
+    height: int = 420,
+) -> go.Figure:
+    ys = [y] if isinstance(y, str) else y
+    fig = go.Figure()
+    colors = [PALETTE["blue"], PALETTE["green"], PALETTE["amber"], PALETTE["red"], PALETTE["teal"]]
+    for i, col in enumerate(ys):
+        if col in df.columns:
+            fig.add_trace(go.Scatter(
+                x=df.index, y=df[col], mode="lines", name=col,
+                line=dict(color=colors[i % len(colors)], width=2),
+            ))
+    fig.update_layout(
+        title=title,
+        yaxis_title=yaxis_title,
+        yaxis_tickformat=yaxis_format,
+        **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
+        height=height,
+    )
+    return fig
+
+
+def styled_bar(
+    x, y, title: str, orientation: str = "v",
+    color: str = "#1e88e5", height: int = 420,
+) -> go.Figure:
+    if orientation == "h":
+        fig = go.Figure(go.Bar(x=x, y=y, orientation="h", marker_color=color))
+    else:
+        fig = go.Figure(go.Bar(x=x, y=y, marker_color=color))
+    fig.update_layout(
+        title=title,
+        **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
+        height=height,
+    )
+    return fig
+
+
+def styled_heatmap(matrix: pd.DataFrame, title: str, height: int = 500) -> go.Figure:
     fig = px.imshow(
         matrix,
         text_auto=".2f",
         aspect="auto",
         title=title,
         color_continuous_scale="RdBu_r",
+        zmin=-1,
+        zmax=1,
     )
     fig.update_layout(
-        height=500,
-        margin=dict(l=20, r=20, t=50, b=20),
-        paper_bgcolor="white",
-        plot_bgcolor="white",
-        font=dict(color="#18212f"),
+        **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
+        height=height,
     )
+    return fig
+
+
+def plot_time_series(df: pd.DataFrame, y: str, title: str, explanation: str | None = None) -> None:
+    fig = styled_line(df, y, title)
     st.plotly_chart(fig, use_container_width=True)
     if explanation:
-        st.caption(explanation)
+        st.markdown(f"<p class='cc-caption'>{explanation}</p>", unsafe_allow_html=True)
 
 
-def interpretation_box(title, bullets):
-    st.markdown(f"#### {title}")
-    for b in bullets:
-        st.markdown(f"- {b}")
+def plot_heatmap(matrix: pd.DataFrame, title: str, explanation: str | None = None) -> None:
+    fig = styled_heatmap(matrix, title)
+    st.plotly_chart(fig, use_container_width=True)
+    if explanation:
+        st.markdown(f"<p class='cc-caption'>{explanation}</p>", unsafe_allow_html=True)
+
+
+# ── Interpretation helpers ───────────────────────────────────────────────────
+
+def interpretation_box(title: str, bullets: list[str]) -> None:
+    items = "".join(
+        f"<div class='cc-action-item'><div class='cc-action-bullet'></div><span>{b}</span></div>"
+        for b in bullets
+    )
+    st.markdown(
+        f"""<div class="cc-card teal">
+              <h4>{title}</h4>
+              {items}
+            </div>""",
+        unsafe_allow_html=True,
+    )
+
+
+def explain_metric(label: str, value: str, explanation: str, delta=None) -> None:
+    st.metric(label, value, delta=delta, help=explanation)
+
+
+def format_table_percent(df: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
+    out = df.copy()
+    for col in columns:
+        if col in out.columns:
+            out[col] = out[col].map(lambda x: f"{x:.2%}" if pd.notna(x) else "N/A")
+    return out
