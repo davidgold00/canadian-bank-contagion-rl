@@ -35,7 +35,9 @@ PLOTLY_TEMPLATE = dict(
         paper_bgcolor="#16202d",
         plot_bgcolor="#0f1923",
         font=dict(family="'JetBrains Mono', 'SF Mono', 'Fira Code', monospace", color="#e8edf2", size=12),
-        title=dict(font=dict(size=15, color="#e8edf2"), x=0.02),
+        # NOTE: no title= here — to_plotly_json() would put "title" in the dict, conflicting
+        # with explicit title= kwargs in update_layout() calls across pages.
+        # Title font inherits from the global font above (color="#e8edf2").
         xaxis=dict(
             gridcolor="#2a3a4a",
             linecolor="#2a3a4a",
