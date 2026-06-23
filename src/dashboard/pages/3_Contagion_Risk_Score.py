@@ -20,7 +20,7 @@ from src.dashboard.insight_utils import (
     risk_regime,
     strongest_drivers,
 )
-from src.dashboard.ui_components import action_list, analyst_header, apply_dashboard_style, insight_card
+from src.dashboard.ui_components import PALETTE, PLOTLY_TEMPLATE, action_list, analyst_header, apply_dashboard_style, decision_callout, insight_card, page_intro
 
 
 st.set_page_config(page_title="Contagion Risk Score", layout="wide")
@@ -54,25 +54,38 @@ def component_scores(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def gauge(score: float) -> go.Figure:
-    fig = go.Figure(
-        go.Indicator(
-            mode="gauge+number",
-            value=score,
-            number={"suffix": "/100"},
-            title={"text": "Composite Contagion Risk"},
-            gauge={
-                "axis": {"range": [0, 100]},
-                "bar": {"color": "#18212f"},
-                "steps": [
-                    {"range": [0, 30], "color": "#e9f7ef"},
-                    {"range": [30, 60], "color": "#fff4df"},
-                    {"range": [60, 80], "color": "#fdebd3"},
-                    {"range": [80, 100], "color": "#fdecec"},
-                ],
-            },
-        )
+    needle_color = (
+        PALETTE["red"] if score >= 80
+        else PALETTE["amber_muted"] if score >= 60
+        else PALETTE["amber"] if score >= 30
+        else PALETTE["green"]
     )
-    fig.update_layout(height=320, margin=dict(l=20, r=20, t=50, b=20))
+    fig = go.Figure(go.Indicator(
+        mode="gauge+number",
+        value=score,
+        number={"suffix": "/100", "font": {"color": needle_color, "size": 36, "family": "JetBrains Mono, monospace"}},
+        title={"text": "Composite Contagion Risk", "font": {"color": PALETTE["ink"], "size": 14}},
+        gauge={
+            "axis": {"range": [0, 100], "tickcolor": PALETTE["muted"], "tickfont": {"color": PALETTE["muted"]}},
+            "bar": {"color": needle_color, "thickness": 0.25},
+            "bgcolor": PALETTE["card"],
+            "bordercolor": PALETTE["border"],
+            "steps": [
+                {"range": [0, 30],  "color": "#0d2318"},
+                {"range": [30, 60], "color": "#1f1700"},
+                {"range": [60, 80], "color": "#1f1000"},
+                {"range": [80, 100],"color": "#1f0a08"},
+            ],
+            "threshold": {"line": {"color": PALETTE["red"], "width": 3}, "thickness": 0.75, "value": 80},
+        },
+    ))
+    fig.update_layout(
+        height=320,
+        paper_bgcolor=PALETTE["surface"],
+        plot_bgcolor=PALETTE["surface"],
+        font=dict(color=PALETTE["ink"]),
+        margin=dict(l=20, r=20, t=50, b=20),
+    )
     return fig
 
 
@@ -86,17 +99,21 @@ score_21d = score - previous(features, "contagion_risk_score", 21, default=np.na
 
 analyst_header(
     "Contagion Risk Score",
-    "A 0-100 answer to: are Canadian bank stress signals clustering?",
+    "A 0–100 answer to: are Canadian bank stress signals clustering?",
     date_text=latest_valid_date(features),
     source_text="Composite of market, network, and macro stress features",
 )
 
-st.markdown(
-    """
-    The score is a risk dashboard signal, not a crash forecast. It becomes important when several
-    indicators agree: volatility rises, correlations tighten, financials draw down, and macro
-    stress makes bank earnings or credit quality less forgiving.
-    """
+page_intro(
+    why=(
+        "The score answers one question: are multiple stress indicators rising <em>together</em>? "
+        "When volatility, correlations, drawdowns, and macro pressure all climb at the same time, "
+        "the risk of contagion across banks is highest."
+    ),
+    how=(
+        "Read the gauge and the 5D/21D change to know whether risk is rising or falling. "
+        "Scroll down to see which specific signals are driving the score, and what the current regime means for portfolio decisions."
+    ),
 )
 
 c1, c2, c3, c4, c5, c6 = st.columns(6)
@@ -112,15 +129,25 @@ with left:
     st.plotly_chart(gauge(score), use_container_width=True)
 with right:
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=score_series.index, y=score_series, mode="lines", name="Score"))
-    fig.add_hline(y=30, line_dash="dot", annotation_text="Low")
-    fig.add_hline(y=60, line_dash="dot", annotation_text="High")
-    fig.add_hline(y=80, line_dash="dot", annotation_text="Severe")
+    fig.add_trace(go.Scatter(
+        x=score_series.index, y=score_series, mode="lines", name="Contagion Score",
+        line=dict(color=PALETTE["blue"], width=2),
+    ))
+    fig.add_hrect(y0=0,  y1=30,  fillcolor="#00c853", opacity=0.05, line_width=0)
+    fig.add_hrect(y0=30, y1=60,  fillcolor="#ffb300", opacity=0.05, line_width=0)
+    fig.add_hrect(y0=60, y1=80,  fillcolor="#ff6f00", opacity=0.06, line_width=0)
+    fig.add_hrect(y0=80, y1=100, fillcolor="#f44336", opacity=0.07, line_width=0)
+    fig.add_hline(y=30, line_dash="dot", line_color="#00c853", opacity=0.6,
+                  annotation_text="Low→Moderate", annotation_font_color="#00c853", annotation_position="top left")
+    fig.add_hline(y=60, line_dash="dot", line_color="#ffb300", opacity=0.6,
+                  annotation_text="Moderate→High", annotation_font_color="#ffb300", annotation_position="top left")
+    fig.add_hline(y=80, line_dash="dot", line_color="#f44336", opacity=0.6,
+                  annotation_text="High→Severe", annotation_font_color="#f44336", annotation_position="top left")
     fig.update_layout(
-        title="Score History",
-        yaxis_title="0-100",
+        title="Score History — How Has Risk Changed Over Time?",
+        yaxis_title="0 = no stress, 100 = maximum stress",
+        **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=330,
-        margin=dict(l=20, r=20, t=50, b=20),
     )
     st.plotly_chart(fig, use_container_width=True)
 
@@ -130,24 +157,36 @@ tab1, tab2, tab3, tab4 = st.tabs(["Driver Decomposition", "Bank Contributors", "
 
 with tab1:
     st.subheader("What Is Driving the Score Today?")
-    latest_components = components.iloc[-1].sort_values(ascending=True)
-    fig = go.Figure(
-        go.Bar(
-            x=latest_components.values,
-            y=latest_components.index,
-            orientation="h",
-            text=[f"{v:.1f}" for v in latest_components.values],
-            textposition="auto",
-            marker_color="#1d5f8f",
-        )
+    st.markdown(
+        "Each bar shows one stress driver ranked against its own history. "
+        "A score of **100** means it is at its most stressed level ever recorded. "
+        "A score of **50** is normal. Focus on the bars furthest to the right."
     )
+    latest_components = components.iloc[-1].sort_values(ascending=True)
+    fig = go.Figure(go.Bar(
+        x=latest_components.values,
+        y=latest_components.index,
+        orientation="h",
+        text=[f"{v:.1f}" for v in latest_components.values],
+        textposition="auto",
+        marker=dict(
+            color=latest_components.values,
+            colorscale=[[0, PALETTE["green"]], [0.5, PALETTE["amber"]], [1.0, PALETTE["red"]]],
+            cmin=0, cmax=100, showscale=False,
+        ),
+    ))
     fig.update_layout(
-        title="Current Component Scores",
-        xaxis_title="Stress contribution, 0-100",
+        title="Stress Component Scores — 0 = Calm, 100 = Maximum Stress",
+        xaxis_title="Percentile vs. own history (100 = highest stress ever seen for this driver)",
+        **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=520,
-        margin=dict(l=20, r=20, t=50, b=20),
     )
     st.plotly_chart(fig, use_container_width=True)
+    decision_callout(
+        plain_english="Drivers with scores above 75 are at their most stressed quartile historically. When several are above 75 simultaneously, the composite score rises rapidly.",
+        action="Focus attention on the top 2–3 drivers. Those are the specific channels most likely to cause portfolio losses if conditions worsen.",
+        tone="info",
+    )
 
     drivers = strongest_drivers(features)
     show = drivers.copy()
@@ -176,23 +215,29 @@ with tab2:
 
 with tab3:
     st.subheader("Stress Breadth Over the Last Six Months")
-    recent = components.tail(126).T
-    fig = go.Figure(
-        go.Heatmap(
-            z=recent.values,
-            x=recent.columns,
-            y=recent.index,
-            zmin=0,
-            zmax=100,
-            colorscale="RdYlGn_r",
-            colorbar=dict(title="Stress"),
-        )
-    )
-    fig.update_layout(height=560, margin=dict(l=20, r=20, t=40, b=20))
-    st.plotly_chart(fig, use_container_width=True)
     st.markdown(
-        "Broad horizontal red/orange bands mean stress is coming from several channels at once. "
-        "A single red cell is a warning, but broad stress is what makes contagion more plausible."
+        "Each row is a stress driver; each column is a trading day. **Red** = that driver was highly stressed that day. "
+        "Wide horizontal red bands mean stress was hitting multiple channels simultaneously — that is when contagion risk is highest."
+    )
+    recent = components.tail(126).T
+    fig = go.Figure(go.Heatmap(
+        z=recent.values,
+        x=recent.columns,
+        y=recent.index,
+        zmin=0,
+        zmax=100,
+        colorscale="RdYlGn_r",
+        colorbar=dict(title="Stress Level", tickfont=dict(color=PALETTE["muted"])),
+    ))
+    fig.update_layout(
+        **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
+        height=560,
+    )
+    st.plotly_chart(fig, use_container_width=True)
+    decision_callout(
+        plain_english="A single red row means one channel is stressed. Multiple red rows on the same day means stress is widespread — the most dangerous signal for contagion.",
+        action="When 3 or more drivers are simultaneously in the red, treat the regime as elevated even if the composite score hasn't peaked yet.",
+        tone="warning",
     )
 
 with tab4:

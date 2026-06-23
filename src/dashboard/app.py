@@ -21,10 +21,13 @@ from src.dashboard.insight_utils import (  # noqa: E402
     strongest_drivers,
 )
 from src.dashboard.ui_components import (  # noqa: E402
+    PALETTE,
+    PLOTLY_TEMPLATE,
     action_list,
     analyst_header,
     apply_dashboard_style,
     insight_card,
+    page_intro,
 )
 
 
@@ -50,12 +53,15 @@ analyst_header(
     source_text="Yahoo Finance prices + Bank of Canada yields + reproducible fallbacks",
 )
 
-st.markdown(
-    """
-    This project treats the Big Six banks as one connected financial system. The objective is
-    not to predict a single stock price; it is to explain when bank risk is becoming systemic,
-    which banks are carrying the most pressure, and what a portfolio or risk team should do next.
-    """
+page_intro(
+    why=(
+        "Canada's Big Six banks are deeply interconnected — when one is under stress, the others often follow. "
+        "This dashboard tracks when that risk is rising, which banks are most exposed, and what a portfolio should do about it."
+    ),
+    how=(
+        "Use the sidebar to navigate to any page. Start here for today's risk regime, then go to "
+        "<b>Executive Market Overview</b> for signals and to <b>Investment Decision Center</b> for explicit portfolio actions."
+    ),
 )
 
 m1, m2, m3, m4 = st.columns(4)
@@ -69,18 +75,22 @@ left, right = st.columns([0.62, 0.38])
 with left:
     score_series = features["contagion_risk_score"]
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=score_series.index, y=score_series, mode="lines", name="Contagion risk"))
-    fig.add_hrect(y0=0, y1=30, fillcolor="#e9f7ef", opacity=0.45, line_width=0)
-    fig.add_hrect(y0=30, y1=60, fillcolor="#fff4df", opacity=0.45, line_width=0)
-    fig.add_hrect(y0=60, y1=80, fillcolor="#fdebd3", opacity=0.45, line_width=0)
-    fig.add_hrect(y0=80, y1=100, fillcolor="#fdecec", opacity=0.45, line_width=0)
+    fig.add_trace(go.Scatter(
+        x=score_series.index, y=score_series, mode="lines", name="Contagion risk",
+        line=dict(color=PALETTE["blue"], width=2.5),
+    ))
+    fig.add_hrect(y0=0,  y1=30,  fillcolor="#00c853", opacity=0.06, line_width=0)
+    fig.add_hrect(y0=30, y1=60,  fillcolor="#ffb300", opacity=0.06, line_width=0)
+    fig.add_hrect(y0=60, y1=80,  fillcolor="#ff6f00", opacity=0.07, line_width=0)
+    fig.add_hrect(y0=80, y1=100, fillcolor="#f44336", opacity=0.08, line_width=0)
+    fig.add_hline(y=30, line_dash="dot", line_color="#00c853", opacity=0.5, annotation_text="Low / Moderate", annotation_font_color="#00c853")
+    fig.add_hline(y=60, line_dash="dot", line_color="#ffb300", opacity=0.5, annotation_text="Moderate / High", annotation_font_color="#ffb300")
+    fig.add_hline(y=80, line_dash="dot", line_color="#f44336", opacity=0.5, annotation_text="High / Severe", annotation_font_color="#f44336")
     fig.update_layout(
-        title="Contagion Score Since 2012",
-        yaxis_title="Risk score, 0-100",
+        title="Systemic Contagion Risk Score — History Since 2012",
+        yaxis_title="Risk score (0 = no stress, 100 = maximum stress)",
         height=430,
-        margin=dict(l=20, r=20, t=55, b=20),
-        paper_bgcolor="white",
-        plot_bgcolor="white",
+        **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
     )
     st.plotly_chart(fig, use_container_width=True)
 
@@ -183,6 +193,9 @@ with tab4:
         6. **Model Validation** checks whether the ML layer has out-of-sample signal.
         7. **Performance Tracker** turns daily recommendations into a simulated paper portfolio with trades, holdings, costs, and benchmarks.
         8. **Data Catalog** explains every CSV and shows what each file contributes.
+        9. **CVaR Optimization Lab** is the production-style graph-aware portfolio construction engine.
+        10. **CVaR Paper Fund** simulates the optimized portfolio through time.
+        11. **RL vs CVaR Comparison** studies when experimental RL or governed optimization behaves better.
         """
     )
 

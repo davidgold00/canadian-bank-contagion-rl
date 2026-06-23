@@ -6,7 +6,7 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from src.dashboard.insight_utils import latest_valid_date, load_features
-from src.dashboard.ui_components import analyst_header, apply_dashboard_style, insight_card
+from src.dashboard.ui_components import analyst_header, apply_dashboard_style, decision_callout, insight_card
 
 
 st.set_page_config(page_title="About | Canadian Bank Contagion RL", layout="wide")
@@ -35,6 +35,19 @@ insight_card(
     "When stress rises in Canadian financial markets, how might it spread across the Big Six banks, and how should exposure adapt?",
 )
 
+decision_callout(
+    plain_english=(
+        "The Canadian banking system is highly concentrated — the Big Six account for most of the country's mortgages, "
+        "business credit, and household deposits. When they move together under stress, it signals something bigger than six stocks: "
+        "tighter credit, weaker growth, and a risk-off environment for Canadian financial assets broadly."
+    ),
+    action=(
+        "Use this dashboard as a structured process: check the regime daily on the Executive Market Overview, "
+        "understand the network on the Systemic Bank Network page, and convert signals into portfolio action on the Investment Decision Center."
+    ),
+    tone="teal",
+)
+
 tab1, tab2, tab3, tab4 = st.tabs(["System Map", "Economic Meaning", "Dashboard Pages", "Limitations"])
 
 with tab1:
@@ -48,7 +61,8 @@ with tab1:
         5. **Scenarios:** macro shocks propagate through the bank network.
         6. **Portfolio Agent:** a defensive allocation policy moves between banks, ETFs, and cash.
         7. **Performance Tracker:** a simulated paper fund records target weights, trades, holdings, P&L, costs, and benchmarks.
-        8. **Validation:** chronological tests check whether the ML layer has out-of-sample signal.
+        8. **Production Allocator:** graph-adjusted CVaR optimization builds a governed, tail-risk-aware portfolio.
+        9. **Validation:** chronological tests check whether the ML layer has out-of-sample signal.
         """
     )
 
@@ -97,6 +111,9 @@ with tab3:
         - **RL Portfolio Agent:** How would a risk-aware allocation change across banks, ETFs, and cash?
         - **Model Validation:** Is the ML layer learning useful future stress signal?
         - **Performance Tracker:** If the model gave daily weights, what would a fake-money portfolio have held and traded?
+        - **CVaR Optimization Lab:** What is the institutionally governed allocation under tail-risk and graph constraints?
+        - **CVaR Paper Fund:** How would the optimized portfolio have behaved through time after costs?
+        - **RL vs CVaR Comparison:** Which allocation framework behaves better during stress and correlation spikes?
         - **Data Catalog:** What does every CSV mean, and what chart explains it?
         """
     )

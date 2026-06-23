@@ -39,7 +39,9 @@ from src.dashboard.ui_components import (
     action_list,
     analyst_header,
     apply_dashboard_style,
+    decision_callout,
     insight_card,
+    page_intro,
     regime_banner,
     signal_table,
 )
@@ -82,6 +84,18 @@ analyst_header(
     "Today's Canadian bank risk regime — translated into decisions.",
     date_text=latest_valid_date(features),
     source_text="Live market + Bank of Canada yields + model signals",
+)
+
+page_intro(
+    why=(
+        "This is the daily starting point. It tells you what risk regime the Canadian banking system is in right now, "
+        "which specific factors are driving it, and what that means for how you should position a portfolio today."
+    ),
+    how=(
+        "The regime banner below is your headline signal. The metrics row gives the key numbers. "
+        "Go to the <b>Investment Signals</b> tab for per-bank BUY/HOLD/REDUCE calls, "
+        "or <b>Executive Readout</b> for the full picture and action steps."
+    ),
 )
 
 regime_banner(regime["label"], regime["summary"], score, regime["tone"])
@@ -179,6 +193,22 @@ with tab1:
     show = drivers[["Driver", "Latest", "Stress Percentile", "Status", "Why it matters"]].copy()
     show["Stress Percentile"] = show["Stress Percentile"].map(lambda x: f"{x:.0%}" if pd.notna(x) else "N/A")
     st.dataframe(show, use_container_width=True, hide_index=True)
+
+    top_driver = drivers.iloc[0] if not drivers.empty else None
+    if top_driver is not None:
+        decision_callout(
+            plain_english=(
+                f"The single biggest stress driver right now is <b>{top_driver['Driver']}</b> "
+                f"(at the <b>{top_driver['Stress Percentile']:.0%}</b> historical percentile). "
+                f"{top_driver['Why it matters']}"
+            ),
+            action=(
+                "Focus scenario planning on this driver first. "
+                "Check whether your portfolio has concentrated exposure to it, "
+                "and whether the regime actions above already address it."
+            ),
+            tone=regime["tone"],
+        )
 
 # ═══════════════════════════════════════════════════════════════════════════════
 with tab2:
@@ -306,6 +336,19 @@ with tab3:
         display[col] = display[col].map(lambda x: pct(x) if pd.notna(x) else "N/A")
     display["Node Stress"] = display["Node Stress"].map(lambda x: f"{x:.1f}/100")
     st.dataframe(display, use_container_width=True, hide_index=True)
+
+    top_stress = bank_perf.iloc[0] if not bank_perf.empty else None
+    if top_stress is not None:
+        decision_callout(
+            plain_english=(
+                f"<b>{top_stress['Bank']} ({top_stress['Name']})</b> has the highest market stress right now "
+                f"(Node Stress: {top_stress['Node Stress']:.1f}/100). "
+                f"Economic context: {top_stress['Economic Lens']}. "
+                "Node Stress combines recent volatility, drawdown depth, and beta to the financial sector."
+            ),
+            action=top_stress["Action Readout"] + " — check the Investment Decision Center for specific weight recommendations.",
+            tone="warning" if top_stress["Node Stress"] < 70 else "danger",
+        )
 
 # ═══════════════════════════════════════════════════════════════════════════════
 with tab4:

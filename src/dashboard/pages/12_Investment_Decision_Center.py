@@ -37,7 +37,9 @@ from src.dashboard.ui_components import (
     action_list,
     analyst_header,
     apply_dashboard_style,
+    decision_callout,
     insight_card,
+    page_intro,
     regime_banner,
     signal_badge,
     signal_table,
@@ -98,6 +100,19 @@ analyst_header(
     source_text="Multi-factor signals + CVaR optimization + Monte Carlo stress",
 )
 
+page_intro(
+    why=(
+        "Every other page in this dashboard produces evidence. This page converts that evidence into decisions. "
+        "It answers: which banks to buy, hold, or reduce; how much cash to hold; what the CVaR-optimal allocation looks like; "
+        "and how much you would lose under a stress scenario."
+    ),
+    how=(
+        "Start with the regime banner below. Then go to <b>Bank Signals</b> for per-bank calls, "
+        "<b>Rebalance Plan</b> for explicit weight changes, and <b>Risk Stress</b> to validate the plan "
+        "against adverse scenarios before acting."
+    ),
+)
+
 # ── Top regime banner ────────────────────────────────────────────────────────
 regime_banner(regime["label"], regime["summary"], score, regime["tone"])
 
@@ -111,6 +126,17 @@ m4.metric("Avg Bank Correlation", f"{avg_corr:.2f}" if pd.notna(avg_corr) else "
 buys = (signals["Signal"] == "BUY").sum()
 reduces = (signals["Signal"] == "REDUCE").sum()
 m5.metric("Signal Mix", f"{buys}B · {6 - buys - reduces}H · {reduces}R", help="Buy / Hold / Reduce count across the Big Six")
+
+decision_callout(
+    plain_english=(
+        f"The system is in a <b>{regime['label']} risk regime</b> (score: {score:.1f}/100). "
+        f"Average bank correlation is <b>{avg_corr:.2f}</b> — "
+        + ("diversification across banks is significantly reduced." if avg_corr > 0.75 else "banks are still providing some diversification benefit.")
+        + f" The model signals <b>{buys} BUY</b>, <b>{6 - buys - reduces} HOLD</b>, and <b>{reduces} REDUCE</b> across the Big Six."
+    ),
+    action=regime["actions"][0] + " See the Bank Signals and Rebalance Plan tabs for specific names and weight changes.",
+    tone=regime["tone"],
+)
 
 st.divider()
 

@@ -16,7 +16,7 @@ from src.dashboard.insight_utils import (
     read_csv_date,
     repo_root,
 )
-from src.dashboard.ui_components import analyst_header, apply_dashboard_style, insight_card
+from src.dashboard.ui_components import analyst_header, apply_dashboard_style, insight_card, page_intro
 
 
 def _numeric_columns(df: pd.DataFrame) -> list[str]:
@@ -92,11 +92,17 @@ analyst_header(
     source_text="Tracked templates plus generated raw/processed files when present",
 )
 
-st.markdown(
-    """
-    This page exists so the project does not feel like a folder of mysterious spreadsheets.
-    Each CSV has a business role, a plain-English explanation, and a chart that shows what the file contributes.
-    """
+page_intro(
+    why=(
+        "Every number in this dashboard comes from one of these data files. "
+        "This catalog explains what each file contains, why it matters for the analysis, "
+        "and what it looks like — so you can judge the quality and limitations of the underlying data."
+    ),
+    how=(
+        "Use the <b>CSV Inventory</b> tab for a full list with business descriptions. "
+        "Use the <b>Chart Explorer</b> to visualize any file. "
+        "Use the <b>How Data Flows</b> tab to understand how raw data becomes risk signals."
+    ),
 )
 
 m1, m2, m3 = st.columns(3)

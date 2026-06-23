@@ -15,7 +15,7 @@ from src.dashboard.components import (  # noqa: E402
     load_processed_dataset,
 )
 from src.dashboard.insight_utils import BANKS, latest_valid_date  # noqa: E402
-from src.dashboard.ui_components import analyst_header, apply_dashboard_style, insight_card  # noqa: E402
+from src.dashboard.ui_components import PALETTE, PLOTLY_TEMPLATE, analyst_header, apply_dashboard_style, decision_callout, insight_card, page_intro  # noqa: E402
 from src.portfolio.paper_trader import PaperPortfolioSimulator  # noqa: E402
 from src.portfolio.performance_metrics import drawdown_series, performance_summary  # noqa: E402
 
@@ -60,53 +60,62 @@ def run_simulation(
 
 
 def plot_value(ledger: pd.DataFrame, benchmarks: pd.DataFrame) -> go.Figure:
+    bench_colors = [PALETTE["green"], PALETTE["amber"], PALETTE["teal"]]
     fig = go.Figure()
-    fig.add_trace(
-        go.Scatter(
-            x=ledger.index,
-            y=ledger["portfolio_value"],
-            mode="lines",
-            name="Model paper portfolio",
-            line=dict(width=3, color="#1d5f8f"),
-        )
-    )
-    for col in benchmarks.columns:
-        fig.add_trace(go.Scatter(x=benchmarks.index, y=benchmarks[col], mode="lines", name=col, line=dict(width=1.6)))
+    fig.add_trace(go.Scatter(
+        x=ledger.index, y=ledger["portfolio_value"],
+        mode="lines", name="Model paper portfolio",
+        line=dict(width=3, color=PALETTE["blue"]),
+    ))
+    for i, col in enumerate(benchmarks.columns):
+        fig.add_trace(go.Scatter(
+            x=benchmarks.index, y=benchmarks[col], mode="lines", name=col,
+            line=dict(width=1.6, color=bench_colors[i % len(bench_colors)], dash="dash"),
+        ))
     fig.update_layout(
-        title="Simulated Portfolio Value vs Benchmarks",
-        xaxis_title="Date",
-        yaxis_title="Portfolio value, CAD",
+        title="Simulated Paper Portfolio Value vs Benchmarks",
+        yaxis_title="Portfolio value (CAD)",
+        **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=500,
-        margin=dict(l=20, r=20, t=55, b=25),
     )
     return fig
 
 
 def plot_pnl(ledger: pd.DataFrame) -> go.Figure:
     pnl = ledger["portfolio_value"] - ledger["portfolio_value"].iloc[0]
-    fig = go.Figure(go.Scatter(x=ledger.index, y=pnl, mode="lines", name="Cumulative P&L", line=dict(color="#1f7a5a")))
+    fig = go.Figure(go.Scatter(
+        x=ledger.index, y=pnl, mode="lines", name="Cumulative P&L",
+        line=dict(color=PALETTE["green"], width=2),
+    ))
+    fig.add_hline(y=0, line_color=PALETTE["border"])
     fig.update_layout(
         title="Cumulative Simulated P&L",
-        xaxis_title="Date",
-        yaxis_title="Profit / loss, CAD",
+        yaxis_title="Profit / loss (CAD)",
+        **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=420,
-        margin=dict(l=20, r=20, t=55, b=25),
     )
     return fig
 
 
 def plot_drawdown(ledger: pd.DataFrame, benchmarks: pd.DataFrame) -> go.Figure:
+    bench_colors = [PALETTE["green"], PALETTE["amber"], PALETTE["teal"]]
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=ledger.index, y=drawdown_series(ledger["portfolio_value"]), mode="lines", name="Model paper portfolio"))
-    for col in benchmarks.columns:
-        fig.add_trace(go.Scatter(x=benchmarks.index, y=drawdown_series(benchmarks[col]), mode="lines", name=col))
+    fig.add_trace(go.Scatter(
+        x=ledger.index, y=drawdown_series(ledger["portfolio_value"]),
+        mode="lines", name="Model paper portfolio",
+        line=dict(color=PALETTE["blue"], width=2.5),
+    ))
+    for i, col in enumerate(benchmarks.columns):
+        fig.add_trace(go.Scatter(
+            x=benchmarks.index, y=drawdown_series(benchmarks[col]), mode="lines", name=col,
+            line=dict(color=bench_colors[i % len(bench_colors)], width=1.5, dash="dash"),
+        ))
     fig.update_layout(
-        title="Drawdown Comparison",
-        xaxis_title="Date",
-        yaxis_title="Drawdown",
+        title="Drawdown Comparison — How Far Below Peak at Each Point in Time",
+        yaxis_title="Drawdown from peak (0% = at peak)",
         yaxis_tickformat=".0%",
+        **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=420,
-        margin=dict(l=20, r=20, t=55, b=25),
     )
     return fig
 
@@ -207,6 +216,19 @@ analyst_header(
     date_text=latest_valid_date(prices),
     source_text="Paper portfolio, transaction-cost model, and benchmark comparison",
 )
+
+page_intro(
+    why=(
+        "This is the 'what if' test: if the model had been running every day and you followed its "
+        "daily allocation recommendations, what would have happened to your portfolio? "
+        "All trades are simulated — no real money is involved."
+    ),
+    how=(
+        "The key charts are the <b>portfolio value curve</b> (did it grow?) versus benchmarks, "
+        "and the <b>drawdown chart</b> (how bad were the worst periods?). "
+        "A good paper portfolio beats benchmarks while suffering shallower drawdowns."
+    ),
+)
 disclaimer_box()
 
 if prices.empty or features.empty:
@@ -264,8 +286,25 @@ row2[3].metric("Max Drawdown", format_percent(summary["max_drawdown"]))
 row3 = st.columns(4)
 row3[0].metric("Transaction Costs", format_currency(summary["total_transaction_costs"], 2))
 row3[1].metric("Number of Trades", f"{num_trades:,}")
-row3[2].metric("Current Cash Weight", format_percent(latest["cash_weight"]))
-row3[3].metric("Current Bank Exposure", format_percent(latest["bank_exposure"]))
+row3[2].metric("Current Cash Weight", format_percent(latest["cash_weight"]), help="Defensive cash held today. Rises automatically as systemic risk rises.")
+row3[3].metric("Current Bank Exposure", format_percent(latest["bank_exposure"]), help="Total allocation to Big Six bank stocks today.")
+
+sharpe = summary["sharpe_ratio"]
+max_dd = summary["max_drawdown"]
+decision_callout(
+    plain_english=(
+        f"The paper fund has earned <b>{format_percent(summary['cumulative_return'])}</b> cumulatively "
+        f"with a Sharpe ratio of <b>{sharpe:.2f}</b> and a worst drawdown of <b>{format_percent(max_dd)}</b>. "
+        f"It currently holds <b>{format_percent(latest['bank_exposure'])}</b> in bank stocks and "
+        f"<b>{format_percent(latest['cash_weight'])}</b> in cash."
+    ),
+    action=(
+        "Compare the cumulative return and drawdown to the benchmark lines in the chart below. "
+        "If the Sharpe is above the benchmark and drawdown is shallower, the risk-aware policy is adding value. "
+        "If not, consider whether the current regime favoured passive exposure over active risk management."
+    ),
+    tone="success" if sharpe > 0.5 else "warning",
+)
 
 if policy_source == "trained PPO model":
     insight_card(

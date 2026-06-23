@@ -21,7 +21,7 @@ from sklearn.preprocessing import StandardScaler
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from src.dashboard.insight_utils import latest_valid_date
-from src.dashboard.ui_components import analyst_header, apply_dashboard_style, insight_card
+from src.dashboard.ui_components import analyst_header, apply_dashboard_style, decision_callout, insight_card, page_intro
 
 
 st.set_page_config(page_title="Model Validation", layout="wide")
@@ -264,12 +264,17 @@ analyst_header(
     source_text="Chronological train/test split",
 )
 
-st.markdown(
-    """
-    This page is the credibility check. A useful financial ML model should be judged on future
-    data, not a shuffled sample that leaks regimes. The model predicts whether the system will
-    enter a high-stress state over the selected horizon.
-    """
+page_intro(
+    why=(
+        "Any model can appear accurate on data it has already seen. This page is the credibility check: "
+        "we train on the first 70% of history, then test on the remaining 30% the model has never seen. "
+        "If the model predicts stress events well on that unseen data, the signals on other pages are more trustworthy."
+    ),
+    how=(
+        "The key number is <b>AUC</b> (Area Under the ROC Curve). AUC above 0.60 means the model has meaningful predictive power. "
+        "AUC near 0.50 means it performs no better than random guessing. "
+        "Use the sidebar to change the prediction horizon and the stress-event threshold."
+    ),
 )
 
 st.sidebar.header("Validation Controls")
@@ -313,13 +318,24 @@ with tab1:
 
     st.dataframe(display, use_container_width=True, hide_index=True)
 
-    if metrics.iloc[0]["AUC"] >= 0.65:
-        insight_card("Model Readout", "The best model shows useful stress-discrimination ability.", status="success")
-    elif metrics.iloc[0]["AUC"] >= 0.55:
+    best_auc = metrics.iloc[0]["AUC"]
+    if best_auc >= 0.65:
+        insight_card("Model Readout", "The best model shows useful stress-discrimination ability on out-of-sample data.", status="success")
+        decision_callout(
+            plain_english=f"AUC of {best_auc:.2f} means the model can correctly rank a future stress day above a calm day about {best_auc:.0%} of the time. This is meaningful predictive power.",
+            action="The signals on other pages (contagion score, regime calls, investment signals) have statistical backing. Use them with appropriate confidence.",
+            tone="success",
+        )
+    elif best_auc >= 0.55:
         insight_card(
             "Model Readout",
             "The model shows modest signal. It may be useful as one input, not as a standalone predictor.",
             status="warning",
+        )
+        decision_callout(
+            plain_english=f"AUC of {best_auc:.2f} is above random (0.50) but not highly reliable. The model has some predictive power but will miss many events and give some false alarms.",
+            action="Treat model signals as one input alongside macro context and market data — not as a definitive call. Consider re-training with more data or features.",
+            tone="warning",
         )
     else:
         insight_card(

@@ -9,7 +9,7 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from src.dashboard.insight_utils import latest_valid_date, risk_regime
-from src.dashboard.ui_components import analyst_header, apply_dashboard_style, insight_card
+from src.dashboard.ui_components import PALETTE, PLOTLY_TEMPLATE, analyst_header, apply_dashboard_style, decision_callout, insight_card, page_intro
 
 
 st.set_page_config(page_title="RL Portfolio Agent", layout="wide")
@@ -179,34 +179,37 @@ def metrics_table(results: dict[str, tuple[pd.Series, pd.Series, pd.Series]]) ->
 
 
 def plot_equity(results: dict[str, tuple[pd.Series, pd.Series, pd.Series]]) -> go.Figure:
+    colors = [PALETTE["blue"], PALETTE["green"], PALETTE["amber"], PALETTE["teal"]]
     fig = go.Figure()
-
-    for name, (equity, _, _) in results.items():
-        fig.add_trace(go.Scatter(x=equity.index, y=equity, mode="lines", name=name))
-
+    for i, (name, (equity, _, _)) in enumerate(results.items()):
+        fig.add_trace(go.Scatter(
+            x=equity.index, y=equity, mode="lines", name=name,
+            line=dict(color=colors[i % len(colors)], width=2),
+        ))
     fig.update_layout(
-        title="Strategy Equity Curves",
-        yaxis_title="Growth of $1",
+        title="Strategy Equity Curves — Growth of $1 Invested",
+        yaxis_title="Portfolio value (starting at $1.00)",
+        **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=500,
-        margin=dict(l=20, r=20, t=50, b=20),
     )
-
     return fig
 
 
 def plot_drawdowns(results: dict[str, tuple[pd.Series, pd.Series, pd.Series]]) -> go.Figure:
+    colors = [PALETTE["blue"], PALETTE["green"], PALETTE["amber"], PALETTE["teal"]]
     fig = go.Figure()
-
-    for name, (equity, _, _) in results.items():
-        fig.add_trace(go.Scatter(x=equity.index, y=drawdown(equity), mode="lines", name=name))
-
+    for i, (name, (equity, _, _)) in enumerate(results.items()):
+        fig.add_trace(go.Scatter(
+            x=equity.index, y=drawdown(equity), mode="lines", name=name,
+            line=dict(color=colors[i % len(colors)], width=2),
+        ))
     fig.update_layout(
-        title="Drawdowns",
-        yaxis_title="Drawdown",
+        title="Drawdowns — How Much Lost From Peak at Each Point in Time",
+        yaxis_title="Drawdown from peak (0% = at peak, −20% = 20% below peak)",
+        yaxis_tickformat=".0%",
+        **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=430,
-        margin=dict(l=20, r=20, t=50, b=20),
     )
-
     return fig
 
 
@@ -223,14 +226,18 @@ analyst_header(
     source_text="Interpretable RL-style policy plus benchmark backtests",
 )
 
-st.markdown(
-    """
-    This is the research allocation-policy layer of the project. It is not a live trading
-    system. The policy observes the contagion score, bank-level stress, correlations,
-    drawdowns, and recent returns, then studies how exposure could move between bank
-    stocks, XFN, XIU, and cash. The point is not to chase every rally; it is to avoid being
-    overexposed when the banks start behaving like one stressed trade.
-    """
+page_intro(
+    why=(
+        "The RL-style policy answers a practical question: given today's risk signals, "
+        "how should a portfolio split its exposure between individual bank stocks, the XFN financial ETF, "
+        "and defensive cash? The goal is to reduce bank exposure during stress — and capture it during recovery."
+    ),
+    how=(
+        "Use the sidebar controls to select a policy mode and compare strategies. "
+        "The key output is the <b>equity curve</b> (how much $1 grows over time) and "
+        "the <b>drawdown chart</b> (how much you lose from your peak). "
+        "A good policy grows the equity curve while keeping drawdowns shallow."
+    ),
 )
 
 ppo_path = repo_root() / "artifacts" / "rl" / "ppo_model.zip"
@@ -272,9 +279,24 @@ best = metrics.iloc[0]
 rl_metrics = metrics.loc[metrics["Strategy"] == "RL-style defensive"].iloc[0]
 
 c1.metric("Best Sharpe Strategy", best["Strategy"])
-c2.metric("RL Sharpe", f"{rl_metrics['Sharpe']:.2f}")
-c3.metric("RL Max Drawdown", f"{rl_metrics['Max Drawdown']:.1%}")
+c2.metric("RL Sharpe", f"{rl_metrics['Sharpe']:.2f}", help="Sharpe ratio: return per unit of risk. Higher is better.")
+c3.metric("RL Max Drawdown", f"{rl_metrics['Max Drawdown']:.1%}", help="Largest peak-to-trough loss. Less negative is better.")
 c4.metric("RL Cumulative Return", f"{rl_metrics['Cumulative Return']:.1%}")
+
+rl_beats_equal = rl_metrics["Max Drawdown"] > metrics.loc[metrics["Strategy"] == "Equal-weight Big Six", "Max Drawdown"].values[0]
+decision_callout(
+    plain_english=(
+        f"The defensive RL-style policy achieved a Sharpe of <b>{rl_metrics['Sharpe']:.2f}</b> "
+        f"with a max drawdown of <b>{rl_metrics['Max Drawdown']:.1%}</b>. "
+        "A higher Sharpe means better return per unit of risk taken. A smaller (less negative) drawdown means less pain during market downturns."
+    ),
+    action=(
+        "Compare the RL policy to Equal-weight: if the Sharpe is higher and the drawdown is shallower, "
+        "the risk-aware policy is adding value. If not, the current period may not have had enough stress events "
+        "to differentiate the strategies — consider a longer backtest window."
+    ),
+    tone="success" if rl_beats_equal else "warning",
+)
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs(
     [

@@ -95,17 +95,90 @@ def apply_dashboard_style() -> None:
             font-family: 'Inter', ui-sans-serif, system-ui, sans-serif !important;
         }
 
-        /* Hide Streamlit hamburger/branding */
-        #MainMenu, footer, [data-testid="stToolbar"] { display: none !important; }
+        /* Hide Streamlit hamburger/branding but keep toolbar for sidebar toggle */
+        #MainMenu, footer { display: none !important; }
+        [data-testid="stToolbar"] { display: none !important; }
 
         /* ── Sidebar ─────────────────────────── */
         [data-testid="stSidebar"] {
             background: var(--surface) !important;
             border-right: 1px solid var(--border) !important;
         }
-        [data-testid="stSidebar"] * { color: var(--ink) !important; }
+        /* Color text inside sidebar but NOT the SVG icons used for collapse button */
+        [data-testid="stSidebar"] p,
+        [data-testid="stSidebar"] span,
+        [data-testid="stSidebar"] div:not([data-testid="stSidebarCollapseButton"]) {
+            color: var(--ink) !important;
+        }
         [data-testid="stSidebar"] [data-testid="stMarkdown"] p {
             color: var(--muted) !important;
+        }
+
+        /* ── Sidebar navigation links ──────────── */
+        [data-testid="stSidebarNavLink"] {
+            border-radius: 6px !important;
+            padding: 6px 10px !important;
+            margin: 2px 4px !important;
+            color: var(--muted) !important;
+            font-size: 0.88rem !important;
+            font-weight: 500 !important;
+            transition: background 0.15s, color 0.15s !important;
+        }
+        [data-testid="stSidebarNavLink"]:hover {
+            background: var(--card) !important;
+            color: var(--ink) !important;
+        }
+        [data-testid="stSidebarNavLink"][aria-current="page"],
+        [data-testid="stSidebarNavLink"][aria-selected="true"] {
+            background: var(--card) !important;
+            color: var(--blue-light) !important;
+            border-left: 3px solid var(--blue-light) !important;
+        }
+
+        /* ── Sidebar collapse / expand button ─── */
+        /* The button INSIDE the sidebar to collapse it */
+        [data-testid="stSidebarCollapseButton"] {
+            display: flex !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+        }
+        [data-testid="stSidebarCollapseButton"] button {
+            background: transparent !important;
+            border: 1px solid var(--border) !important;
+            color: var(--muted) !important;
+            border-radius: 6px !important;
+        }
+        [data-testid="stSidebarCollapseButton"] button:hover {
+            background: var(--card) !important;
+            color: var(--ink) !important;
+        }
+        [data-testid="stSidebarCollapseButton"] svg {
+            fill: var(--muted) !important;
+            stroke: var(--muted) !important;
+        }
+
+        /* The floating button OUTSIDE the sidebar to expand it when collapsed */
+        [data-testid="stSidebarCollapsedControl"] {
+            display: block !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            z-index: 999999 !important;
+        }
+        [data-testid="stSidebarCollapsedControl"] button {
+            background: var(--surface) !important;
+            border: 1px solid var(--border-accent) !important;
+            color: var(--ink) !important;
+            border-radius: 0 6px 6px 0 !important;
+            box-shadow: 3px 0 12px rgba(0,0,0,0.4) !important;
+        }
+        [data-testid="stSidebarCollapsedControl"] button:hover {
+            background: var(--card) !important;
+            border-color: var(--blue) !important;
+        }
+        [data-testid="stSidebarCollapsedControl"] svg {
+            fill: var(--ink) !important;
+            stroke: var(--ink) !important;
+            color: var(--ink) !important;
         }
 
         /* ── Main block container ─────────────── */
@@ -561,6 +634,52 @@ def plot_heatmap(matrix: pd.DataFrame, title: str, explanation: str | None = Non
 
 
 # ── Interpretation helpers ───────────────────────────────────────────────────
+
+def decision_callout(plain_english: str, action: str, tone: str = "info") -> None:
+    """Two-column card: plain-English meaning on the left, concrete action on the right."""
+    border_map = {"success": "var(--green)", "warning": "var(--amber)", "danger": "var(--red)", "info": "var(--blue)", "teal": "var(--teal)"}
+    bg_map = {"success": "#0d2318", "warning": "#1f1700", "danger": "#1f0a08", "info": "#0a1929", "teal": "#001f26"}
+    border = border_map.get(tone, border_map["info"])
+    bg = bg_map.get(tone, bg_map["info"])
+    st.markdown(
+        f"""<div style="display:grid;grid-template-columns:1fr 1fr;gap:0;
+                        background:{bg};border:1px solid {border};border-radius:var(--radius);
+                        margin:0.5rem 0 1rem;overflow:hidden">
+              <div style="padding:1rem 1.2rem">
+                <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.09em;
+                            color:var(--muted);margin-bottom:6px;font-weight:600">What This Means</div>
+                <div style="color:#c5d1db;font-size:0.9rem;line-height:1.5">{plain_english}</div>
+              </div>
+              <div style="padding:1rem 1.2rem;border-left:1px solid {border}">
+                <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.09em;
+                            color:var(--muted);margin-bottom:6px;font-weight:600">Decision / Action</div>
+                <div style="color:#e8edf2;font-size:0.9rem;line-height:1.5;font-weight:500">{action}</div>
+              </div>
+            </div>""",
+        unsafe_allow_html=True,
+    )
+
+
+def page_intro(why: str, how: str) -> None:
+    """Compact two-column intro card shown at the top of each analysis page."""
+    st.markdown(
+        f"""<div style="display:grid;grid-template-columns:1fr 1fr;gap:0;
+                        background:var(--card);border:1px solid var(--border);
+                        border-radius:var(--radius);margin:0 0 1.2rem;overflow:hidden">
+              <div style="padding:0.85rem 1.1rem;border-left:3px solid var(--teal)">
+                <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.09em;
+                            color:var(--teal);margin-bottom:5px;font-weight:600">Why This Page Exists</div>
+                <div style="color:#c5d1db;font-size:0.875rem;line-height:1.5">{why}</div>
+              </div>
+              <div style="padding:0.85rem 1.1rem;border-left:3px solid var(--blue)">
+                <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.09em;
+                            color:var(--blue-light);margin-bottom:5px;font-weight:600">How To Read It</div>
+                <div style="color:#c5d1db;font-size:0.875rem;line-height:1.5">{how}</div>
+              </div>
+            </div>""",
+        unsafe_allow_html=True,
+    )
+
 
 def interpretation_box(title: str, bullets: list[str]) -> None:
     items = "".join(

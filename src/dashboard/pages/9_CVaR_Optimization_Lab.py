@@ -21,8 +21,10 @@ from src.dashboard.ui_components import (
     PLOTLY_TEMPLATE,
     analyst_header,
     apply_dashboard_style,
+    decision_callout,
     insight_card,
     interpretation_box,
+    page_intro,
 )
 from src.portfolio.allocation_policy import BANKS
 from src.portfolio.cvar_optimizer import (
@@ -88,13 +90,30 @@ analyst_header(
     source_text="Ledoit-Wolf covariance · graph contagion penalty · SLSQP optimizer",
 )
 
-insight_card(
-    "Why CVaR Instead of Mean-Variance",
-    "Variance treats upside and downside volatility symmetrically. CVaR (Conditional Value at Risk / Expected Shortfall) "
-    "directly minimizes the average loss in the left tail of the return distribution — the question risk committees "
-    "and institutional allocators actually care about. The graph adjustment inflates effective covariance when banks "
-    "are highly correlated or systemically central, preventing the optimizer from taking false diversification credit.",
-    status="info",
+page_intro(
+    why=(
+        "Traditional portfolio optimizers minimize variance — but variance treats gains and losses the same way. "
+        "CVaR (Conditional Value at Risk) directly minimizes the average loss in the <em>worst scenarios</em>, "
+        "which is what institutional risk managers and investment committees actually care about."
+    ),
+    how=(
+        "Use the sidebar controls to set the confidence level, lookback, and risk aversion. "
+        "The optimizer runs and shows you the suggested allocation, its tail risk, and how it compares across scenarios. "
+        "<b>Lower CVaR numbers are better</b> — they mean smaller expected losses in the worst market environments."
+    ),
+)
+
+decision_callout(
+    plain_english=(
+        "CVaR at 95% confidence answers: 'In the worst 5% of market environments, what is the average portfolio loss?' "
+        "A lower CVaR means the portfolio is better protected in tail risk events like the 2008 crisis or March 2020."
+    ),
+    action=(
+        "Use the optimizer output as a governed starting point for allocation decisions. "
+        "Compare the CVaR-optimized weights to the signal-derived targets on the Investment Decision Center page "
+        "to identify where the two approaches agree or diverge."
+    ),
+    tone="teal",
 )
 
 # ── Sidebar controls ─────────────────────────────────────────────────────────

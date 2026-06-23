@@ -20,8 +20,10 @@ from src.dashboard.ui_components import (
     PLOTLY_TEMPLATE,
     analyst_header,
     apply_dashboard_style,
+    decision_callout,
     insight_card,
     interpretation_box,
+    page_intro,
 )
 
 st.set_page_config(page_title="Stress Testing Lab", layout="wide")
@@ -165,10 +167,17 @@ analyst_header(
     source_text="Scenario shocks · correlation network propagation · Monte Carlo loss distribution",
 )
 
-st.markdown(
-    "Stress tests are useful because they force a concrete question: "
-    "if housing, oil, liquidity, rates, or global risk appetite breaks badly, "
-    "where does damage appear first and what should a portfolio manager do?"
+page_intro(
+    why=(
+        "Stress tests force a concrete question: if housing, oil, liquidity, rates, or global risk off breaks badly, "
+        "where does damage appear first, how fast does it spread across banks, "
+        "and how large would your portfolio loss be? The goal is to find this out <em>before</em> it happens."
+    ),
+    how=(
+        "Pick a scenario and a severity from the controls on the right. "
+        "Then read the <b>Propagation</b> tab to see which banks get hit hardest, "
+        "and the <b>Portfolio P&L</b> tab to estimate your loss using your own weights."
+    ),
 )
 
 # ── Controls ──────────────────────────────────────────────────────────────────
@@ -218,6 +227,14 @@ k4.metric("Peak Bank Stress", f"{max_stress:.1f}/100")
 
 response_text, response_tone = recommended_response(final_stress)
 insight_card("Scenario Recommendation", response_text, status=response_tone)
+decision_callout(
+    plain_english=(
+        f"Under the <b>{scenario_name}</b> scenario at ×{severity:.1f} severity, average bank stress reaches "
+        f"<b>{avg_final:.1f}/100</b>. The most exposed bank is <b>{max_bank}</b> at {max_stress:.1f}/100."
+    ),
+    action=response_text,
+    tone=response_tone,
+)
 
 # ── Tabs ─────────────────────────────────────────────────────────────────────
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
