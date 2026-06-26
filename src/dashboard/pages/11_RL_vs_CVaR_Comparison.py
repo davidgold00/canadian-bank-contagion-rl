@@ -7,11 +7,16 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
+from src.dashboard.benchmarking import (  # noqa: E402
+    BROAD_MARKET_BENCHMARKS,
+    CANADIAN_BANK_BENCHMARKS,
+    build_benchmark_values,
+)
 from src.dashboard.components import format_currency, format_percent, load_price_data, load_processed_dataset  # noqa: E402
 from src.dashboard.insight_utils import latest_valid_date  # noqa: E402
-from src.dashboard.ui_components import PALETTE, PLOTLY_TEMPLATE, analyst_header, apply_dashboard_style, decision_callout, decision_memo, insight_card, page_intro  # noqa: E402
+from src.dashboard.ui_components import PALETTE, PLOTLY_TEMPLATE, analyst_header, apply_dashboard_style, decision_callout, decision_memo, insight_card, page_intro, plain_english_expander  # noqa: E402
 from src.portfolio.paper_trader import CVaRPaperPortfolioSimulator, PaperPortfolioSimulator  # noqa: E402
-from src.portfolio.performance_metrics import drawdown_series, performance_summary, rolling_cvar, rolling_sharpe  # noqa: E402
+from src.portfolio.performance_metrics import drawdown_series, performance_summary, rolling_cvar  # noqa: E402
 
 
 st.set_page_config(page_title="RL vs CVaR Comparison", layout="wide")
@@ -50,32 +55,71 @@ def run_comparison(
     return cvar, rl
 
 
-def comparison_metrics(cvar, rl) -> pd.DataFrame:
-    rows = []
-    for name, result in [("CVaR optimizer", cvar), ("RL research baseline", rl)]:
-        summary = performance_summary(
-            result.ledger["portfolio_value"],
-            result.ledger["daily_return"],
-            result.ledger["turnover"],
-            result.ledger["transaction_costs"],
-        )
-        rows.append(
-            {
-                "Strategy": name,
-                "Ending Value": summary["ending_value"],
-                "Cumulative Return": summary["cumulative_return"],
-                "Annualized Return": summary["annualized_return"],
-                "Annualized Volatility": summary["annualized_volatility"],
-                "Sharpe": summary["sharpe_ratio"],
-                "Sortino": summary["sortino_ratio"],
-                "CVaR": summary["conditional_value_at_risk"],
-                "Max Drawdown": summary["max_drawdown"],
-                "Avg Turnover": summary["average_daily_turnover"],
-                "Transaction Costs": summary["total_transaction_costs"],
-                "Average Bank Exposure": result.ledger["bank_exposure"].mean(),
-                "Average Cash": result.ledger["cash_weight"].mean(),
-            }
-        )
+def _metric_row(
+    name: str,
+    values: pd.Series,
+    returns: pd.Series | None = None,
+    turnover: pd.Series | None = None,
+    costs: pd.Series | None = None,
+    strategy_type: str = "Model",
+    average_bank_exposure: float | None = None,
+    average_cash: float | None = None,
+) -> dict[str, float | str | None]:
+    summary = performance_summary(values, returns, turnover, costs)
+    return {
+        "Strategy": name,
+        "Type": strategy_type,
+        "Ending Value": summary["ending_value"],
+        "Cumulative Return": summary["cumulative_return"],
+        "Annualized Return": summary["annualized_return"],
+        "Annualized Volatility": summary["annualized_volatility"],
+        "Sharpe": summary["sharpe_ratio"],
+        "Sortino": summary["sortino_ratio"],
+        "CVaR": summary["conditional_value_at_risk"],
+        "Max Drawdown": summary["max_drawdown"],
+        "Avg Turnover": summary["average_daily_turnover"],
+        "Transaction Costs": summary["total_transaction_costs"],
+        "Average Bank Exposure": average_bank_exposure,
+        "Average Cash": average_cash,
+    }
+
+
+def comparison_metrics(cvar, rl, benchmarks: pd.DataFrame | None = None) -> pd.DataFrame:
+    rows = [
+        _metric_row(
+            "CVaR optimizer",
+            cvar.ledger["portfolio_value"],
+            cvar.ledger["daily_return"],
+            cvar.ledger["turnover"],
+            cvar.ledger["transaction_costs"],
+            average_bank_exposure=float(cvar.ledger["bank_exposure"].mean()),
+            average_cash=float(cvar.ledger["cash_weight"].mean()),
+        ),
+        _metric_row(
+            "RL research baseline",
+            rl.ledger["portfolio_value"],
+            rl.ledger["daily_return"],
+            rl.ledger["turnover"],
+            rl.ledger["transaction_costs"],
+            average_bank_exposure=float(rl.ledger["bank_exposure"].mean()),
+            average_cash=float(rl.ledger["cash_weight"].mean()),
+        ),
+    ]
+
+    if benchmarks is not None:
+        for label in benchmarks.columns:
+            values = benchmarks[label].dropna()
+            if len(values) < 2:
+                continue
+            rows.append(
+                _metric_row(
+                    label,
+                    values,
+                    values.pct_change().fillna(0.0),
+                    strategy_type="Buy-and-hold benchmark",
+                )
+            )
+
     return pd.DataFrame(rows)
 
 
@@ -121,8 +165,8 @@ def format_metrics(df: pd.DataFrame) -> pd.DataFrame:
         "Average Cash",
     ]:
         out[col] = out[col].map(lambda x: format_percent(x, 2))
-    out["Sharpe"] = out["Sharpe"].map(lambda x: f"{x:.2f}")
-    out["Sortino"] = out["Sortino"].map(lambda x: f"{x:.2f}")
+    out["Sharpe"] = out["Sharpe"].map(lambda x: f"{x:.2f}" if pd.notna(x) else "N/A")
+    out["Sortino"] = out["Sortino"].map(lambda x: f"{x:.2f}" if pd.notna(x) else "N/A")
     return out
 
 
@@ -160,6 +204,17 @@ with st.sidebar:
     rebalance_frequency = st.selectbox("CVaR rebalance frequency", [1, 5, 10, 21], index=2)
     default_start = prices.index[max(252, int(len(prices) * 0.70))].date()
     start_date = st.date_input("Start date", value=default_start, min_value=prices.index.min().date(), max_value=prices.index.max().date())
+    st.divider()
+    st.markdown("### Benchmark Toggles")
+    st.caption("Check a box to add that buy-and-hold comparison to the table and time-series charts.")
+    selected_benchmark_labels = []
+    for spec in BROAD_MARKET_BENCHMARKS:
+        if st.checkbox(spec.label, value=spec.default_shown, help=spec.description):
+            selected_benchmark_labels.append(spec.label)
+    st.markdown("#### Big Six Banks")
+    for spec in CANADIAN_BANK_BENCHMARKS:
+        if st.checkbox(spec.label, value=spec.default_shown, help=spec.description):
+            selected_benchmark_labels.append(spec.label)
 
 cvar, rl = run_comparison(
     float(initial_capital),
@@ -171,28 +226,57 @@ cvar, rl = run_comparison(
     int(rebalance_frequency),
 )
 
-metrics = comparison_metrics(cvar, rl)
+selected_benchmarks, missing_benchmarks = build_benchmark_values(
+    prices,
+    selected_benchmark_labels,
+    float(initial_capital),
+    cvar.ledger.index,
+)
+
+metrics = comparison_metrics(cvar, rl, selected_benchmarks)
 winner_sharpe = metrics.sort_values("Sharpe", ascending=False).iloc[0]["Strategy"]
 winner_cvar = metrics.sort_values("CVaR", ascending=True).iloc[0]["Strategy"]
+winner_ending = metrics.sort_values("Ending Value", ascending=False).iloc[0]["Strategy"]
+winner_drawdown = metrics.sort_values("Max Drawdown", ascending=False).iloc[0]["Strategy"]
 
 c1, c2, c3, c4 = st.columns(4)
-c1.metric("Best Sharpe", winner_sharpe)
-c2.metric("Lowest CVaR", winner_cvar)
-c3.metric("CVaR Ending Value", format_currency(metrics.loc[metrics["Strategy"] == "CVaR optimizer", "Ending Value"].iloc[0]))
-c4.metric("RL Ending Value", format_currency(metrics.loc[metrics["Strategy"] == "RL research baseline", "Ending Value"].iloc[0]))
+c1.metric("Best Ending Value", winner_ending)
+c2.metric("Best Sharpe", winner_sharpe)
+c3.metric("Lowest CVaR", winner_cvar)
+c4.metric("Smallest Drawdown", winner_drawdown)
+
+if missing_benchmarks:
+    st.warning(
+        "Missing benchmark price history for: "
+        + ", ".join(missing_benchmarks)
+        + ". Refresh data with `python scripts/download_data.py` and `python scripts/build_features.py` to populate unavailable tickers."
+    )
+
+plain_english_expander(
+    "Optional Guide: What This Comparison Proves",
+    [
+        ("Buy-and-hold benchmark", "A passive investment that starts with the same capital and simply holds one index, ETF, or bank stock through time."),
+        ("Ending value", "The most direct wealth comparison: which path turned the same starting capital into the most dollars."),
+        ("Sharpe", "Return per unit of volatility. A higher number means the strategy was paid more for each unit of risk."),
+        ("CVaR", "Average loss on the worst days. Lower is better because the tail losses were smaller."),
+        ("Max drawdown", "The deepest peak-to-trough loss. Closer to zero is better because the investor had to tolerate less pain."),
+    ],
+)
 
 cvar_sharpe = metrics.loc[metrics["Strategy"] == "CVaR optimizer", "Sharpe"].iloc[0]
 rl_sharpe = metrics.loc[metrics["Strategy"] == "RL research baseline", "Sharpe"].iloc[0]
+active_benchmark_text = ", ".join(selected_benchmarks.columns) if not selected_benchmarks.empty else "no external benchmarks selected"
 decision_callout(
     plain_english=(
         f"The <b>{winner_sharpe}</b> achieved a higher Sharpe ratio, meaning better return per unit of risk taken. "
         f"The <b>{winner_cvar}</b> had the lower CVaR, meaning smaller average losses in the worst scenarios. "
-        "CVaR Sharpe: {:.2f} | RL Sharpe: {:.2f}".format(cvar_sharpe, rl_sharpe)
+        "The benchmark set currently shown is: <b>{}</b>. "
+        "CVaR Sharpe: {:.2f} | RL Sharpe: {:.2f}".format(active_benchmark_text, cvar_sharpe, rl_sharpe)
     ),
     action=(
-        "For a governed portfolio: use CVaR as the primary allocator with constraints. "
-        "Use RL signals as a research overlay or sanity check. "
-        "If both agree on a bank (both overweight or both underweight), the conviction is higher."
+        "Use this page as the fairness check: the models only matter if they beat simple buy-and-hold alternatives "
+        "after accounting for risk, drawdowns, and transaction costs. If a passive benchmark wins on both return "
+        "and drawdown, the model needs stronger evidence before real capital should trust it."
     ),
     tone="teal",
 )
@@ -211,6 +295,11 @@ decision_memo(
             "Monitoring Trigger": "Use this allocator for stress regimes unless it materially sacrifices drawdown or liquidity.",
         },
         {
+            "Observation": f"Best ending value: {winner_ending}",
+            "Decision Implication": "This is the plain wealth comparison against passive alternatives with the same starting capital.",
+            "Monitoring Trigger": "If a passive benchmark keeps winning, inspect whether the active model is over-constrained or over-trading.",
+        },
+        {
             "Observation": f"CVaR Sharpe {cvar_sharpe:.2f}; RL Sharpe {rl_sharpe:.2f}",
             "Decision Implication": "If the two allocators agree on exposure, conviction rises; if they diverge, use CVaR as the governed baseline.",
             "Monitoring Trigger": "Investigate divergence before changing real-world policy limits.",
@@ -223,12 +312,14 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs(["Performance", "Risk Regimes", "Allocati
 
 with tab1:
     st.dataframe(format_metrics(metrics), use_container_width=True, hide_index=True)
+    equity_series = {
+        "CVaR optimizer": cvar.ledger["portfolio_value"],
+        "RL research baseline": rl.ledger["portfolio_value"],
+    }
+    equity_series.update({label: selected_benchmarks[label] for label in selected_benchmarks.columns})
     st.plotly_chart(
         line_chart(
-            {
-                "CVaR optimizer": cvar.ledger["portfolio_value"],
-                "RL research baseline": rl.ledger["portfolio_value"],
-            },
+            equity_series,
             "Equity Curve Comparison",
             "Portfolio value",
         ),
@@ -236,12 +327,10 @@ with tab1:
     )
     c_left, c_right = st.columns(2)
     with c_left:
+        drawdown_series_map = {name: drawdown_series(values) for name, values in equity_series.items()}
         st.plotly_chart(
             line_chart(
-                {
-                    "CVaR optimizer": drawdown_series(cvar.ledger["portfolio_value"]),
-                    "RL research baseline": drawdown_series(rl.ledger["portfolio_value"]),
-                },
+                drawdown_series_map,
                 "Drawdown Comparison",
                 "Drawdown",
                 ".0%",
@@ -249,12 +338,13 @@ with tab1:
             use_container_width=True,
         )
     with c_right:
+        rolling_cvar_map = {
+            name: rolling_cvar(pd.Series(values).pct_change().fillna(0.0), 63)
+            for name, values in equity_series.items()
+        }
         st.plotly_chart(
             line_chart(
-                {
-                    "CVaR optimizer": rolling_cvar(cvar.ledger["daily_return"], 63),
-                    "RL research baseline": rolling_cvar(rl.ledger["daily_return"], 63),
-                },
+                rolling_cvar_map,
                 "Rolling 63D CVaR",
                 "CVaR",
                 ".1%",

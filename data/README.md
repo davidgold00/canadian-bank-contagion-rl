@@ -12,7 +12,7 @@ The Streamlit **Data Catalog** page profiles every CSV and provides a chart expl
 
 | CSV | Role | What It Means | How It Is Charted |
 | --- | --- | --- | --- |
-| `data/sample/market_prices.csv` | Synthetic fallback market prices | Offline stand-in for bank, ETF, currency, commodity, TSX, and VIX prices. Not real market history. | Recent price series indexed to 100. |
+| `data/sample/market_prices.csv` | Synthetic fallback market prices | Offline stand-in for banks, Canadian bank ETFs, broad U.S. indexes, currency, commodities, TSX, and VIX prices. Not real market history. | Recent price series indexed to 100. |
 | `data/sample/macro.csv` | Synthetic fallback macro data | Offline stand-in for policy rate, Canadian yields, slope, and curvature. | Rate and yield-curve trend. |
 | `data/templates/housing_stress_template.csv` | Housing stress input | Analyst assumptions for arrears, delinquency, home prices, unemployment, credit growth, and mortgage debt. | Normalized housing stress variables. |
 | `data/templates/cds_template.csv` | Credit spread input | Bank CDS or credit-spread proxy. Wider spreads mean the market is demanding more compensation for credit risk. | Spread level by bank. |
@@ -24,7 +24,7 @@ These are gitignored because they are reproducible and can become large.
 
 | CSV | Created By | Role | Why It Matters |
 | --- | --- | --- | --- |
-| `data/raw/market_prices.csv` | `python scripts/download_data.py` | Live Yahoo Finance price panel. | Provides current bank, ETF, CAD, oil, gold, TSX, and VIX inputs. |
+| `data/raw/market_prices.csv` | `python scripts/download_data.py` | Live Yahoo Finance price panel. | Provides current bank, ETF, S&P 500, Nasdaq, Dow Jones, CAD, oil, gold, TSX, and VIX inputs. |
 | `data/raw/boc_yields.csv` | `python scripts/download_data.py` | Live Bank of Canada policy-rate and yield data. | Explains funding, mortgage, valuation, and yield-curve pressure on banks. |
 | `data/processed/prices.csv` | `python scripts/build_features.py` | Clean aligned price table. | Used by network, stress test, and RL backtest pages. |
 | `data/processed/model_dataset.csv` | `python scripts/build_features.py` | Main feature table. | Combines returns, volatility, drawdowns, beta, correlations, macro changes, and contagion score. |

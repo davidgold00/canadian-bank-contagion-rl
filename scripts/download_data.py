@@ -4,7 +4,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.data.sample_data import ensure_sample_data
 from src.data.market_data import download_market_data
 from src.data.boc_valet import download_boc_series
-TICKERS=['RY.TO','TD.TO','BMO.TO','BNS.TO','CM.TO','NA.TO','XFN.TO','XIU.TO','CADUSD=X','CL=F','GC=F','^GSPTSE','^VIX']
+TICKERS=[
+    'RY.TO','TD.TO','BMO.TO','BNS.TO','CM.TO','NA.TO',
+    'XFN.TO','XIU.TO','ZEB.TO',
+    '^GSPC','^IXIC','^DJI','^GSPTSE','^VIX',
+    'CADUSD=X','CL=F','GC=F',
+]
 BOC_SERIES={
     'policy_rate': 'V39079',
     'ca_2y': 'BD.CDN.2YR.DQ.YLD',

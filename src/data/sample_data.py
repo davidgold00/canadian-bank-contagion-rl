@@ -8,11 +8,11 @@ ASSETS = BANKS + ["XFN.TO","XIU.TO","cash"]
 def make_sample_market_data(path="data/sample/market_prices.csv", n=900, seed=7):
     rng=np.random.default_rng(seed); dates=pd.bdate_range("2020-01-01", periods=n)
     factors=rng.normal(0, [0.006,0.004,0.003], size=(n,3))
-    tickers=BANKS+["XFN.TO","XIU.TO","CADUSD=X","CL=F","GC=F","^GSPTSE","^VIX"]
+    tickers=BANKS+["XFN.TO","XIU.TO","ZEB.TO","^GSPC","^IXIC","^DJI","CADUSD=X","CL=F","GC=F","^GSPTSE","^VIX"]
     prices={}
     base={t:100+rng.normal(0,5) for t in tickers}
     for i,t in enumerate(tickers):
-        loading=np.array([1.0, .4 if t in BANKS+["XFN.TO"] else .2, rng.normal(.1,.3)])
+        loading=np.array([1.0, .4 if t in BANKS+["XFN.TO","ZEB.TO"] else .2, rng.normal(.1,.3)])
         ret=factors@loading + rng.normal(0,0.006 if t in BANKS else 0.004,n)
         if t=="^VIX": ret=-0.4*factors[:,0]+rng.normal(0,0.015,n)
         prices[t]=base[t]*np.exp(np.cumsum(ret))

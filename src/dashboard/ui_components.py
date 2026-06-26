@@ -700,6 +700,54 @@ def decision_callout(plain_english: str, action: str, tone: str = "info") -> Non
     )
 
 
+COMMON_PLAIN_ENGLISH_GUIDE = [
+    (
+        "Contagion risk",
+        "The chance that stress in one bank or market channel spills into the rest of the banking group.",
+    ),
+    (
+        "Volatility",
+        "How much prices are moving around. Higher volatility means less certainty about near-term portfolio value.",
+    ),
+    (
+        "Correlation",
+        "How closely assets move together. High bank correlation means owning several banks may still behave like one large bank trade.",
+    ),
+    (
+        "Drawdown",
+        "The loss from a recent high point to the later low point. It captures the pain an investor had to sit through.",
+    ),
+    (
+        "Sharpe ratio",
+        "Return per unit of volatility. Higher is better, but it does not fully describe tail losses.",
+    ),
+    (
+        "CVaR",
+        "Conditional Value at Risk, or expected shortfall: the average loss in the worst tail of outcomes. Lower is better.",
+    ),
+    (
+        "Turnover",
+        "How much the portfolio trades. Higher turnover can make a strategy look good before costs but weaker after costs.",
+    ),
+    (
+        "Cash weight",
+        "The defensive portion held out of risky assets. Cash can reduce losses but can also drag returns in strong markets.",
+    ),
+]
+
+
+def plain_english_expander(
+    title: str = "Optional Plain-English Guide",
+    items: list[tuple[str, str]] | None = None,
+    expanded: bool = False,
+) -> None:
+    """Render an optional glossary for nontechnical finance readers."""
+    guide_items = items if items is not None else COMMON_PLAIN_ENGLISH_GUIDE
+    with st.expander(title, expanded=expanded):
+        for term, explanation in guide_items:
+            st.markdown(f"- **{term}**: {explanation}")
+
+
 def page_intro(why: str, how: str) -> None:
     """Compact two-column intro card shown at the top of each analysis page."""
     st.markdown(
@@ -717,6 +765,7 @@ def page_intro(why: str, how: str) -> None:
             </div>""",
         unsafe_allow_html=True,
     )
+    plain_english_expander()
 
 
 def decision_memo(title: str, rows: list[dict[str, str]], tone: str = "info") -> None:
