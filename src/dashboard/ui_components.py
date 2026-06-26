@@ -87,7 +87,7 @@ def apply_dashboard_style() -> None:
             --amber:         #ffb300;
             --red:           #f44336;
             --teal:          #00bcd4;
-            --radius:        10px;
+            --radius:        8px;
         }
 
         /* ── Page & body ────────────────────────── */
@@ -193,9 +193,10 @@ def apply_dashboard_style() -> None:
 
         /* ── Typography ────────────────────────── */
         h1 {
-            font-size: clamp(1.6rem, 3vw, 2.4rem) !important;
+            font-size: 2.25rem !important;
             font-weight: 700 !important;
-            letter-spacing: -0.02em !important;
+            letter-spacing: 0 !important;
+            line-height: 1.12 !important;
             color: var(--ink) !important;
             margin-bottom: 0.2rem !important;
         }
@@ -269,6 +270,9 @@ def apply_dashboard_style() -> None:
         [data-testid="stDataFrame"] {
             border-radius: var(--radius) !important;
             overflow: hidden !important;
+        }
+        [data-testid="stDataFrame"] * {
+            max-width: 100%;
         }
         [data-testid="stDataFrame"] th {
             background: var(--surface) !important;
@@ -375,6 +379,48 @@ def apply_dashboard_style() -> None:
         /* Conviction stars */
         .cv-star-filled  { color: var(--amber); }
         .cv-star-empty   { color: var(--border-accent); }
+
+        .cc-decision-grid,
+        .cc-intro-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: 0;
+        }
+        .cc-decision-grid {
+            margin: 0.5rem 0 1rem;
+            overflow: hidden;
+        }
+        .cc-intro-grid {
+            margin: 0 0 1.2rem;
+            overflow: hidden;
+        }
+        .cc-grid-cell {
+            min-width: 0;
+            overflow-wrap: anywhere;
+        }
+
+        @media (max-width: 900px) {
+            .block-container {
+                padding-left: 1rem !important;
+                padding-right: 1rem !important;
+            }
+            h1 {
+                font-size: 1.65rem !important;
+            }
+            .cc-decision-grid,
+            .cc-intro-grid {
+                grid-template-columns: 1fr !important;
+            }
+            .cc-decision-grid .cc-grid-cell + .cc-grid-cell,
+            .cc-intro-grid .cc-grid-cell + .cc-grid-cell {
+                border-left: 0 !important;
+                border-top: 1px solid var(--border) !important;
+            }
+            .regime-banner {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+        }
 
         </style>
         """,
@@ -490,59 +536,53 @@ def conviction_stars_html(n: int) -> str:
 
 
 def signal_table(signals_df: pd.DataFrame) -> None:
-    """Render the investment signals table with colored badges."""
+    """Render the investment signals table with native Streamlit components."""
     if signals_df.empty:
         st.info("No signal data available.")
         return
 
-    rows_html = ""
-    for _, row in signals_df.iterrows():
-        sig_html = signal_badge(str(row.get("Signal", "HOLD")))
-        conv = int(row.get("Conviction", 3))
-        stars_html = conviction_stars_html(conv)
-        comp = row.get("Composite Score", 0)
-        stress = row.get("Node Stress", 0)
-        tgt = row.get("Target Weight", 0)
-        delta = row.get("Weight Delta", 0)
-        ret = row.get("21D Return", float("nan"))
-        delta_str = f"{delta:+.1%}" if pd.notna(delta) else "N/A"
-        ret_str = f"{ret:+.1%}" if pd.notna(ret) else "N/A"
-        ret_color = "#00c853" if pd.notna(ret) and ret > 0 else "#f44336"
-        delta_color = "#00c853" if pd.notna(delta) and delta > 0 else "#f44336"
+    def readout(row: pd.Series) -> str:
+        signal = str(row.get("Signal", "HOLD"))
+        bank = row.get("Bank", "")
+        delta = row.get("Weight Delta", 0.0)
+        stress = row.get("Node Stress", 0.0)
+        if signal == "BUY":
+            return f"Add only if portfolio risk budget can absorb a {delta:+.1%} tilt; monitor stress above {max(60, stress + 10):.0f}."
+        if signal == "REDUCE":
+            return f"Trim or hedge first; bank-level stress is {stress:.0f}/100 and target is {row.get('Target Weight', 0):.1%}."
+        return f"Hold {bank}; wait for a clearer score break or stress deterioration before changing weight."
 
-        rows_html += f"""
-        <tr>
-          <td style="font-weight:600;color:#e8edf2">{row.get('Bank','')}</td>
-          <td>{row.get('Name','')}</td>
-          <td>{sig_html}</td>
-          <td>{stars_html}</td>
-          <td style="font-family:monospace">{comp:.1f}</td>
-          <td style="font-family:monospace">{stress:.1f}</td>
-          <td style="font-family:monospace;color:{ret_color}">{ret_str}</td>
-          <td style="font-family:monospace">{tgt:.1%}</td>
-          <td style="font-family:monospace;color:{delta_color}">{delta_str}</td>
-        </tr>"""
+    display = pd.DataFrame(
+        {
+            "Ticker": signals_df["Bank"],
+            "Bank": signals_df["Name"],
+            "Signal": signals_df["Signal"],
+            "Conviction": signals_df["Conviction"].map(lambda x: "★" * int(x) + "☆" * (5 - int(x))),
+            "Score": signals_df["Composite Score"].round(1),
+            "Stress": signals_df["Node Stress"].round(1),
+            "21D Return": signals_df["21D Return"].map(lambda x: f"{x:+.1%}" if pd.notna(x) else "N/A"),
+            "Target Wt": signals_df["Target Weight"].map(lambda x: f"{x:.1%}" if pd.notna(x) else "N/A"),
+            "Δ Wt": signals_df["Weight Delta"].map(lambda x: f"{x:+.1%}" if pd.notna(x) else "N/A"),
+            "Decision Readout": signals_df.apply(readout, axis=1),
+        }
+    )
 
-    st.markdown(
-        f"""<table style="width:100%;border-collapse:collapse;font-size:0.88rem;color:#c5d1db">
-          <thead>
-            <tr style="background:#16202d;text-transform:uppercase;font-size:0.72rem;letter-spacing:0.05em;color:#7a91a6">
-              <th style="padding:10px 8px;text-align:left">Ticker</th>
-              <th style="padding:10px 8px;text-align:left">Bank</th>
-              <th style="padding:10px 8px;text-align:left">Signal</th>
-              <th style="padding:10px 8px;text-align:left">Conviction</th>
-              <th style="padding:10px 8px;text-align:left">Score</th>
-              <th style="padding:10px 8px;text-align:left">Stress</th>
-              <th style="padding:10px 8px;text-align:left">21D Ret</th>
-              <th style="padding:10px 8px;text-align:left">Target Wt</th>
-              <th style="padding:10px 8px;text-align:left">Δ Wt</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows_html}
-          </tbody>
-        </table>""",
-        unsafe_allow_html=True,
+    st.dataframe(
+        display,
+        width="stretch",
+        hide_index=True,
+        column_config={
+            "Ticker": st.column_config.TextColumn("Ticker", width="small"),
+            "Bank": st.column_config.TextColumn("Bank", width="medium"),
+            "Signal": st.column_config.TextColumn("Signal", width="small"),
+            "Conviction": st.column_config.TextColumn("Conviction", width="small"),
+            "Score": st.column_config.ProgressColumn("Score", min_value=0, max_value=100, format="%.1f"),
+            "Stress": st.column_config.ProgressColumn("Stress", min_value=0, max_value=100, format="%.1f"),
+            "21D Return": st.column_config.TextColumn("21D Ret", width="small"),
+            "Target Wt": st.column_config.TextColumn("Target Wt", width="small"),
+            "Δ Wt": st.column_config.TextColumn("Δ Wt", width="small"),
+            "Decision Readout": st.column_config.TextColumn("Decision Readout", width="large"),
+        },
     )
 
 
@@ -623,14 +663,14 @@ def styled_heatmap(matrix: pd.DataFrame, title: str, height: int = 500) -> go.Fi
 
 def plot_time_series(df: pd.DataFrame, y: str, title: str, explanation: str | None = None) -> None:
     fig = styled_line(df, y, title)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     if explanation:
         st.markdown(f"<p class='cc-caption'>{explanation}</p>", unsafe_allow_html=True)
 
 
 def plot_heatmap(matrix: pd.DataFrame, title: str, explanation: str | None = None) -> None:
     fig = styled_heatmap(matrix, title)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     if explanation:
         st.markdown(f"<p class='cc-caption'>{explanation}</p>", unsafe_allow_html=True)
 
@@ -644,15 +684,13 @@ def decision_callout(plain_english: str, action: str, tone: str = "info") -> Non
     border = border_map.get(tone, border_map["info"])
     bg = bg_map.get(tone, bg_map["info"])
     st.markdown(
-        f"""<div style="display:grid;grid-template-columns:1fr 1fr;gap:0;
-                        background:{bg};border:1px solid {border};border-radius:var(--radius);
-                        margin:0.5rem 0 1rem;overflow:hidden">
-              <div style="padding:1rem 1.2rem">
+        f"""<div class="cc-decision-grid" style="background:{bg};border:1px solid {border};border-radius:var(--radius);">
+              <div class="cc-grid-cell" style="padding:1rem 1.2rem">
                 <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.09em;
                             color:var(--muted);margin-bottom:6px;font-weight:600">What This Means</div>
                 <div style="color:#c5d1db;font-size:0.9rem;line-height:1.5">{plain_english}</div>
               </div>
-              <div style="padding:1rem 1.2rem;border-left:1px solid {border}">
+              <div class="cc-grid-cell" style="padding:1rem 1.2rem;border-left:1px solid {border}">
                 <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.09em;
                             color:var(--muted);margin-bottom:6px;font-weight:600">Decision / Action</div>
                 <div style="color:#e8edf2;font-size:0.9rem;line-height:1.5;font-weight:500">{action}</div>
@@ -665,21 +703,36 @@ def decision_callout(plain_english: str, action: str, tone: str = "info") -> Non
 def page_intro(why: str, how: str) -> None:
     """Compact two-column intro card shown at the top of each analysis page."""
     st.markdown(
-        f"""<div style="display:grid;grid-template-columns:1fr 1fr;gap:0;
-                        background:var(--card);border:1px solid var(--border);
-                        border-radius:var(--radius);margin:0 0 1.2rem;overflow:hidden">
-              <div style="padding:0.85rem 1.1rem;border-left:3px solid var(--teal)">
+        f"""<div class="cc-intro-grid" style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);">
+              <div class="cc-grid-cell" style="padding:0.85rem 1.1rem;border-left:3px solid var(--teal)">
                 <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.09em;
                             color:var(--teal);margin-bottom:5px;font-weight:600">Why This Page Exists</div>
                 <div style="color:#c5d1db;font-size:0.875rem;line-height:1.5">{why}</div>
               </div>
-              <div style="padding:0.85rem 1.1rem;border-left:3px solid var(--blue)">
+              <div class="cc-grid-cell" style="padding:0.85rem 1.1rem;border-left:3px solid var(--blue)">
                 <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.09em;
                             color:var(--blue-light);margin-bottom:5px;font-weight:600">How To Read It</div>
                 <div style="color:#c5d1db;font-size:0.875rem;line-height:1.5">{how}</div>
               </div>
             </div>""",
         unsafe_allow_html=True,
+    )
+
+
+def decision_memo(title: str, rows: list[dict[str, str]], tone: str = "info") -> None:
+    """Render a compact observation-to-action table."""
+    if not rows:
+        return
+    insight_card(title, "Each line converts a model observation into a decision implication and a monitoring trigger.", status=tone)
+    st.dataframe(
+        pd.DataFrame(rows),
+        width="stretch",
+        hide_index=True,
+        column_config={
+            "Observation": st.column_config.TextColumn("Observation", width="medium"),
+            "Decision Implication": st.column_config.TextColumn("Decision Implication", width="large"),
+            "Monitoring Trigger": st.column_config.TextColumn("Monitoring Trigger", width="large"),
+        },
     )
 
 

@@ -8,7 +8,6 @@ This is the answer to: "What should I actually do with this information?"
 import sys
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
@@ -16,7 +15,6 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from src.dashboard.insight_utils import (
-    BANK_NAMES,
     BANKS,
     latest,
     latest_valid_date,
@@ -30,7 +28,6 @@ from src.dashboard.investment_signals import (
     compute_market_positioning,
     compute_portfolio_recommendations,
     compute_sensitivity_analysis,
-    signal_display_table,
 )
 from src.dashboard.ui_components import (
     PLOTLY_TEMPLATE,
@@ -38,10 +35,10 @@ from src.dashboard.ui_components import (
     analyst_header,
     apply_dashboard_style,
     decision_callout,
+    decision_memo,
     insight_card,
     page_intro,
     regime_banner,
-    signal_badge,
     signal_table,
 )
 from src.portfolio.cvar_optimizer import (
@@ -138,6 +135,45 @@ decision_callout(
     tone=regime["tone"],
 )
 
+highest_stress = signals.sort_values("Node Stress", ascending=False).iloc[0]
+strongest_signal = signals.sort_values("Composite Score", ascending=False).iloc[0]
+largest_rebalance = recs.iloc[recs["Delta"].abs().argmax()]
+decision_memo(
+    "Portfolio Decision Memo",
+    [
+        {
+            "Observation": f"{regime['label']} regime at {score:.1f}/100",
+            "Decision Implication": positioning["sector_bias"],
+            "Monitoring Trigger": "Change the bank budget if the score crosses the next regime band or reverses for 10+ trading days.",
+        },
+        {
+            "Observation": f"Average bank correlation {avg_corr:.2f}",
+            "Decision Implication": (
+                "Treat multiple bank holdings as one shared risk bucket; name diversification is weak."
+                if pd.notna(avg_corr) and avg_corr > 0.75
+                else "Name diversification still has some value; focus on relative stress ranking."
+            ),
+            "Monitoring Trigger": "Escalate if correlation moves above 0.80 while drawdowns widen.",
+        },
+        {
+            "Observation": f"Highest stress: {highest_stress['Bank']} at {highest_stress['Node Stress']:.1f}/100",
+            "Decision Implication": "Use this as the first trim, hedge, or due-diligence candidate before cutting lower-stress names.",
+            "Monitoring Trigger": "Review if node stress stays above 70 or becomes the largest P&L contributor in stress tests.",
+        },
+        {
+            "Observation": f"Strongest signal: {strongest_signal['Bank']} at {strongest_signal['Composite Score']:.1f}/100",
+            "Decision Implication": "A positive tilt needs both signal strength and room in the risk budget; do not add if the regime is deteriorating.",
+            "Monitoring Trigger": "Confirm score leadership persists after the next weekly rebalance window.",
+        },
+        {
+            "Observation": f"Largest rebalance: {largest_rebalance['Bank']} {largest_rebalance['Delta']:+.1%}",
+            "Decision Implication": largest_rebalance["Reason"],
+            "Monitoring Trigger": "Act only if the required trade exceeds internal tolerance after costs, tax, and liquidity checks.",
+        },
+    ],
+    tone=regime["tone"],
+)
+
 st.divider()
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
@@ -182,7 +218,7 @@ with tab1:
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=430,
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     st.divider()
     st.subheader("Rationale by Bank")
@@ -243,7 +279,7 @@ with tab2:
         for col in ["Current Weight", "Target Weight"]:
             hold_display[col] = hold_display[col].map(lambda x: f"{x:.1%}")
         hold_display["Delta"] = hold_display["Delta"].map(lambda x: f"{x:+.1%}")
-        st.dataframe(hold_display, use_container_width=True, hide_index=True)
+        st.dataframe(hold_display, width="stretch", hide_index=True)
 
     st.divider()
     st.subheader("Positioning Guidance")
@@ -284,7 +320,7 @@ with tab2:
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=400,
     )
-    st.plotly_chart(fig_weights, use_container_width=True)
+    st.plotly_chart(fig_weights, width="stretch")
 
 # ═══════════════════════════════════════════════════════════════════════════════
 with tab3:
@@ -348,7 +384,7 @@ with tab3:
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=400,
     )
-    st.plotly_chart(fig_comp, use_container_width=True)
+    st.plotly_chart(fig_comp, width="stretch")
 
     # Risk decomposition
     st.subheader("Risk Decomposition (Component Risk)")
@@ -356,7 +392,7 @@ with tab3:
     rd_display = rd.copy()
     for col in ["Weight", "Standalone Vol", "Marginal Risk", "Component Risk", "% of Portfolio Risk"]:
         rd_display[col] = rd_display[col].map(lambda x: f"{x:.2%}" if pd.notna(x) else "N/A")
-    st.dataframe(rd_display, use_container_width=True, hide_index=True)
+    st.dataframe(rd_display, width="stretch", hide_index=True)
 
     fig_rc = go.Figure(go.Bar(
         x=rd["% of Portfolio Risk"],
@@ -373,7 +409,7 @@ with tab3:
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=400,
     )
-    st.plotly_chart(fig_rc, use_container_width=True)
+    st.plotly_chart(fig_rc, width="stretch")
 
 # ═══════════════════════════════════════════════════════════════════════════════
 with tab4:
@@ -437,10 +473,10 @@ with tab4:
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=420,
     )
-    st.plotly_chart(fig_pnl, use_container_width=True)
+    st.plotly_chart(fig_pnl, width="stretch")
 
     total_pnl["Total Portfolio P&L"] = total_pnl["Total Portfolio P&L"].map(lambda x: f"{x:+.2%}")
-    st.dataframe(total_pnl, use_container_width=True, hide_index=True)
+    st.dataframe(total_pnl, width="stretch", hide_index=True)
 
     total_signal = float((target_w * pd.Series(base_shocks)).sum())
     tone = "danger" if total_signal < -0.05 else "warning" if total_signal < -0.02 else "success"
@@ -482,12 +518,12 @@ with tab5:
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=450,
     )
-    st.plotly_chart(fig_sens, use_container_width=True)
+    st.plotly_chart(fig_sens, width="stretch")
 
     display_sens = sensitivity.copy()
     for col in display_sens.columns:
         display_sens[col] = display_sens[col].map(lambda x: f"{x:.1%}")
-    st.dataframe(display_sens, use_container_width=True)
+    st.dataframe(display_sens, width="stretch")
 
     insight_card(
         "How to Use This Table",

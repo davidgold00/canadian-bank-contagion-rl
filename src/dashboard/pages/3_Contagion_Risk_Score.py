@@ -20,7 +20,7 @@ from src.dashboard.insight_utils import (
     risk_regime,
     strongest_drivers,
 )
-from src.dashboard.ui_components import PALETTE, PLOTLY_TEMPLATE, action_list, analyst_header, apply_dashboard_style, decision_callout, insight_card, page_intro
+from src.dashboard.ui_components import PALETTE, PLOTLY_TEMPLATE, action_list, analyst_header, apply_dashboard_style, decision_callout, decision_memo, insight_card, page_intro
 
 
 st.set_page_config(page_title="Contagion Risk Score", layout="wide")
@@ -126,7 +126,7 @@ c6.metric("Latest Date", latest_valid_date(features))
 
 left, right = st.columns([0.40, 0.60])
 with left:
-    st.plotly_chart(gauge(score), use_container_width=True)
+    st.plotly_chart(gauge(score), width="stretch")
 with right:
     fig = go.Figure()
     fig.add_trace(go.Scatter(
@@ -149,9 +149,33 @@ with right:
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=330,
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 insight_card(f"Interpretation: {regime['label']} Risk", regime["summary"], status=regime["tone"])
+
+drivers_now = strongest_drivers(features)
+top_driver = drivers_now.iloc[0] if not drivers_now.empty else None
+memo_rows = [
+    {
+        "Observation": f"Score percentile {score_pct:.0%}" if score_pct == score_pct else "Score percentile unavailable",
+        "Decision Implication": "Percentile tells you whether today is ordinary noise or a historically unusual stress state.",
+        "Monitoring Trigger": "Treat readings above the 75th percentile as a constraint on new bank exposure.",
+    },
+    {
+        "Observation": f"5D / 21D score change: {score_5d:+.1f} / {score_21d:+.1f}",
+        "Decision Implication": "Direction matters as much as level; rising risk should reduce tolerance for new concentration.",
+        "Monitoring Trigger": "Escalate when both short and medium windows are positive.",
+    },
+]
+if top_driver is not None:
+    memo_rows.append(
+        {
+            "Observation": f"Top driver: {top_driver['Driver']}",
+            "Decision Implication": top_driver["Why it matters"],
+            "Monitoring Trigger": "Use the top driver to choose the first scenario and hedge assumption.",
+        }
+    )
+decision_memo("Score Decision Memo", memo_rows, tone=regime["tone"])
 
 tab1, tab2, tab3, tab4 = st.tabs(["Driver Decomposition", "Bank Contributors", "Regime Map", "Decision Rules"])
 
@@ -181,17 +205,17 @@ with tab1:
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=520,
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     decision_callout(
         plain_english="Drivers with scores above 75 are at their most stressed quartile historically. When several are above 75 simultaneously, the composite score rises rapidly.",
         action="Focus attention on the top 2–3 drivers. Those are the specific channels most likely to cause portfolio losses if conditions worsen.",
         tone="info",
     )
 
-    drivers = strongest_drivers(features)
+    drivers = drivers_now
     show = drivers.copy()
     show["Stress Percentile"] = show["Stress Percentile"].map(lambda x: f"{x:.0%}" if x == x else "N/A")
-    st.dataframe(show, use_container_width=True, hide_index=True)
+    st.dataframe(show, width="stretch", hide_index=True)
 
 with tab2:
     st.subheader("Bank-Level Contributors")
@@ -203,7 +227,7 @@ with tab2:
         show[col] = show[col].map(lambda x: pct(x) if x == x else "N/A")
     show["Node Stress"] = show["Node Stress"].map(lambda x: f"{x:.1f}/100")
     show["Beta to XFN"] = show["Beta to XFN"].map(lambda x: f"{x:.2f}" if x == x else "N/A")
-    st.dataframe(show, use_container_width=True, hide_index=True)
+    st.dataframe(show, width="stretch", hide_index=True)
 
     leader = bank_table.iloc[0]
     insight_card(
@@ -233,7 +257,7 @@ with tab3:
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=560,
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     decision_callout(
         plain_english="A single red row means one channel is stressed. Multiple red rows on the same day means stress is widespread — the most dangerous signal for contagion.",
         action="When 3 or more drivers are simultaneously in the red, treat the regime as elevated even if the composite score hasn't peaked yet.",
@@ -270,6 +294,6 @@ with tab4:
                 "Portfolio Posture": "Defensive allocation dominates until breadth improves.",
             },
         ],
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )

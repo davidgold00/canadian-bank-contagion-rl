@@ -24,7 +24,7 @@
       --amber:     #ffb300;
       --red:       #f44336;
       --teal:      #00bcd4;
-      --radius:    10px;
+      --radius:    8px;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -87,22 +87,15 @@
     /* ── Header ── */
     header {
       padding: 52px 6vw 36px;
-      background: linear-gradient(135deg, #0d1a26 0%, var(--surface) 100%);
+      background: var(--surface);
       border-bottom: 1px solid var(--border);
       position: relative;
       overflow: hidden;
     }
-    header::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: radial-gradient(ellipse 60% 60% at 80% 50%, rgba(30, 136, 229, 0.07) 0%, transparent 70%);
-      pointer-events: none;
-    }
     h1 {
-      font-size: clamp(1.8rem, 4vw, 3.2rem);
+      font-size: 2.7rem;
       font-weight: 700;
-      letter-spacing: -0.02em;
+      letter-spacing: 0;
       line-height: 1.1;
       color: var(--ink);
       margin-bottom: 10px;
@@ -330,16 +323,16 @@
   </style>
 </head>
 <body>
-  <nav class='nav'><span class='nav-brand'>&#9670; CBCCC</span><a class='nav-link active' href='/'>About</a><a class='nav-link' href='/market-overview'>Market Overview</a><a class='nav-link' href='/systemic-bank-network'>Systemic Bank Network</a><a class='nav-link' href='/contagion-risk-score'>Contagion Risk Score</a><a class='nav-link' href='/stress-testing-lab'>Stress Testing Lab</a><a class='nav-link' href='/rl-portfolio-agent'>RL Portfolio Agent</a><a class='nav-link' href='/model-validation'>Model Validation</a><a class='nav-link' href='/performance-tracker'>Performance Tracker</a><a class='nav-link' href='/cvar-optimization-lab'>CVaR Optimization Lab</a><a class='nav-link' href='/cvar-paper-fund'>CVaR Paper Fund</a><a class='nav-link' href='/rl-vs-cvar-comparison'>RL vs CVaR</a><a class='nav-link' href='/data-catalog'>Data Catalog</a></nav>
+  <nav class='nav'><span class='nav-brand'>&#9670; CBCCC</span><a class='nav-link active' href='/'>About</a><a class='nav-link' href='/market-overview'>Market Overview</a><a class='nav-link' href='/systemic-bank-network'>Systemic Bank Network</a><a class='nav-link' href='/contagion-risk-score'>Contagion Risk Score</a><a class='nav-link' href='/stress-testing-lab'>Stress Testing Lab</a><a class='nav-link' href='/rl-portfolio-agent'>RL Portfolio Agent</a><a class='nav-link' href='/model-validation'>Model Validation</a><a class='nav-link' href='/performance-tracker'>Performance Tracker</a><a class='nav-link' href='/cvar-optimization-lab'>CVaR Optimization Lab</a><a class='nav-link' href='/cvar-paper-fund'>CVaR Paper Fund</a><a class='nav-link' href='/rl-vs-cvar-comparison'>RL vs CVaR</a><a class='nav-link' href='/investment-decision-center'>Investment Decision Center</a><a class='nav-link' href='/data-catalog'>Data Catalog</a></nav>
   <header>
     <h1>Canadian Bank Contagion Command Center</h1>
     <p class="subtitle">Financial-engineering research — bank network risk, CVaR optimization, and portfolio intelligence.</p>
-    <span class="pill">&#9679; Data through 2026-06-22</span>
+    <span class="pill">&#9679; Data through 2026-06-23</span>
     <span class="pill">Yahoo Finance · Bank of Canada</span>
     <span class="pill">CVaR · Graph Network · RL</span>
   </header>
   <main>
-    <div class='regime-banner' style='background:rgba(255,179,0,0.08);border-color:#ffb300;'><div class='score' style='color:#ffb300'>54/100</div><div><div class='label' style='color:#ffb300'>Moderate Risk Regime</div><div class='desc'>Some stress channels are active, but the system is not in a broad crisis regime.</div></div></div><div class='grid'><div class='metric blue'><span>Contagion Risk</span><strong>53.6/100</strong></div><div class='metric blue'><span>Regime</span><strong>Moderate</strong></div><div class='metric blue'><span>Avg Bank Vol (21D)</span><strong>17.8%</strong></div><div class='metric blue'><span>Avg Bank Correlation</span><strong>0.75</strong></div></div><section class='callout warning'><h3>Core Question</h3><p>When stress rises in Canadian financial markets, how might it spread across the Big Six banks — and how should a risk-aware portfolio adapt its exposure?</p></section><h2>How the System Works</h2><p>Market and macro data feed into a bank contagion graph and composite risk score. Scenarios propagate shocks through the network. The CVaR optimizer and investment signal engine translate risk into explicit portfolio recommendations. All outputs are simulated and for research purposes.</p><div class='page-links'><a href='/market-overview'><strong>Market Overview</strong><br><span>Current regime, drivers, and economic context.</span></a><a href='/systemic-bank-network'><strong>Systemic Bank Network</strong><br><span>Contagion links and systemic bank centrality.</span></a><a href='/contagion-risk-score'><strong>Contagion Risk Score</strong><br><span>Score decomposition and decision rules.</span></a><a href='/stress-testing-lab'><strong>Stress Testing Lab</strong><br><span>Scenario propagation and portfolio impact.</span></a><a href='/rl-portfolio-agent'><strong>RL Portfolio Agent</strong><br><span>Risk-aware allocation and cash posture.</span></a><a href='/model-validation'><strong>Model Validation</strong><br><span>Out-of-sample stress-prediction credibility.</span></a><a href='/performance-tracker'><strong>Performance Tracker</strong><br><span>Paper portfolio, trades, holdings, costs, and benchmarks.</span></a><a href='/cvar-optimization-lab'><strong>CVaR Optimization Lab</strong><br><span>Graph-adjusted covariance, CVaR frontier, and constrained portfolio construction.</span></a><a href='/cvar-paper-fund'><strong>CVaR Paper Fund</strong><br><span>Paper fund following the governed CVaR optimizer through time.</span></a><a href='/rl-vs-cvar-comparison'><strong>RL vs CVaR</strong><br><span>Comparative quant research across stress regimes and allocation stability.</span></a><a href='/data-catalog'><strong>Data Catalog</strong><br><span>CSV inventory, explanations, and data lineage.</span></a></div>
+    <div class='regime-banner' style='background:rgba(255,179,0,0.08);border-color:#ffb300;'><div class='score' style='color:#ffb300'>56/100</div><div><div class='label' style='color:#ffb300'>Moderate Risk Regime</div><div class='desc'>Some stress channels are active, but the system is not in a broad crisis regime.</div></div></div><div class='grid'><div class='metric blue'><span>Contagion Risk</span><strong>55.7/100</strong></div><div class='metric blue'><span>Regime</span><strong>Moderate</strong></div><div class='metric blue'><span>Avg Bank Vol (21D)</span><strong>17.8%</strong></div><div class='metric blue'><span>Avg Bank Correlation</span><strong>0.75</strong></div></div><section class='callout warning'><h3>Core Question</h3><p>When stress rises in Canadian financial markets, how might it spread across the Big Six banks — and how should a risk-aware portfolio adapt its exposure?</p></section><h2>How the System Works</h2><p>Market and macro data feed into a bank contagion graph and composite risk score. Scenarios propagate shocks through the network. The CVaR optimizer and investment signal engine translate risk into explicit portfolio recommendations. All outputs are simulated and for research purposes.</p><div class='page-links'><a href='/market-overview'><strong>Market Overview</strong><br><span>Current regime, drivers, and economic context.</span></a><a href='/systemic-bank-network'><strong>Systemic Bank Network</strong><br><span>Contagion links and systemic bank centrality.</span></a><a href='/contagion-risk-score'><strong>Contagion Risk Score</strong><br><span>Score decomposition and decision rules.</span></a><a href='/stress-testing-lab'><strong>Stress Testing Lab</strong><br><span>Scenario propagation and portfolio impact.</span></a><a href='/rl-portfolio-agent'><strong>RL Portfolio Agent</strong><br><span>Risk-aware allocation and cash posture.</span></a><a href='/model-validation'><strong>Model Validation</strong><br><span>Out-of-sample stress-prediction credibility.</span></a><a href='/performance-tracker'><strong>Performance Tracker</strong><br><span>Paper portfolio, trades, holdings, costs, and benchmarks.</span></a><a href='/cvar-optimization-lab'><strong>CVaR Optimization Lab</strong><br><span>Graph-adjusted covariance, CVaR frontier, and constrained portfolio construction.</span></a><a href='/cvar-paper-fund'><strong>CVaR Paper Fund</strong><br><span>Paper fund following the governed CVaR optimizer through time.</span></a><a href='/rl-vs-cvar-comparison'><strong>RL vs CVaR</strong><br><span>Comparative quant research across stress regimes and allocation stability.</span></a><a href='/investment-decision-center'><strong>Investment Decision Center</strong><br><span>Final signal, rebalance, risk-budget, and stress-decision readout.</span></a><a href='/data-catalog'><strong>Data Catalog</strong><br><span>CSV inventory, explanations, and data lineage.</span></a></div>
     <footer>
       Educational research only — not investment advice, not a trading system, and not a regulatory bank risk model.
       Simulated paper portfolio only. No real trades are placed.

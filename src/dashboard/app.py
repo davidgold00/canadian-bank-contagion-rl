@@ -26,6 +26,7 @@ from src.dashboard.ui_components import (  # noqa: E402
     action_list,
     analyst_header,
     apply_dashboard_style,
+    decision_memo,
     insight_card,
     page_intro,
 )
@@ -92,7 +93,7 @@ with left:
         height=430,
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 with right:
     insight_card(
@@ -101,6 +102,40 @@ with right:
         status=regime["tone"],
     )
     action_list("Immediate Decisions", regime["actions"])
+
+drivers_now = strongest_drivers(features).head(6)
+bank_table_now = bank_stress_snapshot(features)
+top_driver = drivers_now.iloc[0] if not drivers_now.empty else None
+top_bank = bank_table_now.iloc[0] if not bank_table_now.empty else None
+decision_rows = [
+    {
+        "Observation": f"Contagion score {score:.1f}/100 ({regime['label']})",
+        "Decision Implication": "Set the starting risk budget before looking at single-bank opportunities.",
+        "Monitoring Trigger": "Revisit bank exposure when the score crosses 30, 60, or 80.",
+    },
+    {
+        "Observation": f"Average bank correlation {latest(features, 'avg_pairwise_corr_63d'):.2f}",
+        "Decision Implication": "High correlation turns several bank positions into one common factor trade.",
+        "Monitoring Trigger": "If correlation rises with drawdowns, trim sector concentration before name selection.",
+    },
+]
+if top_driver is not None:
+    decision_rows.append(
+        {
+            "Observation": f"Top driver: {top_driver['Driver']} ({top_driver['Stress Percentile']:.0%})",
+            "Decision Implication": top_driver["Why it matters"],
+            "Monitoring Trigger": "Use this channel as the first scenario to stress before adding exposure.",
+        }
+    )
+if top_bank is not None:
+    decision_rows.append(
+        {
+            "Observation": f"Highest bank stress: {top_bank['Bank']} ({top_bank['Node Stress']:.1f}/100)",
+            "Decision Implication": "This is the first due-diligence, trim, or hedge candidate in a sector selloff.",
+            "Monitoring Trigger": "Escalate if it remains the highest-stress node for multiple weekly checks.",
+        }
+    )
+decision_memo("Opening Decision Memo", decision_rows, tone=regime["tone"])
 
 st.divider()
 
@@ -122,7 +157,7 @@ with tab1:
     )
     show = drivers.copy()
     show["Stress Percentile"] = show["Stress Percentile"].map(lambda x: f"{x:.0%}" if x == x else "N/A")
-    st.dataframe(show, use_container_width=True, hide_index=True)
+    st.dataframe(show, width="stretch", hide_index=True)
 
     fig = go.Figure(
         go.Bar(
@@ -139,7 +174,7 @@ with tab1:
         height=380,
         margin=dict(l=20, r=20, t=50, b=20),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 with tab2:
     bank_table = bank_stress_snapshot(features)
@@ -152,7 +187,7 @@ with tab2:
         show[col] = show[col].map(lambda x: pct(x) if x == x else "N/A")
     show["Beta to XFN"] = show["Beta to XFN"].map(lambda x: f"{x:.2f}" if x == x else "N/A")
     show["Node Stress"] = show["Node Stress"].map(lambda x: f"{x:.1f}/100")
-    st.dataframe(show, use_container_width=True, hide_index=True)
+    st.dataframe(show, width="stretch", hide_index=True)
 
 with tab3:
     st.subheader("Macro Context for Canadian Banks")
@@ -162,7 +197,7 @@ with tab3:
         cols = [c for c in ["policy_rate", "ca_2y", "ca_5y", "ca_10y", "slope_10y_2y"] if c in macro.columns]
         latest_macro = macro[cols].dropna(how="all").tail(1).T.reset_index()
         latest_macro.columns = ["Macro Field", "Latest Value"]
-        st.dataframe(latest_macro, use_container_width=True, hide_index=True)
+        st.dataframe(latest_macro, width="stretch", hide_index=True)
 
         fig = go.Figure()
         for col in [c for c in ["policy_rate", "ca_2y", "ca_10y"] if c in macro.columns]:
@@ -173,7 +208,7 @@ with tab3:
             height=420,
             margin=dict(l=20, r=20, t=50, b=20),
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         insight_card(
             "Economic Interpretation",

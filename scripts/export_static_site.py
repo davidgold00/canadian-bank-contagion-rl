@@ -31,6 +31,11 @@ from src.dashboard.insight_utils import (  # noqa: E402
     risk_regime,
     strongest_drivers,
 )
+from src.dashboard.investment_signals import (  # noqa: E402
+    compute_bank_signals,
+    compute_market_positioning,
+    compute_portfolio_recommendations,
+)
 from src.portfolio.cvar_optimizer import efficient_frontier, optimize_cvar_portfolio, optimizer_tables  # noqa: E402
 from src.portfolio.paper_trader import CVaRPaperPortfolioSimulator, PaperPortfolioSimulator  # noqa: E402
 from src.portfolio.performance_metrics import drawdown_series, performance_summary  # noqa: E402
@@ -53,6 +58,7 @@ PAGES = [
     ("cvar-optimization-lab", "CVaR Optimization Lab"),
     ("cvar-paper-fund", "CVaR Paper Fund"),
     ("rl-vs-cvar-comparison", "RL vs CVaR"),
+    ("investment-decision-center", "Investment Decision Center"),
     ("data-catalog", "Data Catalog"),
 ]
 
@@ -137,7 +143,7 @@ def page_template(slug: str, title: str, subtitle: str, body: str, latest_date: 
       --amber:     #ffb300;
       --red:       #f44336;
       --teal:      #00bcd4;
-      --radius:    10px;
+      --radius:    8px;
     }}
     * {{ box-sizing: border-box; margin: 0; padding: 0; }}
 
@@ -200,22 +206,15 @@ def page_template(slug: str, title: str, subtitle: str, body: str, latest_date: 
     /* ── Header ── */
     header {{
       padding: 52px 6vw 36px;
-      background: linear-gradient(135deg, #0d1a26 0%, var(--surface) 100%);
+      background: var(--surface);
       border-bottom: 1px solid var(--border);
       position: relative;
       overflow: hidden;
     }}
-    header::before {{
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: radial-gradient(ellipse 60% 60% at 80% 50%, rgba(30, 136, 229, 0.07) 0%, transparent 70%);
-      pointer-events: none;
-    }}
     h1 {{
-      font-size: clamp(1.8rem, 4vw, 3.2rem);
+      font-size: 2.7rem;
       font-weight: 700;
-      letter-spacing: -0.02em;
+      letter-spacing: 0;
       line-height: 1.1;
       color: var(--ink);
       margin-bottom: 10px;
@@ -556,6 +555,46 @@ def allocation_chart(bank_table: pd.DataFrame, score: float) -> tuple[go.Figure,
     ))
     fig.update_layout(title=f"Risk-Aware Allocation | Score {score:.1f}/100", yaxis_title="Weight", yaxis_tickformat=".0%")
     return _dark_chart(fig), weights
+
+
+def investment_score_chart(signals: pd.DataFrame) -> go.Figure:
+    ordered = signals.sort_values("Composite Score")
+    fig = go.Figure(go.Bar(
+        x=ordered["Composite Score"],
+        y=ordered["Bank"],
+        orientation="h",
+        text=[f"{x:.1f}" for x in ordered["Composite Score"]],
+        textposition="auto",
+        marker=dict(
+            color=ordered["Composite Score"].tolist(),
+            colorscale=[[0, "#f44336"], [0.5, "#ffb300"], [1.0, "#00c853"]],
+            cmin=0,
+            cmax=100,
+            showscale=False,
+        ),
+    ))
+    fig.add_vline(x=50, line_dash="dash", line_color="#7a91a6")
+    fig.update_layout(title="Investment Signal Score by Bank", xaxis_title="Composite score")
+    return _dark_chart(fig)
+
+
+def investment_weight_chart(signals: pd.DataFrame) -> go.Figure:
+    ordered = signals.sort_values("Target Weight")
+    colors = [
+        "#00c853" if signal == "BUY" else "#f44336" if signal == "REDUCE" else "#1e88e5"
+        for signal in ordered["Signal"]
+    ]
+    fig = go.Figure(go.Bar(
+        x=ordered["Target Weight"],
+        y=ordered["Bank"],
+        orientation="h",
+        text=[f"{x:.1%}" for x in ordered["Target Weight"]],
+        textposition="auto",
+        marker_color=colors,
+    ))
+    fig.add_vline(x=1 / len(BANKS), line_dash="dash", line_color="#7a91a6")
+    fig.update_layout(title="Signal-Derived Target Weights", xaxis_title="Weight", xaxis_tickformat=".0%")
+    return _dark_chart(fig)
 
 
 def paper_portfolio() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, str]:
@@ -978,6 +1017,9 @@ def build_pages() -> dict[str, str]:
     components = component_scores(features)
     allocation_fig, weights = allocation_chart(bank_table, score)
     regime_html = regime_banner_html(score, regime["label"], regime["summary"], regime["tone"])
+    signals = compute_bank_signals(features, prices, macro)
+    positioning = compute_market_positioning(features, macro, score)
+    recs = compute_portfolio_recommendations(signals, score)
 
     bank_display = bank_table[["Bank", "Name", "21D Return", "21D Volatility", "63D Drawdown", "Beta to XFN", "Node Stress", "Action Readout", "Economic Lens"]].copy()
     for col in ["21D Return", "21D Volatility", "63D Drawdown"]:
@@ -990,6 +1032,32 @@ def build_pages() -> dict[str, str]:
 
     weight_table = weights.rename("Weight").reset_index().rename(columns={"index": "Asset"})
     weight_table["Weight"] = weight_table["Weight"].map(lambda x: f"{x:.1%}")
+
+    signals_display = signals[
+        [
+            "Bank",
+            "Name",
+            "Signal",
+            "Conviction",
+            "Composite Score",
+            "Node Stress",
+            "21D Return",
+            "Target Weight",
+            "Weight Delta",
+            "Rationale",
+            "Economic Context",
+        ]
+    ].copy()
+    signals_display["Conviction"] = signals_display["Conviction"].map(lambda x: "★" * int(x) + "☆" * (5 - int(x)))
+    for col in ["Composite Score", "Node Stress"]:
+        signals_display[col] = signals_display[col].map(lambda x: f"{x:.1f}/100")
+    signals_display["21D Return"] = signals_display["21D Return"].map(lambda x: f"{x:+.1%}" if pd.notna(x) else "N/A")
+    for col in ["Target Weight", "Weight Delta"]:
+        signals_display[col] = signals_display[col].map(lambda x: f"{x:+.1%}" if "Delta" in col else f"{x:.1%}")
+
+    recs_display = recs.copy()
+    for col in ["Current Weight", "Target Weight", "Delta"]:
+        recs_display[col] = recs_display[col].map(lambda x: f"{x:+.1%}" if col == "Delta" else f"{x:.1%}")
 
     paths, final_stress = stress_paths(prices)
     stress_impact = pd.DataFrame({"Bank": BANKS, "Final Stress": [final_stress[b] for b in BANKS], "Equal-Weight Loss Contribution": [final_stress[b] / final_stress.sum() for b in BANKS]})
@@ -1086,6 +1154,7 @@ def build_pages() -> dict[str, str]:
             ("cvar-optimization-lab", "CVaR Optimization Lab", "Graph-adjusted covariance, CVaR frontier, and constrained portfolio construction."),
             ("cvar-paper-fund", "CVaR Paper Fund", "Paper fund following the governed CVaR optimizer through time."),
             ("rl-vs-cvar-comparison", "RL vs CVaR", "Comparative quant research across stress regimes and allocation stability."),
+            ("investment-decision-center", "Investment Decision Center", "Final signal, rebalance, risk-budget, and stress-decision readout."),
             ("data-catalog", "Data Catalog", "CSV inventory, explanations, and data lineage."),
         ]
     )
@@ -1340,6 +1409,77 @@ def build_pages() -> dict[str, str]:
         + "<h2>Strategy Metrics</h2>" + table_html(comparison)
     )
     pages["rl-vs-cvar-comparison"] = page_template("rl-vs-cvar-comparison", "RL vs CVaR Comparative Analytics", "A comparative quant research page for experimental RL and governed CVaR allocation.", comparison_body, latest_date)
+
+    buys = int((signals["Signal"] == "BUY").sum())
+    reduces = int((signals["Signal"] == "REDUCE").sum())
+    highest_stress_signal = signals.sort_values("Node Stress", ascending=False).iloc[0]
+    strongest_signal = signals.sort_values("Composite Score", ascending=False).iloc[0]
+    largest_rebalance = recs.iloc[recs["Delta"].abs().argmax()]
+    cash_guidance_short = positioning["cash_guidance"].split(".")[0]
+    decision_checks = pd.DataFrame(
+        [
+            {
+                "Observation": f"{regime['label']} regime at {score:.1f}/100",
+                "Decision Implication": positioning["sector_bias"],
+                "Monitoring Trigger": "Change the bank budget if the score crosses the next regime band.",
+            },
+            {
+                "Observation": f"Highest stress: {highest_stress_signal['Bank']} ({highest_stress_signal['Node Stress']:.1f}/100)",
+                "Decision Implication": "First trim, hedge, or due-diligence candidate if the sector sells off.",
+                "Monitoring Trigger": "Escalate if node stress stays above 70 or dominates scenario P&L.",
+            },
+            {
+                "Observation": f"Strongest signal: {strongest_signal['Bank']} ({strongest_signal['Composite Score']:.1f}/100)",
+                "Decision Implication": "Positive tilt is justified only when portfolio risk budget allows it.",
+                "Monitoring Trigger": "Confirm score leadership survives the next rebalance window.",
+            },
+            {
+                "Observation": f"Largest rebalance: {largest_rebalance['Bank']} {largest_rebalance['Delta']:+.1%}",
+                "Decision Implication": largest_rebalance["Reason"],
+                "Monitoring Trigger": "Act only after costs, liquidity, and mandate limits are checked.",
+            },
+        ]
+    )
+    decision_center_body = (
+        regime_html
+        + metric_grid(
+            [
+                ("Signal Mix", f"{buys} BUY / {len(BANKS) - buys - reduces} HOLD / {reduces} REDUCE"),
+                ("Suggested Bank Budget", positioning["total_bank_budget"]),
+                ("Cash Guidance", cash_guidance_short),
+                ("CVaR Weight Cash", f"{cvar_result.weights.get('cash', 0):.1%}"),
+                ("Top Signal", strongest_signal["Bank"]),
+                ("Highest Stress", highest_stress_signal["Bank"]),
+                ("Largest Rebalance", f"{largest_rebalance['Bank']} {largest_rebalance['Delta']:+.1%}"),
+                ("Historical CVaR", f"{cvar_result.diagnostics['historical_cvar']:.1%}"),
+            ]
+        )
+        + card(
+            "Final Decision Readout",
+            f"The current signal engine recommends {buys} buys, {len(BANKS) - buys - reduces} holds, and {reduces} reductions. "
+            f"The governed risk budget points to {positioning['total_bank_budget']} in bank exposure and "
+            f"{cash_guidance_short.lower()}. This page connects signal strength, stress ranking, "
+            "cash posture, and CVaR tail-loss control into one auditable decision surface.",
+            regime["tone"],
+        )
+        + card(
+            "Broader Market Read-Through",
+            "Bank stress is a transmission signal for credit appetite, funding conditions, borrower resilience, and risk-capital availability. "
+            "The practical decision is not just which ticker to own; it is how much balance-sheet and liquidity risk the portfolio should carry.",
+            "teal",
+        )
+        + "<div class='chart-grid'><div class='chart-card'>" + chart_html(investment_score_chart(signals), True) + "</div><div class='chart-card'>" + chart_html(investment_weight_chart(signals)) + "</div></div>"
+        + "<h2>Decision Checks</h2>" + table_html(decision_checks)
+        + "<h2>Bank Signals</h2>" + table_html(signals_display)
+        + "<h2>Rebalance Plan</h2>" + table_html(recs_display)
+    )
+    pages["investment-decision-center"] = page_template(
+        "investment-decision-center",
+        "Investment Decision Center",
+        "Final risk-budget, bank-signal, rebalance, and tail-loss decision surface.",
+        decision_center_body,
+        latest_date,
+    )
 
     data_body = (
         metric_grid([("CSV Files Found", f"{len(inventory):,}"), ("Total Rows", f"{int(inventory['Rows'].fillna(0).sum()):,}"), ("Explained Files", f"{inventory['Explanation'].notna().sum():,}"), ("Latest Dataset", latest_date)])

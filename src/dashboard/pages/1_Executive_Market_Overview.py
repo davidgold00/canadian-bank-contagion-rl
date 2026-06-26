@@ -40,6 +40,7 @@ from src.dashboard.ui_components import (
     analyst_header,
     apply_dashboard_style,
     decision_callout,
+    decision_memo,
     insight_card,
     page_intro,
     regime_banner,
@@ -116,6 +117,35 @@ s4.metric("Oil 21D Return", signed_pct(oil_21d))
 s5.metric("CAD 21D Return", signed_pct(cad_21d))
 s6.metric("Yield Curve Slope", f"{yield_slope:.2f}%" if pd.notna(yield_slope) else "N/A", help="10Y minus 2Y Government of Canada yield spread")
 
+drivers_now = strongest_drivers(features).head(6)
+top_driver_now = drivers_now.iloc[0] if not drivers_now.empty else None
+memo_rows = [
+    {
+        "Observation": f"{regime['label']} regime with score {score:.1f}/100",
+        "Decision Implication": positioning["sector_bias"],
+        "Monitoring Trigger": "Change posture when the score moves through a regime threshold or 21D trend reverses.",
+    },
+    {
+        "Observation": f"Best/worst 21D banks: {best_bank['Bank']} / {worst_bank['Bank']}",
+        "Decision Implication": "Return dispersion tells you whether this is a name-selection market or a broad sector risk event.",
+        "Monitoring Trigger": "If dispersion collapses while correlation rises, treat the bank sleeve as one risk bucket.",
+    },
+    {
+        "Observation": f"Cash guidance: {positioning['cash_guidance'].split('.')[0]}",
+        "Decision Implication": "Liquidity is a portfolio decision, not a leftover allocation; it defines how much optionality you keep.",
+        "Monitoring Trigger": "Raise the defensive buffer if VIX, correlation, and XFN drawdown all worsen together.",
+    },
+]
+if top_driver_now is not None:
+    memo_rows.append(
+        {
+            "Observation": f"Top stress driver: {top_driver_now['Driver']} ({top_driver_now['Stress Percentile']:.0%})",
+            "Decision Implication": top_driver_now["Why it matters"],
+            "Monitoring Trigger": "Make this the first scenario assumption in the Stress Testing Lab.",
+        }
+    )
+decision_memo("Executive Decision Memo", memo_rows, tone=regime["tone"])
+
 st.divider()
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
@@ -153,7 +183,7 @@ with tab1:
             **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
             height=430,
         )
-        st.plotly_chart(fig_score, use_container_width=True)
+        st.plotly_chart(fig_score, width="stretch")
 
     with right:
         action_list("Decision Actions Now", regime["actions"])
@@ -161,7 +191,7 @@ with tab1:
         insight_card("Sector Bias", positioning["sector_bias"], status=regime["tone"])
         insight_card("Cash / Defensive Guidance", positioning["cash_guidance"].split(".")[0], status="info")
 
-    drivers = strongest_drivers(features).head(6)
+    drivers = drivers_now
     st.subheader("Current Stress Driver Percentiles")
     st.markdown(
         "Each driver is ranked against its own full history. "
@@ -188,11 +218,11 @@ with tab1:
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=380,
     )
-    st.plotly_chart(fig_drivers, use_container_width=True)
+    st.plotly_chart(fig_drivers, width="stretch")
 
     show = drivers[["Driver", "Latest", "Stress Percentile", "Status", "Why it matters"]].copy()
     show["Stress Percentile"] = show["Stress Percentile"].map(lambda x: f"{x:.0%}" if pd.notna(x) else "N/A")
-    st.dataframe(show, use_container_width=True, hide_index=True)
+    st.dataframe(show, width="stretch", hide_index=True)
 
     top_driver = drivers.iloc[0] if not drivers.empty else None
     if top_driver is not None:
@@ -246,7 +276,7 @@ with tab2:
             **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
             height=370,
         )
-        st.plotly_chart(composite_fig, use_container_width=True)
+        st.plotly_chart(composite_fig, width="stretch")
 
     with col2:
         target_w = signals.set_index("Bank")["Target Weight"]
@@ -270,7 +300,7 @@ with tab2:
             **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
             height=370,
         )
-        st.plotly_chart(fig_delta, use_container_width=True)
+        st.plotly_chart(fig_delta, width="stretch")
 
     action_list("Key Risks Flagged by the Model", positioning["key_risks"])
 
@@ -307,7 +337,7 @@ with tab3:
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=440,
     )
-    st.plotly_chart(scatter, use_container_width=True)
+    st.plotly_chart(scatter, width="stretch")
 
     returns_fig = go.Figure(go.Bar(
         x=bank_perf["Bank"],
@@ -327,7 +357,7 @@ with tab3:
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=380,
     )
-    st.plotly_chart(returns_fig, use_container_width=True)
+    st.plotly_chart(returns_fig, width="stretch")
 
     display = bank_perf[[
         "Bank", "Name", "21D Return", "21D Volatility", "63D Drawdown", "Node Stress", "Action Readout", "Economic Lens"
@@ -335,7 +365,7 @@ with tab3:
     for col in ["21D Return", "21D Volatility", "63D Drawdown"]:
         display[col] = display[col].map(lambda x: pct(x) if pd.notna(x) else "N/A")
     display["Node Stress"] = display["Node Stress"].map(lambda x: f"{x:.1f}/100")
-    st.dataframe(display, use_container_width=True, hide_index=True)
+    st.dataframe(display, width="stretch", hide_index=True)
 
     top_stress = bank_perf.iloc[0] if not bank_perf.empty else None
     if top_stress is not None:
@@ -374,7 +404,7 @@ with tab4:
                 **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
                 height=420,
             )
-            st.plotly_chart(fig_rates, use_container_width=True)
+            st.plotly_chart(fig_rates, width="stretch")
 
     with c2:
         if not prices.empty:
@@ -394,7 +424,7 @@ with tab4:
                 **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
                 height=420,
             )
-            st.plotly_chart(fig_ctx, use_container_width=True)
+            st.plotly_chart(fig_ctx, width="stretch")
 
     insight_card(
         "Economic Transmission",
@@ -410,7 +440,7 @@ with tab4:
         latest_macro = macro[macro_cols].dropna(how="all").tail(1).T.reset_index()
         latest_macro.columns = ["Macro Field", "Latest Value"]
         latest_macro["Latest Value"] = latest_macro["Latest Value"].map(lambda x: f"{x:.3f}%")
-        st.dataframe(latest_macro, use_container_width=True, hide_index=True)
+        st.dataframe(latest_macro, width="stretch", hide_index=True)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 with tab5:
@@ -427,7 +457,7 @@ with tab5:
         {"Field": "bank node stress", "Meaning": "Bank-level stress score (vol + drawdown + beta)", "Investment Use": "Rank which holding to trim or hedge first"},
         {"Field": "investment signals", "Meaning": "Multi-factor composite score per bank", "Investment Use": "Explicit BUY/HOLD/REDUCE signals with conviction and target weights"},
     ]
-    st.dataframe(pd.DataFrame(fields), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(fields), width="stretch", hide_index=True)
 
 st.caption(
     "Educational research dashboard. Simulated paper portfolio only. "

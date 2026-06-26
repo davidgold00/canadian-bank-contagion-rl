@@ -24,7 +24,7 @@
       --amber:     #ffb300;
       --red:       #f44336;
       --teal:      #00bcd4;
-      --radius:    10px;
+      --radius:    8px;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -87,22 +87,15 @@
     /* ── Header ── */
     header {
       padding: 52px 6vw 36px;
-      background: linear-gradient(135deg, #0d1a26 0%, var(--surface) 100%);
+      background: var(--surface);
       border-bottom: 1px solid var(--border);
       position: relative;
       overflow: hidden;
     }
-    header::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: radial-gradient(ellipse 60% 60% at 80% 50%, rgba(30, 136, 229, 0.07) 0%, transparent 70%);
-      pointer-events: none;
-    }
     h1 {
-      font-size: clamp(1.8rem, 4vw, 3.2rem);
+      font-size: 2.7rem;
       font-weight: 700;
-      letter-spacing: -0.02em;
+      letter-spacing: 0;
       line-height: 1.1;
       color: var(--ink);
       margin-bottom: 10px;
@@ -330,16 +323,16 @@
   </style>
 </head>
 <body>
-  <nav class='nav'><span class='nav-brand'>&#9670; CBCCC</span><a class='nav-link' href='/'>About</a><a class='nav-link' href='/market-overview'>Market Overview</a><a class='nav-link' href='/systemic-bank-network'>Systemic Bank Network</a><a class='nav-link' href='/contagion-risk-score'>Contagion Risk Score</a><a class='nav-link' href='/stress-testing-lab'>Stress Testing Lab</a><a class='nav-link' href='/rl-portfolio-agent'>RL Portfolio Agent</a><a class='nav-link' href='/model-validation'>Model Validation</a><a class='nav-link' href='/performance-tracker'>Performance Tracker</a><a class='nav-link' href='/cvar-optimization-lab'>CVaR Optimization Lab</a><a class='nav-link' href='/cvar-paper-fund'>CVaR Paper Fund</a><a class='nav-link' href='/rl-vs-cvar-comparison'>RL vs CVaR</a><a class='nav-link active' href='/data-catalog'>Data Catalog</a></nav>
+  <nav class='nav'><span class='nav-brand'>&#9670; CBCCC</span><a class='nav-link' href='/'>About</a><a class='nav-link' href='/market-overview'>Market Overview</a><a class='nav-link' href='/systemic-bank-network'>Systemic Bank Network</a><a class='nav-link' href='/contagion-risk-score'>Contagion Risk Score</a><a class='nav-link' href='/stress-testing-lab'>Stress Testing Lab</a><a class='nav-link' href='/rl-portfolio-agent'>RL Portfolio Agent</a><a class='nav-link' href='/model-validation'>Model Validation</a><a class='nav-link' href='/performance-tracker'>Performance Tracker</a><a class='nav-link' href='/cvar-optimization-lab'>CVaR Optimization Lab</a><a class='nav-link' href='/cvar-paper-fund'>CVaR Paper Fund</a><a class='nav-link' href='/rl-vs-cvar-comparison'>RL vs CVaR</a><a class='nav-link' href='/investment-decision-center'>Investment Decision Center</a><a class='nav-link active' href='/data-catalog'>Data Catalog</a></nav>
   <header>
     <h1>Data Catalog</h1>
     <p class="subtitle">Every CSV explained, profiled, and connected to analytical context.</p>
-    <span class="pill">&#9679; Data through 2026-06-22</span>
+    <span class="pill">&#9679; Data through 2026-06-23</span>
     <span class="pill">Yahoo Finance · Bank of Canada</span>
     <span class="pill">CVaR · Graph Network · RL</span>
   </header>
   <main>
-    <div class='grid'><div class='metric blue'><span>CSV Files Found</span><strong>9</strong></div><div class='metric blue'><span>Total Rows</span><strong>19,395</strong></div><div class='metric blue'><span>Explained Files</span><strong>9</strong></div><div class='metric blue'><span>Latest Dataset</span><strong>2026-06-22</strong></div></div><section class='callout info'><h3>Data Traceability</h3><p>Each CSV has a role, explanation, date range, and row count. The Streamlit Data Catalog adds per-file chart exploration; this production page keeps the public lineage visible.</p></section><h2>CSV Inventory</h2><table border="1" class="dataframe data-table">
+    <div class='grid'><div class='metric blue'><span>CSV Files Found</span><strong>9</strong></div><div class='metric blue'><span>Total Rows</span><strong>19,398</strong></div><div class='metric blue'><span>Explained Files</span><strong>9</strong></div><div class='metric blue'><span>Latest Dataset</span><strong>2026-06-23</strong></div></div><section class='callout info'><h3>Data Traceability</h3><p>Each CSV has a role, explanation, date range, and row count. The Streamlit Data Catalog adds per-file chart exploration; this production page keeps the public lineage visible.</p></section><h2>CSV Inventory</h2><table border="1" class="dataframe data-table">
   <thead>
     <tr style="text-align: right;">
       <th>CSV</th>
@@ -353,25 +346,25 @@
   <tbody>
     <tr>
       <td>data/processed/model_dataset.csv</td>
-      <td>3632</td>
+      <td>3633</td>
       <td>134</td>
-      <td>2012-01-03 to 2026-06-22</td>
+      <td>2012-01-03 to 2026-06-23</td>
       <td>Feature model table</td>
       <td>The main analytical dataset. It combines returns, volatility, drawdown, beta, correlations, yield features, and the contagion score.</td>
     </tr>
     <tr>
       <td>data/processed/prices.csv</td>
-      <td>3632</td>
+      <td>3633</td>
       <td>13</td>
-      <td>2012-01-03 to 2026-06-22</td>
+      <td>2012-01-03 to 2026-06-23</td>
       <td>Clean aligned price panel</td>
       <td>The price table used by pages and backtests after date parsing and incomplete-row cleanup.</td>
     </tr>
     <tr>
       <td>data/raw/boc_yields.csv</td>
-      <td>6550</td>
+      <td>6551</td>
       <td>4</td>
-      <td>2001-01-02 to 2026-06-19</td>
+      <td>2001-01-02 to 2026-06-22</td>
       <td>Live Bank of Canada rates and yields</td>
       <td>Policy-rate, 2-year, 5-year, and 10-year Canadian yield history. This explains the macro rate backdrop for banks.</td>
     </tr>

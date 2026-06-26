@@ -96,7 +96,7 @@ with tab2:
                 "Decision Use": "Extend the model with ownership overlap and market-implied credit risk.",
             },
         ],
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 

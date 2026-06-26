@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from src.dashboard.components import disclaimer_box, format_currency, format_percent, load_price_data, load_processed_dataset  # noqa: E402
 from src.dashboard.insight_utils import latest_valid_date  # noqa: E402
-from src.dashboard.ui_components import PALETTE, PLOTLY_TEMPLATE, analyst_header, apply_dashboard_style, decision_callout, insight_card, page_intro  # noqa: E402
+from src.dashboard.ui_components import PALETTE, PLOTLY_TEMPLATE, analyst_header, apply_dashboard_style, decision_callout, decision_memo, insight_card, page_intro  # noqa: E402
 from src.portfolio.paper_trader import CVaRPaperPortfolioSimulator, PaperPortfolioSimulator  # noqa: E402
 from src.portfolio.performance_metrics import drawdown_series, performance_summary, rolling_cvar, rolling_sharpe  # noqa: E402
 
@@ -214,12 +214,34 @@ decision_callout(
     tone="success" if summary["sharpe_ratio"] > 0.4 else "warning",
 )
 
+decision_memo(
+    "CVaR Fund Decision Memo",
+    [
+        {
+            "Observation": f"Realized CVaR {format_percent(summary['conditional_value_at_risk'])}",
+            "Decision Implication": "This is the historical downside experience of the implemented policy, after rebalancing and costs.",
+            "Monitoring Trigger": "Increase risk aversion or cash bounds if realized CVaR breaches the target loss budget.",
+        },
+        {
+            "Observation": f"Average bank exposure {format_percent(ledger['bank_exposure'].mean())}",
+            "Decision Implication": "Average exposure shows whether the optimizer is actually defensive over the selected history.",
+            "Monitoring Trigger": "Review constraints if exposure stays high during elevated contagion periods.",
+        },
+        {
+            "Observation": f"Average turnover {format_percent(summary['average_daily_turnover'])}",
+            "Decision Implication": "Turnover is the practical cost of tail-risk control.",
+            "Monitoring Trigger": "Raise turnover penalties if transaction costs dilute the drawdown benefit.",
+        },
+    ],
+    tone="success" if summary["sharpe_ratio"] > 0.4 else "warning",
+)
+
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["Overview", "Risk Analytics", "Allocation & Turnover", "Trades & Holdings", "Methodology"])
 
 with tab1:
-    st.plotly_chart(value_chart(ledger, benchmarks), use_container_width=True)
+    st.plotly_chart(value_chart(ledger, benchmarks), width="stretch")
     pnl = ledger["portfolio_value"] - float(initial_capital)
-    st.plotly_chart(line_chart({"Cumulative P&L": pnl}, "Cumulative Simulated P&L", "CAD"), use_container_width=True)
+    st.plotly_chart(line_chart({"Cumulative P&L": pnl}, "Cumulative Simulated P&L", "CAD"), width="stretch")
 
 with tab2:
     c1, c2 = st.columns(2)
@@ -227,29 +249,29 @@ with tab2:
         drawdowns = {"CVaR paper fund": drawdown_series(ledger["portfolio_value"])}
         for col in benchmarks.columns:
             drawdowns[col] = drawdown_series(benchmarks[col])
-        st.plotly_chart(line_chart(drawdowns, "Drawdown vs Benchmarks", "Drawdown", ".0%"), use_container_width=True)
-        st.plotly_chart(line_chart({"Rolling CVaR": ledger["realized_cvar_63d"]}, "Rolling 63D CVaR", "CVaR", ".1%"), use_container_width=True)
+        st.plotly_chart(line_chart(drawdowns, "Drawdown vs Benchmarks", "Drawdown", ".0%"), width="stretch")
+        st.plotly_chart(line_chart({"Rolling CVaR": ledger["realized_cvar_63d"]}, "Rolling 63D CVaR", "CVaR", ".1%"), width="stretch")
     with c2:
-        st.plotly_chart(line_chart({"Rolling volatility": ledger["realized_volatility_63d"]}, "Rolling 63D Volatility", "Volatility", ".1%"), use_container_width=True)
-        st.plotly_chart(line_chart({"Rolling Sharpe": rolling_sharpe(ledger["daily_return"], 63)}, "Rolling 63D Sharpe", "Sharpe"), use_container_width=True)
+        st.plotly_chart(line_chart({"Rolling volatility": ledger["realized_volatility_63d"]}, "Rolling 63D Volatility", "Volatility", ".1%"), width="stretch")
+        st.plotly_chart(line_chart({"Rolling Sharpe": rolling_sharpe(ledger["daily_return"], 63)}, "Rolling 63D Sharpe", "Sharpe"), width="stretch")
 
 with tab3:
-    st.plotly_chart(allocation_chart(result.weights), use_container_width=True)
+    st.plotly_chart(allocation_chart(result.weights), width="stretch")
     c1, c2 = st.columns(2)
     with c1:
-        st.plotly_chart(line_chart({"Bank exposure": ledger["bank_exposure"], "Cash": ledger["cash_weight"]}, "Bank Exposure and Cash Weight", "Weight", ".0%"), use_container_width=True)
+        st.plotly_chart(line_chart({"Bank exposure": ledger["bank_exposure"], "Cash": ledger["cash_weight"]}, "Bank Exposure and Cash Weight", "Weight", ".0%"), width="stretch")
     with c2:
-        st.plotly_chart(line_chart({"Turnover": ledger["turnover"], "Graph density": ledger["graph_density"]}, "Turnover and Graph Density", "Level", ".1%"), use_container_width=True)
+        st.plotly_chart(line_chart({"Turnover": ledger["turnover"], "Graph density": ledger["graph_density"]}, "Turnover and Graph Density", "Level", ".1%"), width="stretch")
 
 with tab4:
     st.subheader("Current Holdings")
-    st.dataframe(format_holdings(result.current_holdings), use_container_width=True, hide_index=True)
+    st.dataframe(format_holdings(result.current_holdings), width="stretch", hide_index=True)
     st.subheader("Recent Trades")
-    st.dataframe(format_trades(result.trades.tail(75)), use_container_width=True, hide_index=True)
+    st.dataframe(format_trades(result.trades.tail(75)), width="stretch", hide_index=True)
     with st.expander("Daily portfolio ledger"):
         ledger_display = ledger.reset_index().copy()
         ledger_display["date"] = pd.to_datetime(ledger_display["date"]).dt.date
-        st.dataframe(ledger_display if show_full_ledger else ledger_display.tail(120), use_container_width=True, hide_index=True)
+        st.dataframe(ledger_display if show_full_ledger else ledger_display.tail(120), width="stretch", hide_index=True)
 
 with tab5:
     st.markdown(

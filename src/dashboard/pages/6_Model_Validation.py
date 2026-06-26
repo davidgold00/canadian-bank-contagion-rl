@@ -21,7 +21,7 @@ from sklearn.preprocessing import StandardScaler
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from src.dashboard.insight_utils import latest_valid_date
-from src.dashboard.ui_components import analyst_header, apply_dashboard_style, decision_callout, insight_card, page_intro
+from src.dashboard.ui_components import analyst_header, apply_dashboard_style, decision_callout, decision_memo, insight_card, page_intro
 
 
 st.set_page_config(page_title="Model Validation", layout="wide")
@@ -293,6 +293,35 @@ c2.metric("Best AUC", f"{metrics.iloc[0]['AUC']:.2f}")
 c3.metric("Train Rows", f"{len(X_train):,}")
 c4.metric("Test Stress Rate", f"{y_test.mean():.1%}", help="Share of test rows labeled as future stress events.")
 
+best_auc = float(metrics.iloc[0]["AUC"])
+decision_memo(
+    "Validation Decision Memo",
+    [
+        {
+            "Observation": f"Best AUC {best_auc:.2f}",
+            "Decision Implication": (
+                "Model outputs are credible enough to inform tactical risk posture."
+                if best_auc >= 0.65
+                else "Model outputs should remain a supporting input, not the final decision."
+                if best_auc >= 0.55
+                else "Do not rely on the model layer for allocation decisions without redesign."
+            ),
+            "Monitoring Trigger": "Require revalidation after feature changes, target changes, or major market-regime shifts.",
+        },
+        {
+            "Observation": f"Test stress rate {y_test.mean():.1%}",
+            "Decision Implication": "Base rate controls how many alerts are plausible; rare stress labels make precision more valuable than accuracy.",
+            "Monitoring Trigger": "Use precision@top-decile when alert capacity is limited.",
+        },
+        {
+            "Observation": f"Prediction horizon {horizon} trading days",
+            "Decision Implication": "Short horizons support trading controls; longer horizons support risk-budget planning.",
+            "Monitoring Trigger": "Match the horizon to the rebalance cadence before using model probabilities.",
+        },
+    ],
+    tone="success" if best_auc >= 0.65 else "warning" if best_auc >= 0.55 else "danger",
+)
+
 tab1, tab2, tab3, tab4, tab5 = st.tabs(
     [
         "Model Metrics",
@@ -316,7 +345,7 @@ with tab1:
     for col in ["AUC", "Accuracy", "Precision", "Recall", "Precision@Top Decile", "Positive Rate"]:
         display[col] = display[col].map(lambda x: f"{x:.3f}")
 
-    st.dataframe(display, use_container_width=True, hide_index=True)
+    st.dataframe(display, width="stretch", hide_index=True)
 
     best_auc = metrics.iloc[0]["AUC"]
     if best_auc >= 0.65:
@@ -353,7 +382,7 @@ with tab2:
         """
     )
 
-    st.plotly_chart(plot_roc(fitted, X_test, y_test), use_container_width=True)
+    st.plotly_chart(plot_roc(fitted, X_test, y_test), width="stretch")
 
 with tab3:
     st.subheader("What the Model Uses")
@@ -369,8 +398,8 @@ with tab3:
     importance = feature_importance(fitted[chosen], feature_cols)
     importance["Plain-English Meaning"] = importance["Feature"].map(feature_meaning)
 
-    st.plotly_chart(plot_feature_importance(importance), use_container_width=True)
-    st.dataframe(importance, use_container_width=True, hide_index=True)
+    st.plotly_chart(plot_feature_importance(importance), width="stretch")
+    st.dataframe(importance, width="stretch", hide_index=True)
 
 with tab4:
     st.subheader("Confusion Matrix and Calibration")
@@ -386,7 +415,7 @@ with tab4:
     )
 
     cm_df = confusion_table(best_model, X_test, y_test)
-    st.dataframe(cm_df, use_container_width=True)
+    st.dataframe(cm_df, width="stretch")
     false_negatives = int(cm_df.loc["Actual stress", "Predicted calm"]) if "Actual stress" in cm_df.index else 0
     false_positives = int(cm_df.loc["Actual calm", "Predicted stress"]) if "Actual calm" in cm_df.index else 0
     insight_card(
@@ -407,14 +436,14 @@ with tab4:
         )
     )
     fig.update_layout(height=400, margin=dict(l=20, r=20, t=40, b=20))
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     calibration = calibration_table(best_model, X_test, y_test)
-    st.plotly_chart(plot_calibration(calibration), use_container_width=True)
+    st.plotly_chart(plot_calibration(calibration), width="stretch")
     calibration_display = calibration.copy()
     for col in ["Predicted Probability", "Actual Stress Rate"]:
         calibration_display[col] = calibration_display[col].map(lambda x: f"{x:.1%}")
-    st.dataframe(calibration_display, use_container_width=True, hide_index=True)
+    st.dataframe(calibration_display, width="stretch", hide_index=True)
 
 with tab5:
     st.subheader("Validation Methodology")

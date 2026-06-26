@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from src.dashboard.components import format_currency, format_percent, load_price_data, load_processed_dataset  # noqa: E402
 from src.dashboard.insight_utils import latest_valid_date  # noqa: E402
-from src.dashboard.ui_components import PALETTE, PLOTLY_TEMPLATE, analyst_header, apply_dashboard_style, decision_callout, insight_card, page_intro  # noqa: E402
+from src.dashboard.ui_components import PALETTE, PLOTLY_TEMPLATE, analyst_header, apply_dashboard_style, decision_callout, decision_memo, insight_card, page_intro  # noqa: E402
 from src.portfolio.paper_trader import CVaRPaperPortfolioSimulator, PaperPortfolioSimulator  # noqa: E402
 from src.portfolio.performance_metrics import drawdown_series, performance_summary, rolling_cvar, rolling_sharpe  # noqa: E402
 
@@ -197,10 +197,32 @@ decision_callout(
     tone="teal",
 )
 
+decision_memo(
+    "Allocator Choice Memo",
+    [
+        {
+            "Observation": f"Best Sharpe: {winner_sharpe}",
+            "Decision Implication": "Sharpe winner is the better candidate when return efficiency is the primary objective.",
+            "Monitoring Trigger": "Confirm the result is stable across start dates and transaction-cost assumptions.",
+        },
+        {
+            "Observation": f"Lowest CVaR: {winner_cvar}",
+            "Decision Implication": "CVaR winner is the better candidate when downside containment is the primary objective.",
+            "Monitoring Trigger": "Use this allocator for stress regimes unless it materially sacrifices drawdown or liquidity.",
+        },
+        {
+            "Observation": f"CVaR Sharpe {cvar_sharpe:.2f}; RL Sharpe {rl_sharpe:.2f}",
+            "Decision Implication": "If the two allocators agree on exposure, conviction rises; if they diverge, use CVaR as the governed baseline.",
+            "Monitoring Trigger": "Investigate divergence before changing real-world policy limits.",
+        },
+    ],
+    tone="teal",
+)
+
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["Performance", "Risk Regimes", "Allocation Stability", "Research Interpretation", "Raw Diagnostics"])
 
 with tab1:
-    st.dataframe(format_metrics(metrics), use_container_width=True, hide_index=True)
+    st.dataframe(format_metrics(metrics), width="stretch", hide_index=True)
     st.plotly_chart(
         line_chart(
             {
@@ -210,7 +232,7 @@ with tab1:
             "Equity Curve Comparison",
             "Portfolio value",
         ),
-        use_container_width=True,
+        width="stretch",
     )
     c_left, c_right = st.columns(2)
     with c_left:
@@ -224,7 +246,7 @@ with tab1:
                 "Drawdown",
                 ".0%",
             ),
-            use_container_width=True,
+            width="stretch",
         )
     with c_right:
         st.plotly_chart(
@@ -237,7 +259,7 @@ with tab1:
                 "CVaR",
                 ".1%",
             ),
-            use_container_width=True,
+            width="stretch",
         )
 
 with tab2:
@@ -260,7 +282,7 @@ with tab2:
     for col in display.columns:
         if col != "Strategy":
             display[col] = display[col].map(lambda x: format_percent(x, 2))
-    st.dataframe(display, use_container_width=True, hide_index=True)
+    st.dataframe(display, width="stretch", hide_index=True)
     st.plotly_chart(
         line_chart(
             {
@@ -273,17 +295,17 @@ with tab2:
             "Weight",
             ".0%",
         ),
-        use_container_width=True,
+        width="stretch",
     )
 
 with tab3:
     c1, c2 = st.columns(2)
     with c1:
-        st.plotly_chart(allocation_heatmap(cvar.weights, "CVaR Allocation Heatmap"), use_container_width=True)
-        st.plotly_chart(line_chart({"CVaR turnover": cvar.ledger["turnover"]}, "CVaR Turnover", "Turnover", ".0%"), use_container_width=True)
+        st.plotly_chart(allocation_heatmap(cvar.weights, "CVaR Allocation Heatmap"), width="stretch")
+        st.plotly_chart(line_chart({"CVaR turnover": cvar.ledger["turnover"]}, "CVaR Turnover", "Turnover", ".0%"), width="stretch")
     with c2:
-        st.plotly_chart(allocation_heatmap(rl.weights, "RL Allocation Heatmap"), use_container_width=True)
-        st.plotly_chart(line_chart({"RL turnover": rl.ledger["turnover"]}, "RL Turnover", "Turnover", ".0%"), use_container_width=True)
+        st.plotly_chart(allocation_heatmap(rl.weights, "RL Allocation Heatmap"), width="stretch")
+        st.plotly_chart(line_chart({"RL turnover": rl.ledger["turnover"]}, "RL Turnover", "Turnover", ".0%"), width="stretch")
 
 with tab4:
     st.subheader("Institutional Interpretation")
@@ -320,7 +342,7 @@ with tab5:
     c1, c2 = st.columns(2)
     with c1:
         st.subheader("CVaR Ledger")
-        st.dataframe(cvar.ledger.tail(100), use_container_width=True)
+        st.dataframe(cvar.ledger.tail(100), width="stretch")
     with c2:
         st.subheader("RL Ledger")
-        st.dataframe(rl.ledger.tail(100), use_container_width=True)
+        st.dataframe(rl.ledger.tail(100), width="stretch")

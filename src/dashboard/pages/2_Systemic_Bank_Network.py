@@ -18,7 +18,7 @@ from src.dashboard.insight_utils import (
     load_features,
     load_prices,
 )
-from src.dashboard.ui_components import PALETTE, PLOTLY_TEMPLATE, analyst_header, apply_dashboard_style, decision_callout, insight_card, page_intro
+from src.dashboard.ui_components import PALETTE, PLOTLY_TEMPLATE, analyst_header, apply_dashboard_style, decision_callout, decision_memo, insight_card, page_intro
 
 
 st.set_page_config(page_title="Systemic Bank Network", layout="wide")
@@ -201,9 +201,37 @@ m2.metric("Network Density", f"{density:.2f}")
 m3.metric("Largest Eigenvalue", f"{largest_eigen:.2f}", help="Higher values mean one common bank factor dominates returns.")
 m4.metric("Most Central Bank", central_bank)
 
+decision_memo(
+    "Network Decision Memo",
+    [
+        {
+            "Observation": f"Network density {density:.2f}",
+            "Decision Implication": (
+                "Sector concentration is the primary risk; multiple bank holdings can behave like one position."
+                if density > 0.70
+                else "Some name diversification remains useful, but central nodes still deserve tighter limits."
+                if density > 0.35
+                else "Name diversification is credible at the selected threshold."
+            ),
+            "Monitoring Trigger": "Tighten exposure limits when density and average correlation rise together.",
+        },
+        {
+            "Observation": f"Largest eigenvalue {largest_eigen:.2f}",
+            "Decision Implication": "A larger common factor means bank equity risk is being priced as one macro trade.",
+            "Monitoring Trigger": "Escalate if eigenvalue rises while the financials ETF is in drawdown.",
+        },
+        {
+            "Observation": f"Most central bank: {central_bank}",
+            "Decision Implication": "Stress-test this name even if it is not currently the weakest performer.",
+            "Monitoring Trigger": "If centrality combines with node stress above 60, prioritize it in hedging and exposure reviews.",
+        },
+    ],
+    tone="danger" if density > 0.70 else "warning" if density > 0.35 else "success",
+)
+
 left, right = st.columns([0.64, 0.36])
 with left:
-    st.plotly_chart(network_fig(graph, stress), use_container_width=True)
+    st.plotly_chart(network_fig(graph, stress), width="stretch")
 with right:
     if density > 0.70:
         insight_card(
@@ -253,7 +281,7 @@ with tab1:
     show = edges.copy()
     show["Correlation"] = show["Correlation"].map(lambda x: f"{x:.2f}")
     show["Strength"] = show["Strength"].map(lambda x: f"{x:.2f}")
-    st.dataframe(show, use_container_width=True, hide_index=True)
+    st.dataframe(show, width="stretch", hide_index=True)
     top = edges.iloc[0]
     st.warning(
         f"The strongest current channel is {top['Bank Pair']} with correlation {top['Correlation']:.2f}. "
@@ -280,7 +308,7 @@ with tab2:
     ].copy()
     show["Node Stress"] = show["Node Stress"].map(lambda x: f"{x:.1f}/100")
     show["Network Centrality"] = show["Network Centrality"].map(lambda x: f"{x:.2f}")
-    st.dataframe(show, use_container_width=True, hide_index=True)
+    st.dataframe(show, width="stretch", hide_index=True)
 
     c_left, c_right = st.columns(2)
     with c_left:
@@ -299,7 +327,7 @@ with tab2:
             **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
             height=390,
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     with c_right:
         stress_rank = ranking.sort_values("Node Stress", ascending=True)
         fig = go.Figure(go.Bar(
@@ -320,7 +348,7 @@ with tab2:
             **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
             height=390,
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 with tab3:
     st.subheader("Correlation Matrix")
@@ -344,7 +372,7 @@ with tab3:
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=560,
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     decision_callout(
         plain_english="A matrix full of high positive correlations (dark red) means all banks are being driven by the same factors — making diversification across banks less effective.",
         action="When most pairs exceed 0.75, treat the whole bank allocation as one concentrated position and size accordingly.",

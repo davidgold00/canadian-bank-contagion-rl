@@ -21,6 +21,7 @@ from src.dashboard.ui_components import (
     analyst_header,
     apply_dashboard_style,
     decision_callout,
+    decision_memo,
     insight_card,
     interpretation_box,
     page_intro,
@@ -236,6 +237,28 @@ decision_callout(
     tone=response_tone,
 )
 
+decision_memo(
+    "Scenario Decision Memo",
+    [
+        {
+            "Observation": f"{scenario_name} at ×{severity:.1f}",
+            "Decision Implication": "Use the scenario as a pre-trade veto: a good allocation should survive the selected stress before capital is added.",
+            "Monitoring Trigger": "Re-run after changing severity, propagation strength, or portfolio weights.",
+        },
+        {
+            "Observation": f"Peak exposed bank: {max_bank} ({max_stress:.1f}/100)",
+            "Decision Implication": "This name should receive the tightest limit or hedge in this scenario.",
+            "Monitoring Trigger": "Escalate if it is also a top current holding or high network-centrality node.",
+        },
+        {
+            "Observation": f"Average final stress {avg_final:.1f}/100",
+            "Decision Implication": response_text,
+            "Monitoring Trigger": "If average stress exceeds 50, require a smaller bank budget or higher cash buffer.",
+        },
+    ],
+    tone=response_tone,
+)
+
 # ── Tabs ─────────────────────────────────────────────────────────────────────
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "Propagation",
@@ -268,7 +291,7 @@ with tab1:
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=460,
     )
-    st.plotly_chart(fig_prop, use_container_width=True)
+    st.plotly_chart(fig_prop, width="stretch")
 
     ordered_stress = final_stress.sort_values(ascending=True)
     fig_final = go.Figure(go.Bar(
@@ -290,7 +313,7 @@ with tab1:
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=380,
     )
-    st.plotly_chart(fig_final, use_container_width=True)
+    st.plotly_chart(fig_final, width="stretch")
 
     scenario_table = pd.DataFrame({
         "Bank": BANKS,
@@ -298,7 +321,7 @@ with tab1:
         "Final Stress": [f"{final_stress.get(b, 0):.1f}/100" for b in BANKS],
         "Incremental": [f"{final_stress.get(b, 0) - initial.get(b, 0):+.1f}" for b in BANKS],
     })
-    st.dataframe(scenario_table, use_container_width=True, hide_index=True)
+    st.dataframe(scenario_table, width="stretch", hide_index=True)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 with tab2:
@@ -360,13 +383,13 @@ with tab2:
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=400,
     )
-    st.plotly_chart(fig_pnl, use_container_width=True)
+    st.plotly_chart(fig_pnl, width="stretch")
 
     pnl_display = pnl_df.copy()
     pnl_display["Weight"] = pnl_display["Weight"].map(lambda x: f"{x:.1%}")
     pnl_display["Scenario Shock"] = pnl_display["Scenario Shock"].map(lambda x: f"{x:+.1%}")
     pnl_display["P&L Contribution"] = pnl_display["P&L Contribution"].map(lambda x: f"{x:+.2%}")
-    st.dataframe(pnl_display, use_container_width=True, hide_index=True)
+    st.dataframe(pnl_display, width="stretch", hide_index=True)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 with tab3:
@@ -412,7 +435,7 @@ with tab3:
         height=460,
         showlegend=False,
     )
-    st.plotly_chart(fig_mc, use_container_width=True)
+    st.plotly_chart(fig_mc, width="stretch")
 
     insight_card(
         "How to Use the MC Distribution",
@@ -477,11 +500,12 @@ with tab4:
     fig_net.update_layout(
         title="Post-Shock Contagion Network (node size = stress + centrality)",
         showlegend=False,
-        xaxis=dict(visible=False), yaxis=dict(visible=False),
-        **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
+        **{k: v for k, v in PLOTLY_TEMPLATE["layout"].to_plotly_json().items() if k not in ("xaxis", "yaxis")},
         height=520,
     )
-    st.plotly_chart(fig_net, use_container_width=True)
+    fig_net.update_xaxes(visible=False)
+    fig_net.update_yaxes(visible=False)
+    st.plotly_chart(fig_net, width="stretch")
 
 # ═══════════════════════════════════════════════════════════════════════════════
 with tab5:

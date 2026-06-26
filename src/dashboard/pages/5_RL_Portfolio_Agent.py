@@ -9,7 +9,7 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from src.dashboard.insight_utils import latest_valid_date, risk_regime
-from src.dashboard.ui_components import PALETTE, PLOTLY_TEMPLATE, analyst_header, apply_dashboard_style, decision_callout, insight_card, page_intro
+from src.dashboard.ui_components import PALETTE, PLOTLY_TEMPLATE, analyst_header, apply_dashboard_style, decision_callout, decision_memo, insight_card, page_intro
 
 
 st.set_page_config(page_title="RL Portfolio Agent", layout="wide")
@@ -277,6 +277,7 @@ metrics = metrics_table(results)
 c1, c2, c3, c4 = st.columns(4)
 best = metrics.iloc[0]
 rl_metrics = metrics.loc[metrics["Strategy"] == "RL-style defensive"].iloc[0]
+equal_metrics = metrics.loc[metrics["Strategy"] == "Equal-weight Big Six"].iloc[0]
 
 c1.metric("Best Sharpe Strategy", best["Strategy"])
 c2.metric("RL Sharpe", f"{rl_metrics['Sharpe']:.2f}", help="Sharpe ratio: return per unit of risk. Higher is better.")
@@ -295,6 +296,28 @@ decision_callout(
         "the risk-aware policy is adding value. If not, the current period may not have had enough stress events "
         "to differentiate the strategies — consider a longer backtest window."
     ),
+    tone="success" if rl_beats_equal else "warning",
+)
+
+decision_memo(
+    "Allocation Policy Decision Memo",
+    [
+        {
+            "Observation": f"RL Sharpe {rl_metrics['Sharpe']:.2f} vs equal-weight {equal_metrics['Sharpe']:.2f}",
+            "Decision Implication": "Use the defensive policy only if it improves risk-adjusted return or materially lowers drawdown.",
+            "Monitoring Trigger": "Demote the policy if it trails equal-weight on both Sharpe and drawdown.",
+        },
+        {
+            "Observation": f"RL max drawdown {rl_metrics['Max Drawdown']:.1%}",
+            "Decision Implication": "Drawdown is the user-pain metric; it determines whether a strategy is usable through stress.",
+            "Monitoring Trigger": "Reduce exposure rules if drawdown widens faster than benchmarks during high-risk periods.",
+        },
+        {
+            "Observation": f"Transaction cost setting {transaction_cost_bps:.0f} bps",
+            "Decision Implication": "A policy that wins before costs but overtrades is not operationally useful.",
+            "Monitoring Trigger": "Stress test higher costs before accepting turnover-heavy allocations.",
+        },
+    ],
     tone="success" if rl_beats_equal else "warning",
 )
 
@@ -318,15 +341,15 @@ with tab1:
         """
     )
 
-    st.plotly_chart(plot_equity(results), use_container_width=True)
-    st.plotly_chart(plot_drawdowns(results), use_container_width=True)
+    st.plotly_chart(plot_equity(results), width="stretch")
+    st.plotly_chart(plot_drawdowns(results), width="stretch")
 
     display_metrics = metrics.copy()
     for col in ["Cumulative Return", "Annualized Return", "Annualized Volatility", "Max Drawdown", "Average Daily Turnover"]:
         display_metrics[col] = display_metrics[col].map(lambda x: f"{x:.2%}")
     display_metrics["Sharpe"] = display_metrics["Sharpe"].map(lambda x: f"{x:.2f}")
 
-    st.dataframe(display_metrics, use_container_width=True, hide_index=True)
+    st.dataframe(display_metrics, width="stretch", hide_index=True)
 
     if rl_metrics["Max Drawdown"] < metrics["Max Drawdown"].median():
         insight_card(
@@ -361,7 +384,7 @@ with tab2:
         height=430,
         margin=dict(l=20, r=20, t=50, b=20),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     current_regime = risk_regime(latest_risk)
     if latest_risk >= 70:
@@ -375,7 +398,7 @@ with tab2:
 
     allocation = latest_weights.rename("Weight").reset_index().rename(columns={"index": "Asset"})
     allocation["Weight"] = allocation["Weight"].map(lambda x: f"{x:.1%}")
-    st.dataframe(allocation, use_container_width=True, hide_index=True)
+    st.dataframe(allocation, width="stretch", hide_index=True)
 
 with tab3:
     st.subheader("How Allocations Change Over Time")
@@ -392,7 +415,7 @@ with tab3:
         height=520,
         margin=dict(l=20, r=20, t=50, b=20),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     st.markdown(
         """
@@ -433,7 +456,7 @@ with tab4:
         if col != "Strategy":
             display[col] = display[col].map(lambda x: f"{x:.2%}")
 
-    st.dataframe(display, use_container_width=True, hide_index=True)
+    st.dataframe(display, width="stretch", hide_index=True)
 
     rl_cash = strategies["RL-style defensive"]["cash"]
     fig = go.Figure()
@@ -446,7 +469,7 @@ with tab4:
         height=460,
         margin=dict(l=20, r=20, t=50, b=20),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 with tab5:
     st.subheader("What the RL Agent Is Supposed to Learn")

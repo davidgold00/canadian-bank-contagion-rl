@@ -16,7 +16,7 @@ from src.dashboard.insight_utils import (
     read_csv_date,
     repo_root,
 )
-from src.dashboard.ui_components import analyst_header, apply_dashboard_style, insight_card, page_intro
+from src.dashboard.ui_components import analyst_header, apply_dashboard_style, decision_memo, insight_card, page_intro
 
 
 def _numeric_columns(df: pd.DataFrame) -> list[str]:
@@ -110,11 +110,34 @@ m1.metric("CSV Files Found", f"{len(inventory):,}")
 m2.metric("Total Rows", f"{int(inventory['Rows'].fillna(0).sum()):,}")
 m3.metric("Explained Files", f"{inventory['Explanation'].notna().sum():,}")
 
+missing_rows = int(inventory["Rows"].isna().sum())
+decision_memo(
+    "Data Quality Decision Memo",
+    [
+        {
+            "Observation": f"{len(inventory):,} CSV files with {int(inventory['Rows'].fillna(0).sum()):,} profiled rows",
+            "Decision Implication": "Coverage is broad enough for dashboard exploration, but source freshness still governs confidence.",
+            "Monitoring Trigger": "Refresh raw data before relying on recent market signals.",
+        },
+        {
+            "Observation": f"{missing_rows} unreadable or unprofiled files",
+            "Decision Implication": "Unreadable files weaken auditability; they should not feed production-style decisions.",
+            "Monitoring Trigger": "Fix any file that appears in a model pipeline but cannot be profiled here.",
+        },
+        {
+            "Observation": f"{inventory['Explanation'].notna().sum():,} files have business explanations",
+            "Decision Implication": "Interpretability starts at the data layer; unexplained fields should not become black-box features.",
+            "Monitoring Trigger": "Add or update explanations whenever a new CSV enters data/",
+        },
+    ],
+    tone="info" if missing_rows == 0 else "warning",
+)
+
 tab1, tab2, tab3 = st.tabs(["CSV Inventory", "Chart Explorer", "How Data Flows"])
 
 with tab1:
     st.subheader("Inventory and Business Meaning")
-    st.dataframe(inventory, use_container_width=True, hide_index=True)
+    st.dataframe(inventory, width="stretch", hide_index=True)
 
 with tab2:
     st.subheader("CSV Chart Explorer")
@@ -131,24 +154,25 @@ with tab2:
     c1, c2 = st.columns([0.65, 0.35])
     with c1:
         fig = chart_for_csv(selected, df)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     with c2:
         st.markdown("#### File Profile")
+        file_profile = pd.DataFrame(
+            [
+                {"Field": "Rows", "Value": f"{len(df):,}"},
+                {"Field": "Columns", "Value": f"{len(df.columns):,}"},
+                {"Field": "Date Range", "Value": latest_valid_date(df) if isinstance(df.index, pd.DatetimeIndex) else "No date index"},
+                {"Field": "Chart Purpose", "Value": meta.get("chart", "Shows the numeric content of this CSV.")},
+            ]
+        )
         st.dataframe(
-            pd.DataFrame(
-                [
-                    {"Field": "Rows", "Value": len(df)},
-                    {"Field": "Columns", "Value": len(df.columns)},
-                    {"Field": "Date Range", "Value": latest_valid_date(df) if isinstance(df.index, pd.DatetimeIndex) else "No date index"},
-                    {"Field": "Chart Purpose", "Value": meta.get("chart", "Shows the numeric content of this CSV.")},
-                ]
-            ),
-            use_container_width=True,
+            file_profile,
+            width="stretch",
             hide_index=True,
         )
 
     st.markdown("#### Preview")
-    st.dataframe(df.head(25), use_container_width=True)
+    st.dataframe(df.head(25), width="stretch")
 
 with tab3:
     st.subheader("From CSV to Insight")
