@@ -569,7 +569,7 @@ def signal_table(signals_df: pd.DataFrame) -> None:
 
     st.dataframe(
         display,
-        width="stretch",
+        use_container_width=True,
         hide_index=True,
         column_config={
             "Ticker": st.column_config.TextColumn("Ticker", width="small"),
@@ -663,14 +663,14 @@ def styled_heatmap(matrix: pd.DataFrame, title: str, height: int = 500) -> go.Fi
 
 def plot_time_series(df: pd.DataFrame, y: str, title: str, explanation: str | None = None) -> None:
     fig = styled_line(df, y, title)
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
     if explanation:
         st.markdown(f"<p class='cc-caption'>{explanation}</p>", unsafe_allow_html=True)
 
 
 def plot_heatmap(matrix: pd.DataFrame, title: str, explanation: str | None = None) -> None:
     fig = styled_heatmap(matrix, title)
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
     if explanation:
         st.markdown(f"<p class='cc-caption'>{explanation}</p>", unsafe_allow_html=True)
 
@@ -726,7 +726,7 @@ def decision_memo(title: str, rows: list[dict[str, str]], tone: str = "info") ->
     insight_card(title, "Each line converts a model observation into a decision implication and a monitoring trigger.", status=tone)
     st.dataframe(
         pd.DataFrame(rows),
-        width="stretch",
+        use_container_width=True,
         hide_index=True,
         column_config={
             "Observation": st.column_config.TextColumn("Observation", width="medium"),

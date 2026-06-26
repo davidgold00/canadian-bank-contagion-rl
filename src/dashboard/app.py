@@ -93,7 +93,7 @@ with left:
         height=430,
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
     )
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
 with right:
     insight_card(
@@ -157,7 +157,7 @@ with tab1:
     )
     show = drivers.copy()
     show["Stress Percentile"] = show["Stress Percentile"].map(lambda x: f"{x:.0%}" if x == x else "N/A")
-    st.dataframe(show, width="stretch", hide_index=True)
+    st.dataframe(show, use_container_width=True, hide_index=True)
 
     fig = go.Figure(
         go.Bar(
@@ -174,7 +174,7 @@ with tab1:
         height=380,
         margin=dict(l=20, r=20, t=50, b=20),
     )
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
 with tab2:
     bank_table = bank_stress_snapshot(features)
@@ -187,7 +187,7 @@ with tab2:
         show[col] = show[col].map(lambda x: pct(x) if x == x else "N/A")
     show["Beta to XFN"] = show["Beta to XFN"].map(lambda x: f"{x:.2f}" if x == x else "N/A")
     show["Node Stress"] = show["Node Stress"].map(lambda x: f"{x:.1f}/100")
-    st.dataframe(show, width="stretch", hide_index=True)
+    st.dataframe(show, use_container_width=True, hide_index=True)
 
 with tab3:
     st.subheader("Macro Context for Canadian Banks")
@@ -197,7 +197,7 @@ with tab3:
         cols = [c for c in ["policy_rate", "ca_2y", "ca_5y", "ca_10y", "slope_10y_2y"] if c in macro.columns]
         latest_macro = macro[cols].dropna(how="all").tail(1).T.reset_index()
         latest_macro.columns = ["Macro Field", "Latest Value"]
-        st.dataframe(latest_macro, width="stretch", hide_index=True)
+        st.dataframe(latest_macro, use_container_width=True, hide_index=True)
 
         fig = go.Figure()
         for col in [c for c in ["policy_rate", "ca_2y", "ca_10y"] if c in macro.columns]:
@@ -208,7 +208,7 @@ with tab3:
             height=420,
             margin=dict(l=20, r=20, t=50, b=20),
         )
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, use_container_width=True)
 
         insight_card(
             "Economic Interpretation",

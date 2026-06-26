@@ -218,7 +218,7 @@ with tab1:
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=430,
     )
-    st.plotly_chart(fig, width="stretch")
+    st.plotly_chart(fig, use_container_width=True)
 
     st.divider()
     st.subheader("Rationale by Bank")
@@ -279,7 +279,7 @@ with tab2:
         for col in ["Current Weight", "Target Weight"]:
             hold_display[col] = hold_display[col].map(lambda x: f"{x:.1%}")
         hold_display["Delta"] = hold_display["Delta"].map(lambda x: f"{x:+.1%}")
-        st.dataframe(hold_display, width="stretch", hide_index=True)
+        st.dataframe(hold_display, use_container_width=True, hide_index=True)
 
     st.divider()
     st.subheader("Positioning Guidance")
@@ -320,7 +320,7 @@ with tab2:
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=400,
     )
-    st.plotly_chart(fig_weights, width="stretch")
+    st.plotly_chart(fig_weights, use_container_width=True)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 with tab3:
@@ -384,7 +384,7 @@ with tab3:
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=400,
     )
-    st.plotly_chart(fig_comp, width="stretch")
+    st.plotly_chart(fig_comp, use_container_width=True)
 
     # Risk decomposition
     st.subheader("Risk Decomposition (Component Risk)")
@@ -392,7 +392,7 @@ with tab3:
     rd_display = rd.copy()
     for col in ["Weight", "Standalone Vol", "Marginal Risk", "Component Risk", "% of Portfolio Risk"]:
         rd_display[col] = rd_display[col].map(lambda x: f"{x:.2%}" if pd.notna(x) else "N/A")
-    st.dataframe(rd_display, width="stretch", hide_index=True)
+    st.dataframe(rd_display, use_container_width=True, hide_index=True)
 
     fig_rc = go.Figure(go.Bar(
         x=rd["% of Portfolio Risk"],
@@ -409,7 +409,7 @@ with tab3:
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=400,
     )
-    st.plotly_chart(fig_rc, width="stretch")
+    st.plotly_chart(fig_rc, use_container_width=True)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 with tab4:
@@ -473,10 +473,10 @@ with tab4:
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=420,
     )
-    st.plotly_chart(fig_pnl, width="stretch")
+    st.plotly_chart(fig_pnl, use_container_width=True)
 
     total_pnl["Total Portfolio P&L"] = total_pnl["Total Portfolio P&L"].map(lambda x: f"{x:+.2%}")
-    st.dataframe(total_pnl, width="stretch", hide_index=True)
+    st.dataframe(total_pnl, use_container_width=True, hide_index=True)
 
     total_signal = float((target_w * pd.Series(base_shocks)).sum())
     tone = "danger" if total_signal < -0.05 else "warning" if total_signal < -0.02 else "success"
@@ -518,12 +518,12 @@ with tab5:
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=450,
     )
-    st.plotly_chart(fig_sens, width="stretch")
+    st.plotly_chart(fig_sens, use_container_width=True)
 
     display_sens = sensitivity.copy()
     for col in display_sens.columns:
         display_sens[col] = display_sens[col].map(lambda x: f"{x:.1%}")
-    st.dataframe(display_sens, width="stretch")
+    st.dataframe(display_sens, use_container_width=True)
 
     insight_card(
         "How to Use This Table",

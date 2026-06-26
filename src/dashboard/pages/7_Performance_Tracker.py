@@ -353,35 +353,35 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs(["Overview", "Analysis", "Trades & Holdin
 with tab1:
     left, right = st.columns([0.62, 0.38])
     with left:
-        st.plotly_chart(plot_value(ledger, benchmarks), width="stretch")
+        st.plotly_chart(plot_value(ledger, benchmarks), use_container_width=True)
     with right:
-        st.plotly_chart(plot_current_allocation(weights), width="stretch")
-    st.plotly_chart(plot_pnl(ledger), width="stretch")
+        st.plotly_chart(plot_current_allocation(weights), use_container_width=True)
+    st.plotly_chart(plot_pnl(ledger), use_container_width=True)
 
 with tab2:
     c1, c2 = st.columns(2)
     with c1:
-        st.plotly_chart(plot_drawdown(ledger, benchmarks), width="stretch")
-        st.plotly_chart(plot_daily_pnl_hist(ledger), width="stretch")
+        st.plotly_chart(plot_drawdown(ledger, benchmarks), use_container_width=True)
+        st.plotly_chart(plot_daily_pnl_hist(ledger), use_container_width=True)
     with c2:
-        st.plotly_chart(plot_cash_vs_risk(ledger), width="stretch")
-        st.plotly_chart(plot_weight_history(weights), width="stretch")
+        st.plotly_chart(plot_cash_vs_risk(ledger), use_container_width=True)
+        st.plotly_chart(plot_weight_history(weights), use_container_width=True)
 
     benchmark_final = benchmarks.iloc[-1].sort_values(ascending=False).rename("Ending Value").reset_index()
     benchmark_final.columns = ["Benchmark", "Ending Value"]
     benchmark_final["Ending Value"] = benchmark_final["Ending Value"].map(lambda x: format_currency(x, 2))
-    st.dataframe(benchmark_final, width="stretch", hide_index=True)
+    st.dataframe(benchmark_final, use_container_width=True, hide_index=True)
 
 with tab3:
     st.subheader("Current Holdings")
     st.markdown(
         "Holdings are paper positions only. They are calculated from simulated daily rebalances, prices, transaction costs, and target weights."
     )
-    st.dataframe(format_holdings(current_holdings), width="stretch", hide_index=True)
+    st.dataframe(format_holdings(current_holdings), use_container_width=True, hide_index=True)
 
     st.subheader("Recent Simulated Trades")
     recent_trades = format_trades(trades.head(0) if trades.empty else trades.tail(50))
-    st.dataframe(recent_trades, width="stretch", hide_index=True)
+    st.dataframe(recent_trades, use_container_width=True, hide_index=True)
 
 with tab4:
     st.subheader("Daily Process and Leakage Controls")
@@ -416,9 +416,9 @@ with tab5:
     ledger_display = ledger.reset_index().copy()
     ledger_display["date"] = pd.to_datetime(ledger_display["date"]).dt.date
     if show_full_ledger:
-        st.dataframe(ledger_display, width="stretch", hide_index=True)
+        st.dataframe(ledger_display, use_container_width=True, hide_index=True)
     else:
-        st.dataframe(ledger_display.tail(100), width="stretch", hide_index=True)
+        st.dataframe(ledger_display.tail(100), use_container_width=True, hide_index=True)
 
     with st.expander("Full trade ledger"):
-        st.dataframe(format_trades(trades), width="stretch", hide_index=True)
+        st.dataframe(format_trades(trades), use_container_width=True, hide_index=True)
