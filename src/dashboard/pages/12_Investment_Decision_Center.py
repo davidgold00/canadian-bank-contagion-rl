@@ -34,6 +34,7 @@ from src.dashboard.ui_components import (
     action_list,
     analyst_header,
     apply_dashboard_style,
+    business_value_panel,
     decision_callout,
     decision_memo,
     insight_card,
@@ -108,6 +109,20 @@ page_intro(
         "<b>Rebalance Plan</b> for explicit weight changes, and <b>Risk Stress</b> to validate the plan "
         "against adverse scenarios before acting."
     ),
+)
+
+business_value_panel(
+    title="Decision Center Business Lens",
+    intro=(
+        "This page turns model evidence into an auditable recommendation. A business can use it to document why exposure changed, "
+        "which risk limit mattered, and what trigger would cause the decision to be revisited."
+    ),
+    points=[
+        ("Actionable", "Converts risk score, bank stress, signals, and CVaR into specific portfolio decisions.", "Decision"),
+        ("Explainable", "Every recommendation is tied to a readable reason instead of a black-box score.", "Clarity"),
+        ("Governed", "Uses concentration caps, cash guidance, stress scenarios, and monitoring triggers.", "Control"),
+        ("Challengeable", "The recommendation can be compared against passive benchmarks and stress results before approval.", "Review"),
+    ],
 )
 
 # ── Top regime banner ────────────────────────────────────────────────────────

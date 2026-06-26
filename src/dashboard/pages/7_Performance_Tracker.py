@@ -15,7 +15,7 @@ from src.dashboard.components import (  # noqa: E402
     load_processed_dataset,
 )
 from src.dashboard.insight_utils import BANKS, latest_valid_date  # noqa: E402
-from src.dashboard.ui_components import PALETTE, PLOTLY_TEMPLATE, analyst_header, apply_dashboard_style, decision_callout, decision_memo, insight_card, page_intro  # noqa: E402
+from src.dashboard.ui_components import PALETTE, PLOTLY_TEMPLATE, analyst_header, apply_dashboard_style, business_value_panel, decision_callout, decision_memo, insight_card, page_intro  # noqa: E402
 from src.portfolio.paper_trader import PaperPortfolioSimulator  # noqa: E402
 from src.portfolio.performance_metrics import drawdown_series, performance_summary  # noqa: E402
 
@@ -230,6 +230,20 @@ page_intro(
     ),
 )
 disclaimer_box()
+
+business_value_panel(
+    title="Why This Page Matters",
+    intro=(
+        "The paper fund is not valuable only when it tops every benchmark. It is valuable when it reveals whether the process "
+        "is investable: what it held, when it traded, how much it paid, whether cash rose during stress, and whether drawdowns improved."
+    ),
+    points=[
+        ("Audit Trail", "Every simulated trade has a date, asset, notional, cost, and reason.", "Evidence"),
+        ("Investability Check", "Turnover and transaction costs show whether the rule can survive real-world frictions.", "Practicality"),
+        ("Risk Behavior", "Cash and bank exposure reveal whether the model actually de-risks when stress rises.", "Control"),
+        ("Benchmark Discipline", "Underperformance is useful because it shows when passive exposure is the better mandate choice.", "Challenge"),
+    ],
+)
 
 if prices.empty or features.empty:
     st.error("Price or feature data is missing. Run scripts/download_data.py and scripts/build_features.py first.")

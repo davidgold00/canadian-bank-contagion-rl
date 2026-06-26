@@ -5,6 +5,8 @@ Design language: professional financial terminal — dark accent palette,
 monospace data, color-coded risk indicators, clear signal typography.
 """
 
+import html
+
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -320,6 +322,40 @@ def apply_dashboard_style() -> None:
         .cc-card.info    { border-left: 4px solid var(--blue);  background: #0a1929; }
         .cc-card.teal    { border-left: 4px solid var(--teal);  background: #001f26; }
 
+        .cc-business-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0.75rem;
+            margin: 0.6rem 0 1rem;
+        }
+        .cc-business-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 0.9rem 1rem;
+            min-height: 132px;
+        }
+        .cc-business-card .cc-kicker {
+            color: var(--teal);
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 0.4rem;
+        }
+        .cc-business-card h4 {
+            font-size: 0.92rem !important;
+            font-weight: 700 !important;
+            margin: 0 0 0.35rem !important;
+            color: var(--ink) !important;
+        }
+        .cc-business-card p {
+            color: #c5d1db !important;
+            font-size: 0.82rem !important;
+            line-height: 1.45 !important;
+            margin: 0 !important;
+        }
+
         /* Signal badges */
         .sig-buy    { display:inline-block; padding:3px 10px; border-radius:999px; background:#0d2318; color:var(--green);  border:1px solid var(--green);  font-size:0.78rem; font-weight:700; letter-spacing:0.05em; }
         .sig-hold   { display:inline-block; padding:3px 10px; border-radius:999px; background:#1f1700; color:var(--amber);  border:1px solid var(--amber);  font-size:0.78rem; font-weight:700; letter-spacing:0.05em; }
@@ -411,6 +447,9 @@ def apply_dashboard_style() -> None:
             .cc-intro-grid {
                 grid-template-columns: 1fr !important;
             }
+            .cc-business-grid {
+                grid-template-columns: 1fr !important;
+            }
             .cc-decision-grid .cc-grid-cell + .cc-grid-cell,
             .cc-intro-grid .cc-grid-cell + .cc-grid-cell {
                 border-left: 0 !important;
@@ -469,6 +508,84 @@ def insight_card(title: str, body: str, status: str = "info") -> None:
               <p>{body}</p>
             </div>""",
         unsafe_allow_html=True,
+    )
+
+
+DEFAULT_BUSINESS_VALUE_POINTS = [
+    (
+        "Mandate Fit",
+        "Designed for Canadian bank exposure oversight, not for replacing a high-growth equity index.",
+        "Purpose",
+    ),
+    (
+        "Risk Governance",
+        "Turns noisy market data into auditable regime, exposure, cash, and stress-test decisions.",
+        "Control",
+    ),
+    (
+        "Concentration Awareness",
+        "Shows when multiple bank holdings behave like one shared macro risk bucket.",
+        "Diversification",
+    ),
+    (
+        "Committee-Ready Evidence",
+        "Explains what changed, why it matters, and which monitoring trigger should prompt action.",
+        "Communication",
+    ),
+]
+
+
+def business_value_panel(
+    title: str = "Business Value Lens",
+    intro: str | None = None,
+    points: list[tuple[str, str, str]] | None = None,
+    tone: str = "teal",
+) -> None:
+    """Show why the system matters to a business user beyond raw return ranking."""
+    if intro:
+        insight_card(title, intro, status=tone)
+
+    cells = []
+    for heading, body, kicker in points or DEFAULT_BUSINESS_VALUE_POINTS:
+        cells.append(
+            "<div class='cc-business-card'>"
+            f"<div class='cc-kicker'>{html.escape(kicker)}</div>"
+            f"<h4>{html.escape(heading)}</h4>"
+            f"<p>{html.escape(body)}</p>"
+            "</div>"
+        )
+    st.markdown("<div class='cc-business-grid'>" + "".join(cells) + "</div>", unsafe_allow_html=True)
+
+
+def mandate_fit_table() -> None:
+    """Explain when the dashboard should and should not be judged by total return alone."""
+    st.dataframe(
+        pd.DataFrame(
+            [
+                {
+                    "Business Question": "Can this beat Nasdaq over 10 years?",
+                    "Best Tool": "Passive benchmark comparison",
+                    "How to Interpret": "If Nasdaq wins, it was the better growth allocation for that period.",
+                },
+                {
+                    "Business Question": "Can we control Canadian bank concentration risk?",
+                    "Best Tool": "Contagion score, network graph, CVaR, stress tests",
+                    "How to Interpret": "This is where the project creates most of its business value.",
+                },
+                {
+                    "Business Question": "Should we add, hold, trim, or hedge bank exposure today?",
+                    "Best Tool": "Investment Decision Center",
+                    "How to Interpret": "Use regime, bank stress, signal strength, and CVaR constraints together.",
+                },
+                {
+                    "Business Question": "Can a risk committee understand the recommendation?",
+                    "Best Tool": "Decision memos and plain-English guides",
+                    "How to Interpret": "A useful model must be explainable, not just profitable in hindsight.",
+                },
+            ]
+        ),
+        use_container_width=True,
+        hide_index=True,
     )
 
 

@@ -14,7 +14,7 @@ from src.dashboard.benchmarking import (  # noqa: E402
 )
 from src.dashboard.components import format_currency, format_percent, load_price_data, load_processed_dataset  # noqa: E402
 from src.dashboard.insight_utils import latest_valid_date  # noqa: E402
-from src.dashboard.ui_components import PALETTE, PLOTLY_TEMPLATE, analyst_header, apply_dashboard_style, decision_callout, decision_memo, insight_card, page_intro, plain_english_expander  # noqa: E402
+from src.dashboard.ui_components import PALETTE, PLOTLY_TEMPLATE, analyst_header, apply_dashboard_style, business_value_panel, decision_callout, decision_memo, insight_card, mandate_fit_table, page_intro, plain_english_expander  # noqa: E402
 from src.portfolio.paper_trader import CVaRPaperPortfolioSimulator, PaperPortfolioSimulator  # noqa: E402
 from src.portfolio.performance_metrics import drawdown_series, performance_summary, rolling_cvar  # noqa: E402
 
@@ -238,6 +238,10 @@ winner_sharpe = metrics.sort_values("Sharpe", ascending=False).iloc[0]["Strategy
 winner_cvar = metrics.sort_values("CVaR", ascending=True).iloc[0]["Strategy"]
 winner_ending = metrics.sort_values("Ending Value", ascending=False).iloc[0]["Strategy"]
 winner_drawdown = metrics.sort_values("Max Drawdown", ascending=False).iloc[0]["Strategy"]
+model_metrics = metrics[metrics["Type"] == "Model"]
+benchmark_metrics = metrics[metrics["Type"] == "Buy-and-hold benchmark"]
+best_model_return = model_metrics.sort_values("Ending Value", ascending=False).iloc[0]
+best_benchmark_return = benchmark_metrics.sort_values("Ending Value", ascending=False).iloc[0] if not benchmark_metrics.empty else None
 
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Best Ending Value", winner_ending)
@@ -263,6 +267,37 @@ plain_english_expander(
     ],
 )
 
+business_value_panel(
+    title="How to Judge This Page",
+    intro=(
+        "This comparison is intentionally uncomfortable: it should show when passive Nasdaq, ZEB, or single-bank exposure wins. "
+        "That benchmark pressure makes the project stronger because it prevents overclaiming. The business value is deciding "
+        "whether active risk control, explanation, and drawdown management are worth the return trade-off."
+    ),
+    points=[
+        (
+            "Return Truth",
+            "If a passive benchmark wins on ending value, say so directly and treat it as the growth benchmark.",
+            "Honesty",
+        ),
+        (
+            "Risk Trade-Off",
+            "Then ask whether the model reduced drawdown, CVaR, concentration, or stress exposure enough to justify lower return.",
+            "Mandate",
+        ),
+        (
+            "Canadian Bank Sleeve",
+            "Use ZEB and the Big Six as the most relevant challengers for a Canadian bank mandate.",
+            "Fit",
+        ),
+        (
+            "Governance Value",
+            "Use the explanations, triggers, and ledgers to show why exposure changed and when it should be reviewed.",
+            "Process",
+        ),
+    ],
+)
+
 cvar_sharpe = metrics.loc[metrics["Strategy"] == "CVaR optimizer", "Sharpe"].iloc[0]
 rl_sharpe = metrics.loc[metrics["Strategy"] == "RL research baseline", "Sharpe"].iloc[0]
 active_benchmark_text = ", ".join(selected_benchmarks.columns) if not selected_benchmarks.empty else "no external benchmarks selected"
@@ -280,6 +315,22 @@ decision_callout(
     ),
     tone="teal",
 )
+
+if best_benchmark_return is not None and best_benchmark_return["Ending Value"] > best_model_return["Ending Value"]:
+    return_gap = best_benchmark_return["Ending Value"] / best_model_return["Ending Value"] - 1
+    decision_callout(
+        plain_english=(
+            f"The strongest passive benchmark, <b>{best_benchmark_return['Strategy']}</b>, finished "
+            f"<b>{return_gap:.1%}</b> ahead of the strongest model result over this selected window. "
+            "That is a real result, not something to hide. It means the model did not win the simple growth contest."
+        ),
+        action=(
+            "Use the rest of the page to decide whether the model still earns a role as a risk-control overlay: "
+            "lower tail loss, smaller drawdown, clearer exposure rules, or better stress behavior. "
+            "If it does not improve those mandate-specific outcomes, passive exposure is the better answer for that mandate."
+        ),
+        tone="warning",
+    )
 
 decision_memo(
     "Allocator Choice Memo",
@@ -312,6 +363,8 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs(["Performance", "Risk Regimes", "Allocati
 
 with tab1:
     st.dataframe(format_metrics(metrics), use_container_width=True, hide_index=True)
+    with st.expander("How to interpret this table for a business user", expanded=False):
+        mandate_fit_table()
     equity_series = {
         "CVaR optimizer": cvar.ledger["portfolio_value"],
         "RL research baseline": rl.ledger["portfolio_value"],

@@ -21,6 +21,7 @@ from src.dashboard.ui_components import (
     PLOTLY_TEMPLATE,
     analyst_header,
     apply_dashboard_style,
+    business_value_panel,
     decision_callout,
     decision_memo,
     insight_card,
@@ -115,6 +116,20 @@ decision_callout(
         "to identify where the two approaches agree or diverge."
     ),
     tone="teal",
+)
+
+business_value_panel(
+    title="CVaR Business Lens",
+    intro=(
+        "This page is the most institutionally relevant allocator in the project. It is designed to answer: "
+        "what portfolio would we approve if downside loss, concentration, turnover, and explainability all matter?"
+    ),
+    points=[
+        ("Tail-Risk First", "Optimizes for bad outcomes, not just average return or recent winners.", "Risk Budget"),
+        ("Policy Limits", "Single-name, sector, cash, and turnover constraints map naturally to mandate rules.", "Governance"),
+        ("Contagion-Aware", "Raises the cost of bank exposure when the network becomes dense and correlated.", "Systemic Risk"),
+        ("Committee Language", "Outputs weights, risk contributions, diagnostics, and stress P&L for review.", "Approval"),
+    ],
 )
 
 # ── Sidebar controls ─────────────────────────────────────────────────────────

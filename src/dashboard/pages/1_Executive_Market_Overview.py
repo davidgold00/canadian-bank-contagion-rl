@@ -39,6 +39,7 @@ from src.dashboard.ui_components import (
     action_list,
     analyst_header,
     apply_dashboard_style,
+    business_value_panel,
     decision_callout,
     decision_memo,
     insight_card,
@@ -97,6 +98,20 @@ page_intro(
         "Go to the <b>Investment Signals</b> tab for per-bank BUY/HOLD/REDUCE calls, "
         "or <b>Executive Readout</b> for the full picture and action steps."
     ),
+)
+
+business_value_panel(
+    title="Daily Business Use",
+    intro=(
+        "Use this page as the morning risk brief for Canadian financial exposure. It translates market stress into a regime, "
+        "names the current drivers, and shows whether the bank sleeve should be treated as an opportunity set or one shared risk bucket."
+    ),
+    points=[
+        ("Regime", "Sets the starting posture: offensive, neutral, defensive, or severe-risk review.", "Today"),
+        ("Drivers", "Explains what changed: volatility, correlation, drawdown, rates, oil, CAD, or global risk.", "Why"),
+        ("Names", "Ranks which banks are stressed versus attractive after adjusting for regime.", "Where"),
+        ("Actions", "Connects the evidence to cash, exposure, and monitoring decisions.", "Next"),
+    ],
 )
 
 regime_banner(regime["label"], regime["summary"], score, regime["tone"])

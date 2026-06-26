@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from src.dashboard.components import disclaimer_box, format_currency, format_percent, load_price_data, load_processed_dataset  # noqa: E402
 from src.dashboard.insight_utils import latest_valid_date  # noqa: E402
-from src.dashboard.ui_components import PALETTE, PLOTLY_TEMPLATE, analyst_header, apply_dashboard_style, decision_callout, decision_memo, insight_card, page_intro  # noqa: E402
+from src.dashboard.ui_components import PALETTE, PLOTLY_TEMPLATE, analyst_header, apply_dashboard_style, business_value_panel, decision_callout, decision_memo, insight_card, page_intro  # noqa: E402
 from src.portfolio.paper_trader import CVaRPaperPortfolioSimulator, PaperPortfolioSimulator  # noqa: E402
 from src.portfolio.performance_metrics import drawdown_series, performance_summary, rolling_cvar, rolling_sharpe  # noqa: E402
 
@@ -141,6 +141,20 @@ page_intro(
     ),
 )
 disclaimer_box()
+
+business_value_panel(
+    title="CVaR Fund Business Lens",
+    intro=(
+        "A CVaR fund can lag a strong passive benchmark in calm markets because it spends return on downside protection. "
+        "That is only acceptable when the mandate values smaller tail losses, clearer constraints, and committee-ready risk control."
+    ),
+    points=[
+        ("Tail-Loss Budget", "CVaR focuses on the average loss in the worst market days, where business risk is most visible.", "Downside"),
+        ("Governed Constraints", "Single-name, bank-exposure, cash, and turnover limits make the policy easier to review.", "Policy"),
+        ("Stress Readiness", "Drawdowns and scenario P&L show whether the strategy earns its defensive role.", "Resilience"),
+        ("Return Trade-Off", "If protection does not improve downside outcomes, passive bank exposure deserves the allocation.", "Accountability"),
+    ],
+)
 
 with st.sidebar:
     st.header("Simulation Controls")

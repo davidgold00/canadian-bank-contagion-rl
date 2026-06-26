@@ -26,8 +26,10 @@ from src.dashboard.ui_components import (  # noqa: E402
     action_list,
     analyst_header,
     apply_dashboard_style,
+    business_value_panel,
     decision_memo,
     insight_card,
+    mandate_fit_table,
     page_intro,
 )
 
@@ -62,6 +64,15 @@ page_intro(
     how=(
         "Use the sidebar to navigate to any page. Start here for today's risk regime, then go to "
         "<b>Executive Market Overview</b> for signals and to <b>Investment Decision Center</b> for explicit portfolio actions."
+    ),
+)
+
+business_value_panel(
+    title="Executive Value Proposition",
+    intro=(
+        "This command center is not trying to prove that an active model always beats Nasdaq or ZEB. "
+        "It gives a business a disciplined process for monitoring Canadian bank contagion risk, explaining exposure changes, "
+        "and deciding when passive risk is acceptable versus when downside controls matter more."
     ),
 )
 
@@ -233,6 +244,8 @@ with tab4:
         11. **RL vs CVaR Comparison** studies when experimental RL or governed optimization behaves better.
         """
     )
+    st.subheader("Mandate Fit")
+    mandate_fit_table()
 
 st.caption(
     "Educational research dashboard. Simulated paper portfolio only. Not investment advice, "

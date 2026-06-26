@@ -21,7 +21,7 @@ from sklearn.preprocessing import StandardScaler
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from src.dashboard.insight_utils import latest_valid_date
-from src.dashboard.ui_components import analyst_header, apply_dashboard_style, decision_callout, decision_memo, insight_card, page_intro
+from src.dashboard.ui_components import analyst_header, apply_dashboard_style, business_value_panel, decision_callout, decision_memo, insight_card, page_intro
 
 
 st.set_page_config(page_title="Model Validation", layout="wide")
@@ -275,6 +275,20 @@ page_intro(
         "AUC near 0.50 means it performs no better than random guessing. "
         "Use the sidebar to change the prediction horizon and the stress-event threshold."
     ),
+)
+
+business_value_panel(
+    title="Why Validation Matters to a Business",
+    intro=(
+        "A model is only useful if it works on data it did not train on. This page tells a business whether the dashboard's "
+        "stress signals deserve decision weight or should remain research-only."
+    ),
+    points=[
+        ("Credibility Gate", "Separates genuine signal from a model that only memorized history.", "Trust"),
+        ("Risk of False Comfort", "Shows when the model misses stress events that matter to risk managers.", "Control"),
+        ("Feature Transparency", "Reveals which market and macro variables are actually driving predictions.", "Explainability"),
+        ("Governance Evidence", "Provides validation metrics a model review process can challenge or approve.", "Review"),
+    ],
 )
 
 st.sidebar.header("Validation Controls")
