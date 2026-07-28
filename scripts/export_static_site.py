@@ -1,3 +1,4 @@
+import json
 import shutil
 import sys
 from pathlib import Path
@@ -47,20 +48,22 @@ PUBLIC = ROOT / "public"
 ROOT_INDEX = ROOT / "index.html"
 
 PAGES = [
-    ("about", "About"),
-    ("market-overview", "Market Overview"),
-    ("systemic-bank-network", "Systemic Bank Network"),
-    ("contagion-risk-score", "Contagion Risk Score"),
-    ("stress-testing-lab", "Stress Testing Lab"),
-    ("rl-portfolio-agent", "RL Portfolio Agent"),
-    ("model-validation", "Model Validation"),
-    ("performance-tracker", "Performance Tracker"),
-    ("cvar-optimization-lab", "CVaR Optimization Lab"),
-    ("cvar-paper-fund", "CVaR Paper Fund"),
-    ("rl-vs-cvar-comparison", "RL vs CVaR"),
-    ("investment-decision-center", "Investment Decision Center"),
-    ("data-catalog", "Data Catalog"),
+    ("overview", "Overview"),
+    ("risk", "Risk"),
+    ("scenarios", "Scenarios"),
+    ("models", "Models"),
+    ("decision", "Decision"),
+    ("performance", "Performance"),
+    ("research", "Research"),
 ]
+
+SCENARIO_SHOCKS = {
+    "Housing Crisis": {"RY.TO": 35, "TD.TO": 35, "BMO.TO": 30, "BNS.TO": 30, "CM.TO": 45, "NA.TO": 32},
+    "Oil Crash": {"RY.TO": 20, "TD.TO": 18, "BMO.TO": 26, "BNS.TO": 25, "CM.TO": 22, "NA.TO": 18},
+    "Liquidity Squeeze": {"RY.TO": 40, "TD.TO": 38, "BMO.TO": 36, "BNS.TO": 36, "CM.TO": 38, "NA.TO": 34},
+    "Yield Curve Inversion": {"RY.TO": 24, "TD.TO": 24, "BMO.TO": 22, "BNS.TO": 22, "CM.TO": 28, "NA.TO": 20},
+    "Global Risk-Off": {"RY.TO": 32, "TD.TO": 32, "BMO.TO": 30, "BNS.TO": 31, "CM.TO": 33, "NA.TO": 29},
+}
 
 
 def chart_html(fig: go.Figure, include_js=False) -> str:
@@ -72,13 +75,25 @@ def chart_html(fig: go.Figure, include_js=False) -> str:
     )
 
 
-def table_html(df: pd.DataFrame, columns: list[str] | None = None) -> str:
+def table_html(
+    df: pd.DataFrame,
+    columns: list[str] | None = None,
+    label: str | None = None,
+) -> str:
     view = df[columns].copy() if columns else df.copy()
-    return view.to_html(index=False, classes="data-table", escape=False)
+    region_label = label or ", ".join(str(column) for column in view.columns[:3])
+    return (
+        f"<div class='table-scroll' role='region' aria-label='Data table: {region_label}'>"
+        + view.to_html(index=False, classes="data-table", escape=False)
+        + "</div>"
+    )
 
 
 def card(title: str, body: str, tone: str = "info") -> str:
-    return f"<section class='callout {tone}'><h3>{title}</h3><p>{body}</p></section>"
+    return (
+        f"<div class='callout {tone}' role='note'><p class='callout-title'>{title}</p>"
+        f"<p>{body}</p></div>"
+    )
 
 
 def metric_grid(items: list[tuple[str, str]], accent: str = "blue") -> str:
@@ -89,13 +104,42 @@ def metric_grid(items: list[tuple[str, str]], accent: str = "blue") -> str:
     return f"<div class='grid'>{cells}</div>"
 
 
+def local_tabs(items: list[tuple[str, str]]) -> str:
+    links = "".join(f"<a href='#{slug}'>{label}</a>" for slug, label in items)
+    return f"<nav class='local-tabs' aria-label='Page sections'>{links}</nav>"
+
+
+def chart_panel(title: str, description: str, chart: str) -> str:
+    return (
+        "<figure class='chart-card'>"
+        f"<div class='chart-context'><h3>{title}</h3></div>"
+        f"{chart}<figcaption>{description}</figcaption></figure>"
+    )
+
+
+def section_heading(slug: str, eyebrow: str, title: str, description: str) -> str:
+    return (
+        f"<section class='section-heading' id='{slug}'><span>{eyebrow}</span>"
+        f"<h2>{title}</h2><p>{description}</p></section>"
+    )
+
+
 def nav(active_slug: str) -> str:
-    links = ["<span class='nav-brand'>&#9670; CBCCC</span>"]
+    links = [
+        "<a class='nav-brand' href='/' aria-label='Northern Signal overview'>"
+        "<span aria-hidden='true'>&#9670;</span><span>Northern Signal</span></a>",
+        "<button class='nav-toggle' type='button' aria-expanded='false' "
+        "aria-controls='primary-links'><span class='sr-only'>Toggle navigation</span>"
+        "<span aria-hidden='true'>Menu</span></button>",
+        "<div class='nav-links' id='primary-links'>",
+    ]
     for slug, label in PAGES:
-        href = "/" if slug == "about" else f"/{slug}"
+        href = "/" if slug == "overview" else f"/{slug}"
         active = " active" if slug == active_slug else ""
-        links.append(f"<a class='nav-link{active}' href='{href}'>{label}</a>")
-    return "<nav class='nav'>" + "".join(links) + "</nav>"
+        current = " aria-current='page'" if slug == active_slug else ""
+        links.append(f"<a class='nav-link{active}' href='{href}'{current}>{label}</a>")
+    links.append("</div>")
+    return "<nav class='nav' aria-label='Primary navigation'>" + "".join(links) + "</nav>"
 
 
 _CHART_DARK = dict(
@@ -122,8 +166,8 @@ def page_template(slug: str, title: str, subtitle: str, body: str, latest_date: 
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{title} | Canadian Bank Contagion Command Center</title>
-  <meta name="description" content="Canadian bank systemic risk, contagion network, CVaR portfolio optimization, and investment signals.">
+  <title>{title} | Northern Signal</title>
+  <meta name="description" content="Canadian bank systemic risk, contagion scenarios, portfolio models, and governed investment decisions.">
   <meta name="theme-color" content="#0f1923">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -135,13 +179,14 @@ def page_template(slug: str, title: str, subtitle: str, body: str, latest_date: 
       --surface:   #16202d;
       --card:      #1c2a38;
       --border:    #2a3a4a;
+      --border-accent: #486078;
       --ink:       #e8edf2;
-      --muted:     #7a91a6;
-      --blue:      #1e88e5;
-      --blue-lt:   #42a5f5;
+      --muted:     #91a6b8;
+      --blue:      #0969b8;
+      --blue-lt:   #64b5f6;
       --green:     #00c853;
       --amber:     #ffb300;
-      --red:       #f44336;
+      --red:       #ff6b63;
       --teal:      #00bcd4;
       --radius:    8px;
     }}
@@ -156,6 +201,35 @@ def page_template(slug: str, title: str, subtitle: str, body: str, latest_date: 
       line-height: 1.55;
       font-size: 15px;
     }}
+    .sr-only {{
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }}
+    .skip-link {{
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      z-index: 1000;
+      transform: translateY(-160%);
+      padding: 10px 14px;
+      border-radius: 6px;
+      background: #fff;
+      color: #0f1923;
+      font-weight: 700;
+    }}
+    .skip-link:focus {{ transform: translateY(0); }}
+    :focus-visible {{
+      outline: 3px solid #90caf9;
+      outline-offset: 3px;
+      border-radius: 4px;
+    }}
 
     /* ── Navigation ── */
     .nav {{
@@ -163,53 +237,72 @@ def page_template(slug: str, title: str, subtitle: str, body: str, latest_date: 
       top: 0;
       z-index: 100;
       display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
+      gap: 20px;
       align-items: center;
-      padding: 10px 6vw;
+      min-height: 64px;
+      padding: 10px max(24px, 6vw);
       background: rgba(15, 25, 35, 0.92);
       border-bottom: 1px solid var(--border);
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
     }}
     .nav-brand {{
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
       font-weight: 700;
-      font-size: 0.82rem;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: var(--blue-lt);
-      margin-right: 8px;
+      font-size: 0.9rem;
+      letter-spacing: 0.02em;
+      color: var(--ink);
+      text-decoration: none;
+      margin-right: auto;
       white-space: nowrap;
     }}
+    .nav-brand > span:first-child {{ color: var(--blue-lt); }}
+    .nav-links {{ display: flex; align-items: center; gap: 4px; }}
     .nav-link {{
       color: var(--muted);
       text-decoration: none;
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      padding: 5px 11px;
-      font-size: 0.8rem;
-      background: var(--surface);
+      border-radius: 5px;
+      padding: 8px 10px;
+      font-size: 0.82rem;
       transition: color 0.15s, border-color 0.15s, background 0.15s;
     }}
     .nav-link:hover {{
       color: var(--ink);
-      border-color: var(--blue);
       background: rgba(30, 136, 229, 0.08);
     }}
     .nav-link.active {{
-      background: var(--blue);
-      border-color: var(--blue);
-      color: #fff;
+      background: rgba(66, 165, 245, 0.12);
+      color: #90caf9;
       font-weight: 600;
+    }}
+    .nav-toggle {{
+      display: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 7px 11px;
+      background: var(--surface);
+      color: var(--ink);
+      font: inherit;
     }}
 
     /* ── Header ── */
     header {{
-      padding: 52px 6vw 36px;
+      padding: 58px max(24px, 6vw) 40px;
       background: var(--surface);
       border-bottom: 1px solid var(--border);
       position: relative;
       overflow: hidden;
+    }}
+    .eyebrow {{
+      display: block;
+      margin-bottom: 10px;
+      color: #90caf9;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
     }}
     h1 {{
       font-size: 2.7rem;
@@ -242,7 +335,7 @@ def page_template(slug: str, title: str, subtitle: str, body: str, latest_date: 
     /* ── Main ── */
     main {{
       padding: 32px 6vw 64px;
-      max-width: 1480px;
+      max-width: 1360px;
       margin: 0 auto;
     }}
     h2 {{
@@ -314,16 +407,16 @@ def page_template(slug: str, title: str, subtitle: str, body: str, latest_date: 
       border-bottom: 1px solid var(--border);
       border-right: 1px solid var(--border);
     }}
-    .callout h3 {{ color: var(--blue-lt); margin: 0 0 6px; font-size: 0.95rem; margin-top: 0; }}
+    .callout-title {{ color: var(--blue-lt); margin: 0 0 6px; font-size: 0.95rem; font-weight: 700; }}
     .callout p  {{ color: #c5d1db; font-size: 0.91rem; margin: 0; }}
     .callout.danger  {{ border-left-color: var(--red);   background: rgba(244, 67, 54, 0.07);  }}
-    .callout.danger h3  {{ color: #ef9a9a; }}
+    .callout.danger .callout-title  {{ color: #ffaaa5; }}
     .callout.warning {{ border-left-color: var(--amber); background: rgba(255, 179, 0, 0.07); }}
-    .callout.warning h3 {{ color: #ffe082; }}
+    .callout.warning .callout-title {{ color: #ffe082; }}
     .callout.success {{ border-left-color: var(--green); background: rgba(0, 200, 83, 0.07); }}
-    .callout.success h3 {{ color: #a5d6a7; }}
+    .callout.success .callout-title {{ color: #a5d6a7; }}
     .callout.teal    {{ border-left-color: var(--teal);  background: rgba(0, 188, 212, 0.07); }}
-    .callout.teal h3    {{ color: #80deea; }}
+    .callout.teal .callout-title    {{ color: #80deea; }}
 
     /* ── Chart grid ── */
     .chart-grid {{
@@ -339,6 +432,13 @@ def page_template(slug: str, title: str, subtitle: str, body: str, latest_date: 
       overflow: hidden;
       box-shadow: 0 2px 12px rgba(0,0,0,0.3);
     }}
+    .chart-context {{ padding: 18px 20px 0; }}
+    .chart-context h3 {{ margin: 0 0 4px; }}
+    .chart-context p, figcaption {{
+      color: var(--muted);
+      font-size: 0.82rem;
+    }}
+    figcaption {{ padding: 0 20px 18px; }}
 
     /* ── Data table ── */
     .data-table {{
@@ -371,6 +471,148 @@ def page_template(slug: str, title: str, subtitle: str, body: str, latest_date: 
     }}
     .data-table tr:last-child td {{ border-bottom: none; }}
     .data-table tr:hover td {{ background: rgba(30, 136, 229, 0.04); }}
+    .table-scroll {{ overflow-x: auto; -webkit-overflow-scrolling: touch; }}
+    .table-scroll:focus-visible {{ outline-offset: -3px; }}
+
+    /* ── Local navigation & page structure ── */
+    .local-tabs {{
+      position: sticky;
+      top: 64px;
+      z-index: 80;
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      margin: -32px -6vw 32px;
+      padding: 12px 6vw;
+      background: rgba(22, 32, 45, 0.96);
+      border-bottom: 1px solid var(--border);
+    }}
+    .local-tabs a {{
+      flex: 0 0 auto;
+      padding: 7px 11px;
+      border-radius: 5px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }}
+    .local-tabs a:hover {{ color: var(--ink); background: var(--card); }}
+    .local-tabs a[aria-current='location'] {{ color: #90caf9; background: var(--card); }}
+    .section-heading {{
+      scroll-margin-top: 128px;
+      margin: 56px 0 18px;
+      max-width: 880px;
+    }}
+    .section-heading > span {{
+      color: #90caf9;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }}
+    .section-heading h2 {{ margin: 5px 0 8px; }}
+    .section-heading p {{ color: var(--muted); }}
+    .executive-grid {{
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr);
+      gap: 20px;
+      margin: 8px 0 30px;
+    }}
+    .hero-panel, .evidence-panel {{
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--card);
+      padding: 26px;
+    }}
+    .hero-score {{
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin: 10px 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: clamp(2.5rem, 8vw, 5rem);
+      line-height: 1;
+    }}
+    .hero-score small {{ color: var(--muted); font-size: 1rem; }}
+    .driver-list {{ margin: 16px 0 0; padding-left: 1.2rem; }}
+    .driver-list li {{ padding: 7px 0; border-bottom: 1px solid rgba(42,58,74,.65); }}
+    .driver-list li:last-child {{ border: 0; }}
+    .button-row {{ display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }}
+    .button {{
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 9px 15px;
+      border: 1px solid var(--blue);
+      border-radius: 6px;
+      background: var(--blue);
+      color: #fff;
+      text-decoration: none;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }}
+    .button.secondary {{ background: transparent; color: #90caf9; border-color: var(--border-accent); }}
+    .journey {{
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 1px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--border);
+    }}
+    .journey a {{ min-height: 138px; padding: 20px; background: var(--surface); color: var(--ink); text-decoration: none; }}
+    .journey span {{ display: block; color: #90caf9; font: 500 .75rem 'JetBrains Mono', monospace; }}
+    .journey strong {{ display: block; margin: 8px 0 5px; }}
+    .journey small {{ color: var(--muted); }}
+    details {{
+      margin: 18px 0;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }}
+    summary {{ cursor: pointer; padding: 14px 17px; color: var(--ink); font-weight: 650; }}
+    details > div {{ padding: 0 17px 17px; }}
+    .label {{
+      display: inline-block;
+      padding: 3px 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--muted);
+      font-size: .7rem;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }}
+    .control-panel {{
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) auto;
+      gap: 16px;
+      align-items: end;
+      margin: 20px 0;
+      padding: 20px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--card);
+    }}
+    .field label {{ display: block; margin-bottom: 7px; color: var(--ink); font-weight: 650; }}
+    .field small {{ display: block; margin-top: 6px; color: var(--muted); }}
+    select, input[type='range'] {{
+      width: 100%;
+      accent-color: var(--blue-lt);
+    }}
+    select {{
+      min-height: 42px;
+      padding: 8px 10px;
+      border: 1px solid var(--border-accent);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--ink);
+      font: inherit;
+    }}
+    .status-line {{ min-height: 24px; color: var(--muted); font-size: .86rem; }}
 
     /* ── Page links ── */
     .page-links {{
@@ -431,32 +673,90 @@ def page_template(slug: str, title: str, subtitle: str, body: str, latest_date: 
 
     /* ── Responsive ── */
     @media (max-width: 980px) {{
-      .grid, .chart-grid, .page-links {{ grid-template-columns: 1fr; }}
+      .grid, .chart-grid, .page-links, .executive-grid {{ grid-template-columns: 1fr; }}
+      .control-panel {{ grid-template-columns: 1fr; align-items: stretch; }}
+      .journey {{ grid-template-columns: 1fr 1fr; }}
       header, main {{ padding-left: 20px; padding-right: 20px; }}
-      .nav {{ padding: 10px 20px; position: static; flex-wrap: wrap; }}
+      .nav {{ padding: 10px 20px; }}
+      .nav-toggle {{ display: inline-flex; }}
+      .nav-links {{
+        display: none;
+        position: absolute;
+        top: 63px;
+        left: 0;
+        right: 0;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 2px;
+        padding: 10px 20px 18px;
+        background: #0f1923;
+        border-bottom: 1px solid var(--border);
+      }}
+      .nav-links.open {{ display: flex; }}
+      .nav-link {{ padding: 11px; }}
+      .local-tabs {{ top: 64px; margin-left: -20px; margin-right: -20px; padding-left: 20px; padding-right: 20px; }}
       h1 {{ font-size: 1.8rem; }}
     }}
     @media (max-width: 600px) {{
       .grid {{ grid-template-columns: repeat(2, 1fr); }}
+      .journey {{ grid-template-columns: 1fr; }}
+      .hero-panel, .evidence-panel {{ padding: 20px; }}
+      .metric {{ padding: 14px 12px; }}
+      .metric strong {{ font-size: 1.12rem; overflow-wrap: anywhere; }}
+    }}
+    @media (prefers-reduced-motion: reduce) {{
+      html {{ scroll-behavior: auto; }}
+      *, *::before, *::after {{ scroll-behavior: auto !important; transition: none !important; }}
     }}
   </style>
 </head>
 <body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
   {nav(slug)}
   <header>
+    <span class="eyebrow">Canadian systemic-risk research</span>
     <h1>{title}</h1>
     <p class="subtitle">{subtitle}</p>
     <span class="pill">&#9679; Data through {latest_date}</span>
     <span class="pill">Yahoo Finance · Bank of Canada</span>
     <span class="pill">CVaR · Graph Network · RL</span>
   </header>
-  <main>
+  <main id="main-content" tabindex="-1">
     {body}
     <footer>
-      Educational research only — not investment advice, not a trading system, and not a regulatory bank risk model.
-      Simulated paper portfolio only. No real trades are placed.
+      <strong>Research-use notice.</strong> Analytical outputs are not personalized financial advice,
+      a trading system, or a regulatory bank risk model. Performance views are historical simulations
+      or paper portfolios; no real trades are placed. <a href="/research#limitations">Read limitations</a>.
     </footer>
   </main>
+  <script>
+    const toggle = document.querySelector('.nav-toggle');
+    const links = document.querySelector('.nav-links');
+    if (toggle && links) {{
+      toggle.addEventListener('click', () => {{
+        const open = toggle.getAttribute('aria-expanded') === 'true';
+        toggle.setAttribute('aria-expanded', String(!open));
+        links.classList.toggle('open', !open);
+      }});
+      links.addEventListener('click', () => {{
+        toggle.setAttribute('aria-expanded', 'false');
+        links.classList.remove('open');
+      }});
+    }}
+    document.querySelectorAll('.table-scroll').forEach((wrapper) => {{
+      if (wrapper.scrollWidth > wrapper.clientWidth) wrapper.setAttribute('tabindex', '0');
+    }});
+    const sectionLinks = [...document.querySelectorAll('.local-tabs a')];
+    const markSection = () => {{
+      const activeHash = window.location.hash || sectionLinks[0]?.hash;
+      sectionLinks.forEach((link) => {{
+        if (link.hash === activeHash) link.setAttribute('aria-current', 'location');
+        else link.removeAttribute('aria-current');
+      }});
+    }};
+    markSection();
+    window.addEventListener('hashchange', markSection);
+  </script>
 </body>
 </html>
 """
@@ -470,10 +770,12 @@ def score_chart(features: pd.DataFrame) -> go.Figure:
     fig.add_hrect(y0=0,  y1=30,  fillcolor="#00c853", opacity=0.06, line_width=0)
     fig.add_hrect(y0=30, y1=60,  fillcolor="#ffb300", opacity=0.06, line_width=0)
     fig.add_hrect(y0=60, y1=80,  fillcolor="#ff6f00", opacity=0.06, line_width=0)
-    fig.add_hrect(y0=80, y1=100, fillcolor="#f44336", opacity=0.08, line_width=0)
+    fig.add_hrect(y0=80, y1=90, fillcolor="#f44336", opacity=0.08, line_width=0)
+    fig.add_hrect(y0=90, y1=100, fillcolor="#b71c1c", opacity=0.10, line_width=0)
     fig.add_hline(y=30, line_dash="dot", line_color="#00c853", opacity=0.4)
     fig.add_hline(y=60, line_dash="dot", line_color="#ffb300", opacity=0.4)
     fig.add_hline(y=80, line_dash="dot", line_color="#f44336", opacity=0.4)
+    fig.add_hline(y=90, line_dash="dot", line_color="#b71c1c", opacity=0.4)
     fig.update_layout(title="Canadian Bank Contagion Score (0–100)", yaxis_title="Risk score")
     return _dark_chart(fig)
 
@@ -846,21 +1148,18 @@ def component_heatmap(components: pd.DataFrame) -> go.Figure:
     return _dark_chart(fig, height=540)
 
 
-def stress_paths(prices: pd.DataFrame, scenario_name="Liquidity Squeeze") -> tuple[pd.DataFrame, pd.Series]:
-    scenarios = {
-        "Housing Crisis": {"RY.TO": 35, "TD.TO": 35, "BMO.TO": 30, "BNS.TO": 30, "CM.TO": 45, "NA.TO": 32},
-        "Oil Crash": {"RY.TO": 20, "TD.TO": 18, "BMO.TO": 26, "BNS.TO": 25, "CM.TO": 22, "NA.TO": 18},
-        "Liquidity Squeeze": {"RY.TO": 40, "TD.TO": 38, "BMO.TO": 36, "BNS.TO": 36, "CM.TO": 38, "NA.TO": 34},
-        "Yield Curve Inversion": {"RY.TO": 24, "TD.TO": 24, "BMO.TO": 22, "BNS.TO": 22, "CM.TO": 28, "NA.TO": 20},
-        "Global Risk-Off": {"RY.TO": 32, "TD.TO": 32, "BMO.TO": 30, "BNS.TO": 31, "CM.TO": 33, "NA.TO": 29},
-    }
+def stress_paths(
+    prices: pd.DataFrame,
+    scenario_name="Liquidity Squeeze",
+    severity: float = 1.0,
+) -> tuple[pd.DataFrame, pd.Series]:
     returns = prices[BANKS].pct_change().tail(126)
     corr = returns.corr().fillna(0).clip(lower=0)
     values = corr.to_numpy(copy=True)
     np.fill_diagonal(values, 0)
     adj = pd.DataFrame(values, index=corr.index, columns=corr.columns)
     adj = adj.div(adj.sum(axis=1).replace(0, 1), axis=0)
-    stress = pd.Series(scenarios[scenario_name], dtype=float)
+    stress = (severity * pd.Series(SCENARIO_SHOCKS[scenario_name], dtype=float)).clip(0, 100)
     rows = [{"Step": 0, **stress.to_dict()}]
     for step in range(1, 6):
         stress = (0.70 * stress + 0.45 * adj.T.dot(stress)).clip(0, 100)
@@ -1021,7 +1320,7 @@ def build_pages() -> dict[str, str]:
     positioning = compute_market_positioning(features, macro, score)
     recs = compute_portfolio_recommendations(signals, score)
 
-    bank_display = bank_table[["Bank", "Name", "21D Return", "21D Volatility", "63D Drawdown", "Beta to XFN", "Node Stress", "Action Readout", "Economic Lens"]].copy()
+    bank_display = bank_table[["Bank", "Name", "21D Return", "21D Volatility", "63D Drawdown", "Beta to XFN", "Node Stress", "Risk response", "Economic Lens"]].copy()
     for col in ["21D Return", "21D Volatility", "63D Drawdown"]:
         bank_display[col] = bank_display[col].map(lambda x: pct(x) if pd.notna(x) else "N/A")
     bank_display["Beta to XFN"] = bank_display["Beta to XFN"].map(lambda x: f"{x:.2f}" if pd.notna(x) else "N/A")
@@ -1060,9 +1359,18 @@ def build_pages() -> dict[str, str]:
         recs_display[col] = recs_display[col].map(lambda x: f"{x:+.1%}" if col == "Delta" else f"{x:.1%}")
 
     paths, final_stress = stress_paths(prices)
-    stress_impact = pd.DataFrame({"Bank": BANKS, "Final Stress": [final_stress[b] for b in BANKS], "Equal-Weight Loss Contribution": [final_stress[b] / final_stress.sum() for b in BANKS]})
+    stress_impact = pd.DataFrame({"Bank": BANKS, "Final Stress": [final_stress[b] for b in BANKS], "Aggregate Stress Share": [final_stress[b] / final_stress.sum() for b in BANKS]})
     stress_impact["Final Stress"] = stress_impact["Final Stress"].map(lambda x: f"{x:.1f}/100")
-    stress_impact["Equal-Weight Loss Contribution"] = stress_impact["Equal-Weight Loss Contribution"].map(lambda x: f"{x:.1%}")
+    stress_impact["Aggregate Stress Share"] = stress_impact["Aggregate Stress Share"].map(lambda x: f"{x:.1%}")
+    stress_impact_html = (
+        "<div class='table-scroll' role='region' aria-label='Data table: bank scenario stress'>"
+        + stress_impact.to_html(
+            index=False,
+            classes="data-table scenario-impact-table",
+            escape=False,
+        )
+        + "</div>"
+    )
 
     metrics, roc_df = model_metrics(features)
     metrics_display = metrics.copy()
@@ -1179,7 +1487,7 @@ def build_pages() -> dict[str, str]:
         "translate risk into explicit portfolio recommendations. All outputs are simulated and for research purposes.</p>"
         + "<div class='page-links'>" + about_links + "</div>"
     )
-    pages["about"] = page_template("about", "Canadian Bank Contagion Command Center",
+    pages["about"] = page_template("about", "Northern Signal",
                                    "Financial-engineering research — bank network risk, CVaR optimization, and portfolio intelligence.", about_body, latest_date)
 
     market_body = (
@@ -1190,7 +1498,7 @@ def build_pages() -> dict[str, str]:
             ("Avg Bank Vol", avg_bank_vol_str),
             ("Bank Correlation", avg_corr_str),
           ])
-        + card(f"Current Readout: {regime['label']} Risk", regime["summary"], regime["tone"])
+        + card(f"Current risk regime: {regime['label']}", regime["summary"], regime["tone"])
         + "<div class='chart-grid'><div class='chart-card'>" + chart_html(score_chart(features), True) + "</div><div class='chart-card'>" + chart_html(driver_chart(features)) + "</div></div>"
         + "<h2>Current Stress Drivers</h2>"
         + "<p>Each driver is percentile-ranked against its own full history. Elevated percentile = unusually stressed today.</p>"
@@ -1202,6 +1510,30 @@ def build_pages() -> dict[str, str]:
 
     corr_mat = correlation_matrix(prices)
     avg_corr_net = corr_mat.where(~np.eye(len(BANKS), dtype=bool)).stack().mean() if len(corr_mat) else 0.0
+    network_rows = []
+    pathway_rows = []
+    for source in BANKS:
+        peers = corr_mat.loc[source].drop(source).sort_values(ascending=False)
+        material = peers[peers.abs() >= 0.35]
+        network_rows.append(
+            {
+                "Bank": source,
+                "Material links": int(len(material)),
+                "Weighted centrality": f"{material.abs().sum() / max(len(BANKS) - 1, 1):.2f}",
+                "Strongest pathway": f"{material.index[0]} ({material.iloc[0]:.2f})" if len(material) else "None above threshold",
+                "Node stress": bank_display.loc[bank_display["Bank"] == source, "Node Stress"].iloc[0],
+            }
+        )
+        for target, correlation in material.items():
+            if source < target:
+                pathway_rows.append(
+                    {"Source": source, "Target": target, "63D correlation": f"{correlation:.2f}"}
+                )
+    network_evidence = pd.DataFrame(network_rows).sort_values("Weighted centrality", ascending=False)
+    pathway_evidence = pd.DataFrame(
+        pathway_rows,
+        columns=["Source", "Target", "63D correlation"],
+    ).sort_values("63D correlation", ascending=False).head(10)
     network_body = (
         regime_html
         + metric_grid([
@@ -1217,7 +1549,7 @@ def build_pages() -> dict[str, str]:
         + "<div class='chart-grid'><div class='chart-card'>" + chart_html(network_chart(prices, bank_table), True) + "</div><div class='chart-card'>" + chart_html(correlation_chart(prices)) + "</div></div>"
         + "<h2>Systemic Stress Ranking</h2>"
         + "<p>Node stress combines volatility, drawdown, and XFN beta into a 0–100 score. High node stress = trim or hedge first.</p>"
-        + table_html(bank_display[["Bank", "Name", "21D Return", "Node Stress", "Action Readout", "Economic Lens"]])
+        + table_html(bank_display[["Bank", "Name", "21D Return", "Node Stress", "Risk response", "Economic Lens"]])
     )
     pages["systemic-bank-network"] = page_template("systemic-bank-network", "Systemic Bank Network",
                                                     "Whether the Big Six are diversifying or moving as one crowded trade.", network_body, latest_date)
@@ -1237,7 +1569,7 @@ def build_pages() -> dict[str, str]:
         + "<div class='chart-grid'><div class='chart-card'>" + chart_html(component_bar_chart(components), True) + "</div><div class='chart-card'>" + chart_html(component_heatmap(components)) + "</div></div>"
         + "<h2>Bank-Level Stress Contributors</h2>"
         + "<p>Node stress = volatility + drawdown + XFN beta, each percentile-ranked. High node stress = highest priority to reduce or hedge.</p>"
-        + table_html(bank_display[["Bank", "Name", "21D Return", "21D Volatility", "63D Drawdown", "Node Stress", "Action Readout"]])
+        + table_html(bank_display[["Bank", "Name", "21D Return", "21D Volatility", "63D Drawdown", "Node Stress", "Risk response"]])
     )
     pages["contagion-risk-score"] = page_template("contagion-risk-score", "Contagion Risk Score",
                                                    "A 0–100 composite answer: is Canadian bank stress rising and spreading?", contagion_body, latest_date)
@@ -1256,9 +1588,9 @@ def build_pages() -> dict[str, str]:
                "Use the interactive Streamlit app for custom scenario controls, severity sliders, and Monte Carlo loss distribution.",
                stress_tone)
         + "<div class='chart-grid'><div class='chart-card'>" + chart_html(stress_path_chart(paths), True) + "</div><div class='chart-card'>" + chart_html(final_stress_chart(final_stress)) + "</div></div>"
-        + "<h2>Equal-Weight Portfolio Impact (Liquidity Squeeze)</h2>"
-        + "<p>Estimated loss contribution assuming equal bank weights and the scenario's assumed drawdown per bank.</p>"
-        + table_html(stress_impact)
+        + "<h2>Equal-Weight Stress Attribution (Liquidity Squeeze)</h2>"
+        + "<p>Share of aggregate terminal stress under equal bank weights. This is not a forecast portfolio loss.</p>"
+        + stress_impact_html
     )
     pages["stress-testing-lab"] = page_template("stress-testing-lab", "Stress Testing Lab",
                                                  "Macro shock → bank stress propagation → portfolio loss attribution.", stress_body, latest_date)
@@ -1455,7 +1787,7 @@ def build_pages() -> dict[str, str]:
             ]
         )
         + card(
-            "Final Decision Readout",
+            "Portfolio recommendation",
             f"The current signal engine recommends {buys} buys, {len(BANKS) - buys - reduces} holds, and {reduces} reductions. "
             f"The governed risk budget points to {positioning['total_bank_budget']} in bank exposure and "
             f"{cash_guidance_short.lower()}. This page connects signal strength, stress ranking, "
@@ -1488,7 +1820,931 @@ def build_pages() -> dict[str, str]:
     )
     pages["data-catalog"] = page_template("data-catalog", "Data Catalog", "Every CSV explained, profiled, and connected to analytical context.", data_body, latest_date)
 
-    return pages
+    # Consolidate the analytical substance into seven decision-oriented routes.
+    # Legacy route redirects are defined in vercel.json.
+    top_driver_items = "".join(
+        f"<li><strong>{row['Driver']}</strong> — {row['Stress Percentile']:.0%} historical stress percentile</li>"
+        for _, row in drivers.head(3).iterrows()
+    )
+    model_confidence = "Moderate" if metrics.iloc[0]["AUC"] >= 0.65 else "Limited"
+    fallback_cash = float(weights.get("cash", 0))
+    cvar_cash = float(cvar_result.weights.get("cash", 0))
+    model_agreement = "Aligned" if abs(fallback_cash - cvar_cash) <= 0.10 else "Mixed"
+
+    overview_body = (
+        "<div class='executive-grid'>"
+        "<section class='hero-panel' aria-labelledby='current-state-title'>"
+        "<span class='label'>Observed risk state</span>"
+        "<h2 id='current-state-title' style='border:0;margin:14px 0 6px;padding:0'>"
+        f"{regime['label']} risk regime</h2>"
+        f"<div class='hero-score'>{score:.1f}<small>/ 100 risk score</small></div>"
+        f"<p>{regime['summary']}</p>"
+        f"<p><strong>Portfolio recommendation:</strong> use a {positioning['total_bank_budget']} bank-risk budget "
+        f"with {positioning['cash_guidance'].split('.')[0].lower()}.</p>"
+        "<div class='button-row'><a class='button' href='/decision'>Review portfolio decision</a>"
+        "<a class='button secondary' href='/risk'>Inspect risk evidence</a></div></section>"
+        "<aside class='evidence-panel' aria-labelledby='drivers-title'>"
+        "<span class='label'>Why it is happening</span><h2 id='drivers-title' "
+        "style='border:0;margin:14px 0 6px;padding:0'>Three material risk drivers</h2>"
+        f"<ol class='driver-list'>{top_driver_items}</ol></aside></div>"
+        + metric_grid(
+            [
+                ("Portfolio recommendation", positioning["total_bank_budget"] + " bank budget"),
+                ("Cash guidance", positioning["cash_guidance"].split(".")[0]),
+                ("Model confidence", f"{model_confidence} · AUC {metrics.iloc[0]['AUC']:.2f}"),
+                ("Data updated", latest_date),
+            ]
+        )
+        + card(
+            "Portfolio recommendation",
+            f"{positioning['sector_bias']} {positioning['cash_guidance']} "
+            f"Cash posture is {model_agreement.lower()} across the transparent fallback and CVaR model outputs.",
+            regime["tone"],
+        )
+        + section_heading(
+            "journey",
+            "Analytical journey",
+            "From market conditions to a governed decision",
+            "Each stage answers one question and hands its evidence to the next stage.",
+        )
+        + "<div class='journey'>"
+        "<a href='/'><span>01</span><strong>Market conditions</strong><small>Regime, rates, volatility, correlation</small></a>"
+        "<a href='/risk'><span>02</span><strong>Contagion assessment</strong><small>Network pathways and composite score</small></a>"
+        "<a href='/scenarios'><span>03</span><strong>Stress scenarios</strong><small>Shock transmission and portfolio impact</small></a>"
+        "<a href='/models'><span>04</span><strong>Portfolio response</strong><small>RL and CVaR model outputs</small></a>"
+        "<a href='/decision'><span>05</span><strong>Final decision</strong><small>Risk budget and rebalance actions</small></a>"
+        "</div>"
+        + section_heading(
+            "market-evidence",
+            "Supporting evidence",
+            "Market conditions and risk drivers",
+            "Historical observations provide context; they are not forecasts.",
+        )
+        + "<div class='chart-grid'>"
+        + chart_panel(
+            "Risk score over time",
+            "Composite systemic-risk score on a 0–100 scale; regime thresholds are shown as reference lines.",
+            chart_html(score_chart(features), True),
+        )
+        + chart_panel(
+            "Current driver percentiles",
+            "Each driver is ranked against its own history; higher values indicate more unusual stress.",
+            chart_html(driver_chart(features)),
+        )
+        + "</div>"
+    )
+
+    risk_body = (
+        local_tabs([("network", "Network"), ("composite-score", "Composite score")])
+        + section_heading(
+            "network",
+            "Risk evidence · Network",
+            "Where stress can propagate",
+            "Node size represents network centrality and color represents bank-level stress. "
+            "Dense co-movement reduces the diversification available within the sector.",
+        )
+        + metric_grid(
+            [
+                ("Average correlation", f"{avg_corr_net:.2f}"),
+                ("Most stressed bank", bank_table.iloc[0]["Bank"]),
+                ("Measurement window", "63 trading days"),
+                ("Interpretation", "Diversification audit"),
+            ]
+        )
+        + "<div class='chart-grid'>"
+        + chart_panel(
+            "Canadian bank contagion network",
+            "Larger institutions are more central transmission points; warmer colors indicate greater current node stress.",
+            chart_html(network_chart(prices, bank_table), True),
+        )
+        + chart_panel(
+            "Cross-bank correlation",
+            "Pairwise return correlation over 63 trading days; values nearer 1 imply less independent risk.",
+            chart_html(correlation_chart(prices)),
+        )
+        + "</div>"
+        + "<h3>Centrality and material propagation pathways</h3>"
+        + "<p>Material links use an absolute 63-day correlation threshold of 0.35. Weighted centrality is "
+        "the average absolute strength of those links across the five possible peers.</p>"
+        + table_html(network_evidence)
+        + "<details><summary>Strongest pairwise pathways and bank context</summary><div>"
+        + table_html(pathway_evidence)
+        + table_html(bank_display[["Bank", "Name", "21D Return", "Node Stress", "Risk response", "Economic Lens"]])
+        + "</div></details>"
+        + section_heading(
+            "composite-score",
+            "Risk evidence · Composite score",
+            "How the current score is formed",
+            "The risk score combines market, volatility, correlation, macro, and bank-level signals on a consistent 0–100 scale.",
+        )
+        + regime_html
+        + metric_grid(
+            [
+                ("Risk score", f"{score:.1f}/100"),
+                ("Risk regime", regime["label"]),
+                ("Historical percentile", f"{percentile_rank(features['contagion_risk_score'], score):.0%}"),
+                ("Data updated", latest_date),
+            ]
+        )
+        + "<div class='chart-grid'>"
+        + chart_panel(
+            "Component scores",
+            "Current component values on the same 0–100 stress scale; higher values are more adverse.",
+            chart_html(component_bar_chart(components)),
+        )
+        + chart_panel(
+            "Six-month stress breadth",
+            "Historical component scores over approximately 126 trading days, separating current state from change over time.",
+            chart_html(component_heatmap(components)),
+        )
+        + "</div>"
+        + "<details><summary>Bank-level node stress and threshold interpretation</summary><div>"
+        + "<p>Low: 0–30; moderate: 30–60; elevated: 60–80; high: 80–90; severe: 90–100. "
+        "Node stress is supporting evidence—not a direct additive contribution to the composite score—and "
+        "combines volatility, drawdown, and sector beta percentile ranks.</p>"
+        + table_html(bank_display[["Bank", "Name", "21D Volatility", "63D Drawdown", "Node Stress", "Risk response"]])
+        + "</div></details>"
+        + "<div class='button-row'><a class='button' href='/decision'>Use this evidence in the decision</a></div>"
+    )
+
+    scenario_returns = prices[BANKS].pct_change().tail(126)
+    scenario_corr = scenario_returns.corr().fillna(0).clip(lower=0)
+    scenario_values = scenario_corr.to_numpy(copy=True)
+    np.fill_diagonal(scenario_values, 0)
+    scenario_adj = pd.DataFrame(
+        scenario_values,
+        index=scenario_corr.index,
+        columns=scenario_corr.columns,
+    ).div(
+        pd.DataFrame(scenario_values, index=scenario_corr.index, columns=scenario_corr.columns)
+        .sum(axis=1)
+        .replace(0, 1),
+        axis=0,
+    )
+    scenario_payload = json.dumps(
+        {
+            "banks": BANKS,
+            "shocks": SCENARIO_SHOCKS,
+            "adjacency": scenario_adj.reindex(index=BANKS, columns=BANKS).fillna(0).values.tolist(),
+        }
+    ).replace("</", "<\\/")
+    scenario_presets = pd.DataFrame(
+        [
+            {"Preset": "Housing crisis", "Primary assumption": "Mortgage and housing-credit stress", "Transmission focus": "CM, RY, TD"},
+            {"Preset": "Oil crash", "Primary assumption": "Energy-credit and macro shock", "Transmission focus": "BMO, BNS"},
+            {"Preset": "Liquidity squeeze", "Primary assumption": "Broad funding pressure", "Transmission focus": "All Big Six"},
+            {"Preset": "Yield-curve inversion", "Primary assumption": "Margin and growth pressure", "Transmission focus": "Rate-sensitive banks"},
+            {"Preset": "Global risk-off", "Primary assumption": "Synchronized market deleveraging", "Transmission focus": "Highly central banks"},
+        ]
+    )
+    scenario_script = """
+<script>
+(() => {
+  const scenarioData = __SCENARIO_DATA__;
+  const form = document.querySelector('#scenario-controls');
+  if (!form) return;
+  const select = document.querySelector('#scenario-select');
+  const severity = document.querySelector('#scenario-severity');
+  const severityOutput = document.querySelector('#scenario-severity-output');
+  const status = document.querySelector('#scenario-status');
+  const clip = (value) => Math.max(0, Math.min(100, value));
+
+  const calculate = (name, multiplier) => {
+    let current = scenarioData.banks.map((bank) => clip(scenarioData.shocks[name][bank] * multiplier));
+    const paths = [current.slice()];
+    for (let step = 1; step <= 5; step += 1) {
+      current = current.map((value, target) => {
+        const propagated = current.reduce(
+          (total, sourceValue, source) => total + scenarioData.adjacency[source][target] * sourceValue,
+          0,
+        );
+        return clip(0.70 * value + 0.45 * propagated);
+      });
+      paths.push(current.slice());
+    }
+    return paths;
+  };
+
+  const render = () => {
+    status.textContent = 'Updating scenario…';
+    status.setAttribute('aria-busy', 'true');
+    requestAnimationFrame(() => {
+      try {
+        const multiplier = Number(severity.value) / 100;
+        const paths = calculate(select.value, multiplier);
+        const finalValues = paths[paths.length - 1];
+        const average = finalValues.reduce((sum, value) => sum + value, 0) / finalValues.length;
+        const peak = Math.max(...finalValues);
+        const peakIndex = finalValues.indexOf(peak);
+        const initial = paths[0];
+        severityOutput.value = `${severity.value}%`;
+        document.querySelector('#scenario-name').textContent = select.options[select.selectedIndex].text;
+        document.querySelector('#scenario-start-range').textContent =
+          `${Math.min(...initial).toFixed(0)}–${Math.max(...initial).toFixed(0)} / 100`;
+        document.querySelector('#scenario-average').textContent = `${average.toFixed(1)}/100`;
+        document.querySelector('#scenario-peak').textContent = `${peak.toFixed(1)}/100`;
+        document.querySelector('#scenario-bank').textContent = scenarioData.banks[peakIndex];
+        document.querySelector('#scenario-response-text').textContent =
+          `Prioritize due diligence or reduction in ${scenarioData.banks[peakIndex]}, preserve liquidity, and reconcile the response with the governed bank-risk budget.`;
+
+        const pathPlot = document.querySelector('#scenario-path-panel .js-plotly-plot');
+        const finalPlot = document.querySelector('#scenario-final-panel .js-plotly-plot');
+        if (!window.Plotly || !pathPlot || !finalPlot) throw new Error('Scenario charts are unavailable.');
+        const pathTraces = pathPlot.data.map((trace, index) => ({
+          ...trace,
+          x: [0, 1, 2, 3, 4, 5],
+          y: paths.map((row) => row[index]),
+        }));
+        Plotly.react(pathPlot, pathTraces, pathPlot.layout, {displayModeBar: false, responsive: true});
+        const ranking = scenarioData.banks
+          .map((bank, index) => ({bank, value: finalValues[index]}))
+          .sort((a, b) => a.value - b.value);
+        const finalTrace = {
+          ...finalPlot.data[0],
+          x: ranking.map((item) => item.value),
+          y: ranking.map((item) => item.bank),
+          text: ranking.map((item) => `${item.value.toFixed(1)}`),
+          marker: {...finalPlot.data[0].marker, color: ranking.map((item) => item.value)},
+        };
+        Plotly.react(finalPlot, [finalTrace], finalPlot.layout, {displayModeBar: false, responsive: true});
+
+        const total = finalValues.reduce((sum, value) => sum + value, 0);
+        document.querySelectorAll('.scenario-impact-table tbody tr').forEach((row, index) => {
+          row.cells[1].textContent = `${finalValues[index].toFixed(1)}/100`;
+          row.cells[2].textContent = `${(100 * finalValues[index] / total).toFixed(1)}%`;
+        });
+        status.textContent = `Updated ${select.options[select.selectedIndex].text} at ${severity.value}% severity.`;
+      } catch (error) {
+        status.textContent = `Unable to update the scenario: ${error.message}`;
+      } finally {
+        status.removeAttribute('aria-busy');
+      }
+    });
+  };
+
+  select.addEventListener('change', render);
+  severity.addEventListener('input', render);
+  form.addEventListener('reset', () => setTimeout(render, 0));
+  form.addEventListener('submit', (event) => event.preventDefault());
+})();
+</script>
+""".replace("__SCENARIO_DATA__", scenario_payload)
+    scenario_body = (
+        local_tabs(
+            [
+                ("assumptions", "Assumptions"),
+                ("transmission", "Transmission"),
+                ("portfolio-impact", "Portfolio impact"),
+                ("risk-response", "Risk response"),
+            ]
+        )
+        + section_heading(
+            "assumptions",
+            "Scenario · Inputs",
+            "Explore governed scenario presets",
+            "Select a documented shock and scale its severity. The liquidity squeeze at 100% is the default; Reset returns to it.",
+        )
+        + "<form id='scenario-controls' class='control-panel'>"
+        "<div class='field'><label for='scenario-select'>Scenario preset</label>"
+        "<select id='scenario-select' name='scenario'>"
+        "<option value='Housing Crisis'>Housing crisis</option>"
+        "<option value='Oil Crash'>Oil crash</option>"
+        "<option value='Liquidity Squeeze' selected>Liquidity squeeze</option>"
+        "<option value='Yield Curve Inversion'>Yield-curve inversion</option>"
+        "<option value='Global Risk-Off'>Global risk-off</option>"
+        "</select><small>Changes the initial bank-level shock assumptions.</small></div>"
+        "<div class='field'><label for='scenario-severity'>Severity: "
+        "<output id='scenario-severity-output' for='scenario-severity'>100%</output></label>"
+        "<input id='scenario-severity' name='severity' type='range' min='50' max='150' step='10' value='100'>"
+        "<small>Scales initial shocks from 50% to 150%; propagated stress is capped at 100.</small></div>"
+        "<button class='button secondary' type='reset'>Reset scenario</button></form>"
+        "<p id='scenario-status' class='status-line' role='status' aria-live='polite'>"
+        "Liquidity squeeze loaded at 100% severity.</p>"
+        + metric_grid(
+            [
+                ("Selected scenario", "<span id='scenario-name'>Liquidity squeeze</span>"),
+                ("Propagation steps", "5"),
+                ("Starting shocks", "<span id='scenario-start-range'>34–40 / 100</span>"),
+                ("Network basis", "126-day positive correlation"),
+            ]
+        )
+        + table_html(scenario_presets)
+        + card(
+            "Scenario assumption",
+            "This is a hypothetical stress test, not a forecast. Initial bank shocks are propagated through a normalized "
+            "positive-correlation network with persistence and spillover terms.",
+            "warning",
+        )
+        + section_heading(
+            "transmission",
+            "Scenario · Model output",
+            "Bank-level transmission through the network",
+            "The path view separates the initial user assumption from subsequent model-derived propagation.",
+        )
+        + "<div class='chart-grid'>"
+        + "<div id='scenario-path-panel'>"
+        + chart_panel(
+            "Propagation path",
+            "Stress score by bank across five propagation steps under the selected preset and severity.",
+            chart_html(stress_path_chart(paths), True),
+        )
+        + "</div><div id='scenario-final-panel'>"
+        + chart_panel(
+            "Final bank stress",
+            "Terminal scenario stress ranks the institutions most exposed after network propagation.",
+            chart_html(final_stress_chart(final_stress)),
+        )
+        + "</div></div>"
+        + section_heading(
+            "portfolio-impact",
+            "Scenario · Portfolio impact",
+            "How aggregate terminal stress is distributed",
+            "Stress share is an attribution aid under equal bank weights, not a forecast portfolio loss.",
+        )
+        + metric_grid(
+            [
+                ("Average final stress", f"<span id='scenario-average'>{final_stress.mean():.1f}/100</span>"),
+                ("Peak final stress", f"<span id='scenario-peak'>{final_stress.max():.1f}/100</span>"),
+                ("Most stressed bank", f"<span id='scenario-bank'>{final_stress.idxmax()}</span>"),
+                ("Portfolio basis", "Equal bank weights"),
+            ]
+        )
+        + stress_impact_html
+        + section_heading(
+            "risk-response",
+            "Scenario · Portfolio recommendation",
+            "Translate the scenario into a controlled response",
+            "Use scenario evidence to prioritize reductions, then reconcile the response with the CVaR risk budget and mandate constraints.",
+        )
+        + f"<div class='callout {stress_tone}' role='note'><p class='callout-title'>Resulting risk response</p>"
+        f"<p id='scenario-response-text'>Prioritize due diligence or reduction in {final_stress.idxmax()}, "
+        f"preserve liquidity, and compare any proposed bank exposure with the current "
+        f"{positioning['total_bank_budget']} bank-risk budget.</p></div>"
+        + "<div class='button-row'><a class='button' href='/decision'>Review decision under this scenario</a>"
+        "<a class='button secondary' href='/models#cvar-strategy'>Inspect portfolio model response</a></div>"
+        + scenario_script
+    )
+
+    model_comparison = pd.DataFrame(
+        [
+            {
+                "Dimension": "Objective",
+                "RL strategy": "Learn a nonlinear state-to-allocation policy",
+                "CVaR strategy": "Balance expected return, expected shortfall, volatility, contagion, and turnover",
+            },
+            {
+                "Dimension": "Inputs",
+                "RL strategy": "Market and systemic-risk state variables",
+                "CVaR strategy": "Returns, shrinkage covariance, graph centrality, regime, prior weights",
+            },
+            {
+                "Dimension": "Constraints",
+                "RL strategy": "Environment action bounds and fallback policy limits",
+                "CVaR strategy": "Long-only, cash band, name cap, financial-exposure cap",
+            },
+            {
+                "Dimension": "Expected behavior",
+                "RL strategy": "Adaptive and potentially nonlinear",
+                "CVaR strategy": "Stable, auditable, and explicitly risk-budgeted",
+            },
+            {
+                "Dimension": "Drawdown characteristics",
+                "RL strategy": f"{rl_summary['max_drawdown']:.1%} simulated maximum drawdown",
+                "CVaR strategy": f"{cvar_summary['max_drawdown']:.1%} simulated maximum drawdown",
+            },
+            {
+                "Dimension": "Tail-risk characteristics",
+                "RL strategy": f"{rl_summary['conditional_value_at_risk']:.1%} realized simulated CVaR",
+                "CVaR strategy": f"{cvar_summary['conditional_value_at_risk']:.1%} realized simulated CVaR",
+            },
+            {
+                "Dimension": "Turnover",
+                "RL strategy": f"{rl_summary['average_daily_turnover']:.1%} average daily",
+                "CVaR strategy": f"{cvar_summary['average_daily_turnover']:.1%} average daily",
+            },
+            {
+                "Dimension": "Current role",
+                "RL strategy": "Experimental research baseline",
+                "CVaR strategy": "Governed portfolio recommendation engine",
+            },
+            {
+                "Dimension": "Current recommendation",
+                "RL strategy": f"Transparent fallback shows {fallback_cash:.1%} cash",
+                "CVaR strategy": f"Constrained optimizer shows {cvar_cash:.1%} cash",
+            },
+            {
+                "Dimension": "Prefer when",
+                "RL strategy": "Testing nonlinear policy behavior under controlled research conditions",
+                "CVaR strategy": "Explaining and enforcing tail-risk, liquidity, and concentration limits",
+            },
+        ]
+    )
+    models_body = (
+        local_tabs(
+            [
+                ("rl-strategy", "RL strategy"),
+                ("cvar-strategy", "CVaR strategy"),
+                ("comparison", "Comparison"),
+                ("validation", "Validation"),
+            ]
+        )
+        + section_heading(
+            "rl-strategy",
+            "Models · Experimental",
+            "RL strategy",
+            "A nonlinear research baseline that maps systemic-risk state to defensive portfolio weights.",
+        )
+        + metric_grid(
+            [
+                ("Displayed policy", "Transparent fallback"),
+                ("Current cash weight", f"{fallback_cash:.1%}"),
+                ("Risk regime", regime["label"]),
+                ("Risk score", f"{score:.1f}/100"),
+            ]
+        )
+        + card(
+            "Model output",
+            "Cash rises as systemic risk increases, while bank exposure tilts away from higher-stress names. "
+            "When a trained PPO policy is unavailable, the simulator uses the transparent stress-aware fallback.",
+        )
+        + "<div class='chart-grid'>"
+        + chart_panel(
+            "Current RL/fallback allocation",
+            "Current asset weights generated from the risk score and bank node stress.",
+            chart_html(allocation_fig, True),
+        )
+        + chart_panel(
+            "Bank node stress",
+            "The cross-sectional stress ranking used to reduce exposure to more vulnerable institutions.",
+            chart_html(bank_chart(bank_table)),
+        )
+        + "</div><details><summary>Current model weights</summary><div>"
+        + table_html(weight_table)
+        + "</div></details>"
+        + section_heading(
+            "cvar-strategy",
+            "Models · Governed",
+            "CVaR strategy",
+            "The primary portfolio construction model uses expected shortfall, graph-adjusted covariance, turnover penalties, and explicit constraints.",
+        )
+        + metric_grid(
+            [
+                ("Expected return", f"{cvar_result.diagnostics['expected_return']:.1%}"),
+                ("Annualized volatility", f"{cvar_result.diagnostics['annualized_volatility']:.1%}"),
+                ("Historical CVaR", f"{cvar_result.diagnostics['historical_cvar']:.1%}"),
+                ("Cash weight", f"{cvar_cash:.1%}"),
+            ]
+        )
+        + "<div class='chart-grid'>"
+        + chart_panel(
+            "CVaR allocation",
+            "Constrained current weights, including explicit cash and sector exposure.",
+            chart_html(cvar_weight_chart(cvar_result.weights)),
+        )
+        + chart_panel(
+            "Risk-return frontier",
+            "Feasible portfolios across return and expected-shortfall trade-offs under the same constraints.",
+            chart_html(cvar_frontier_chart(cvar_frontier)),
+        )
+        + chart_panel(
+            "Risk contribution",
+            "Asset contribution to total portfolio risk; concentration is visible even when nominal weights look balanced.",
+            chart_html(cvar_risk_contribution_chart(cvar_result.risk_contributions)),
+        )
+        + chart_panel(
+            "Graph-adjusted covariance",
+            "Covariance after systemic-network inflation; warmer cells represent stronger joint risk.",
+            chart_html(covariance_heatmap(cvar_result.adjusted_covariance, "Graph-Adjusted Covariance")),
+        )
+        + "</div><details><summary>Risk budget, constraints, and centrality penalties</summary><div>"
+        + table_html(cvar_weights_display)
+        + table_html(cvar_penalties)
+        + "</div></details>"
+        + section_heading(
+            "comparison",
+            "Models · Comparison",
+            "RL and CVaR answer different governance needs",
+            "Observed simulated results are shown alongside qualitative differences. Neither model is presented as universally superior.",
+        )
+        + table_html(model_comparison)
+        + "<div class='chart-grid'>"
+        + chart_panel(
+            "Simulated strategy value",
+            "Both strategies use the same starting capital and cost framework; results are historical simulations.",
+            chart_html(cvar_value_chart(cvar_paper.ledger, pd.DataFrame({"RL research baseline": rl_paper.ledger["portfolio_value"]}))),
+        )
+        + chart_panel(
+            "Exposure behavior",
+            "Financial exposure and cash weights show how each strategy changes posture through time.",
+            chart_html(exposure_chart(cvar_paper.ledger, rl_paper.ledger)),
+        )
+        + "</div>"
+        + section_heading(
+            "validation",
+            "Models · Validation",
+            "Out-of-sample evidence and confidence",
+            "A chronological hold-out test measures whether the supervised layer ranks future high-stress periods better than chance.",
+        )
+        + metric_grid(
+            [
+                ("Best model", metrics.iloc[0]["Model"]),
+                ("Best AUC", f"{metrics.iloc[0]['AUC']:.2f}"),
+                ("Confidence", model_confidence),
+                ("Split", "70% train / 30% test"),
+            ]
+        )
+        + "<div class='chart-grid'>"
+        + chart_panel(
+            "ROC curve",
+            "True-positive versus false-positive rates on the chronological hold-out set; the diagonal is random ranking.",
+            chart_html(roc_chart(roc_df, metrics)),
+        )
+        + chart_panel(
+            "Current feature context",
+            "Risk-driver percentiles provide an interpretable bridge from the validation target to current conditions.",
+            chart_html(driver_chart(features)),
+        )
+        + "</div>"
+        + table_html(metrics_display)
+        + "<div class='button-row'><a class='button' href='/decision'>Apply validated evidence to the decision</a></div>"
+    )
+
+    latest_xfn_price = float(prices["XFN.TO"].dropna().iloc[-1]) if "XFN.TO" in prices and prices["XFN.TO"].notna().any() else np.nan
+    latest_policy_rate = latest(macro, "policy_rate", np.nan)
+    largest_increase = recs.loc[recs["Delta"].idxmax()]
+    largest_reduction = recs.loc[recs["Delta"].idxmin()]
+    increase_summary = (
+        f"{largest_increase['Bank']} {largest_increase['Delta']:+.1%} · {largest_increase['Action']}"
+    )
+    reduction_summary = (
+        f"{largest_reduction['Bank']} {largest_reduction['Delta']:+.1%} · {largest_reduction['Action']}"
+    )
+    facts_table = pd.DataFrame(
+        [
+            {"Observed fact": f"Market and macro observation window ends {latest_date}", "Source": "Processed point-in-time dataset"},
+            {"Observed fact": f"Latest XFN series value is ${latest_xfn_price:,.2f}" if pd.notna(latest_xfn_price) else "Latest XFN series value is unavailable", "Source": "Yahoo Finance-compatible market series"},
+            {"Observed fact": f"Latest policy rate is {latest_policy_rate:.2f}%" if pd.notna(latest_policy_rate) else "Latest policy rate is unavailable", "Source": "Bank of Canada-compatible macro series"},
+        ]
+    )
+    calculated_indicators = pd.DataFrame(
+        [
+            {"Calculated indicator": f"Risk score {score:.1f}/100", "Method": "Composite market, macro, and bank stress model"},
+            {"Calculated indicator": f"Highest node stress: {highest_stress_signal['Bank']} {highest_stress_signal['Node Stress']:.1f}/100", "Method": "Rolling volatility, drawdown, and sector beta"},
+            {"Calculated indicator": f"Average cross-bank correlation {avg_corr_net:.2f}", "Method": "63-trading-day return correlation"},
+        ]
+    )
+    cash_posture = pd.DataFrame(
+        [
+            {"Evidence layer": "Regime policy guidance", "Cash posture": positioning["cash_guidance"].split(".")[0], "Interpretation": "Primary decision guardrail tied to the current risk band"},
+            {"Evidence layer": "Transparent fallback output", "Cash posture": f"{fallback_cash:.1%}", "Interpretation": "Heuristic response to score and node stress"},
+            {"Evidence layer": "CVaR model output", "Cash posture": f"{cvar_cash:.1%}", "Interpretation": "Constrained optimizer result under current return and covariance inputs"},
+            {"Evidence layer": "Decision synthesis", "Cash posture": positioning["cash_guidance"].split(".")[0], "Interpretation": f"Use the regime range pending review because cash-posture evidence is {model_agreement.lower()}"},
+        ]
+    )
+    decision_constraints = pd.DataFrame(
+        [
+            {"Constraint": "Maximum Big Six single-name weight", "Limit": "20.0%", "Purpose": "Control institution-specific concentration"},
+            {"Constraint": "Maximum total Canadian financial exposure", "Limit": "70.0%", "Purpose": "Cap Big Six plus XFN systemic exposure"},
+            {"Constraint": "Cash range", "Limit": "5.0%–60.0%", "Purpose": "Preserve liquidity without allowing an unconstrained all-cash result"},
+            {"Constraint": "Long-only and fully invested", "Limit": "No shorts; weights sum to 100%", "Purpose": "Keep the paper mandate auditable"},
+        ]
+    )
+    change_conditions = pd.DataFrame(
+        [
+            {"Condition": "Risk score crosses a regime boundary", "Decision change": "Reset total bank-risk and cash budgets"},
+            {"Condition": "Node-stress leadership changes materially", "Decision change": "Re-rank reduction and due-diligence priorities"},
+            {"Condition": "Scenario stress concentration moves to another bank", "Decision change": "Reallocate hedge or trim priority"},
+            {"Condition": "Fallback and CVaR cash posture diverge further", "Decision change": "Lower confidence and require model review"},
+            {"Condition": "Mandate, cost, or liquidity constraint binds", "Decision change": "Defer or resize the proposed rebalance"},
+        ]
+    )
+    decision_body = (
+        local_tabs(
+            [
+                ("recommendation", "Recommendation"),
+                ("evidence", "Evidence"),
+                ("rebalance", "Rebalance plan"),
+                ("change-conditions", "Change conditions"),
+            ]
+        )
+        + section_heading(
+            "recommendation",
+            "Decision · Portfolio recommendation",
+            "Current risk budget and allocation action",
+            "This is the definitive synthesis of observed risk, model outputs, scenario evidence, and portfolio constraints.",
+        )
+        + regime_html
+        + metric_grid(
+            [
+                ("Bank-risk budget", positioning["total_bank_budget"]),
+                ("Cash policy range", positioning["cash_guidance"].split(".")[0]),
+                ("Largest positive tilt", increase_summary),
+                ("Largest reduction", reduction_summary),
+                ("Cash-posture agreement", model_agreement),
+                ("Validation confidence", f"{model_confidence} · AUC {metrics.iloc[0]['AUC']:.2f}"),
+                ("Historical CVaR", f"{cvar_result.diagnostics['historical_cvar']:.1%}"),
+                ("CVaR / fallback cash", f"{cvar_cash:.1%} / {fallback_cash:.1%}"),
+            ]
+        )
+        + card(
+            "Portfolio recommendation",
+            f"{positioning['sector_bias']} Use a {positioning['total_bank_budget']} aggregate bank budget; "
+            f"{positioning['cash_guidance']} The primary trade-off is lower concentration and tail exposure "
+            "versus potential participation in a bank-sector recovery. Because cash outputs diverge, the regime "
+            "policy range is the decision guardrail and model-specific cash weights remain evidence, not automatic trades.",
+            regime["tone"],
+        )
+        + section_heading(
+            "evidence",
+            "Decision · Evidence",
+            "Separate facts, model outputs, and assumptions",
+            "The labels below make the provenance of each statement explicit.",
+        )
+        + "<span class='label'>Observed facts</span>"
+        + table_html(facts_table)
+        + "<span class='label'>Calculated risk indicators</span>"
+        + table_html(calculated_indicators)
+        + "<span class='label'>Model outputs</span>"
+        + "<div class='chart-grid'>"
+        + chart_panel(
+            "Bank attractiveness score",
+            "Cross-sectional model output combining momentum, stress protection, mean reversion, and macro context.",
+            chart_html(investment_score_chart(signals), True),
+        )
+        + chart_panel(
+            "Signal-derived target weights",
+            "Model target weights relative to the equal-weight reference; these are outputs, not executed trades.",
+            chart_html(investment_weight_chart(signals)),
+        )
+        + "</div>"
+        + "<h3>Cash-posture synthesis</h3>"
+        + table_html(cash_posture)
+        + "<h3>Binding portfolio constraints</h3>"
+        + table_html(decision_constraints)
+        + "<details><summary>Assumptions and limitations</summary><div>"
+        "<p><span class='label'>Assumptions</span> Public-market proxies, rolling historical relationships, "
+        "simplified costs and liquidity, and the documented scenario propagation rules.</p>"
+        "<p><span class='label'>Limitations</span> Public data cannot observe every balance-sheet transmission channel; "
+        "backtests may overfit; correlations and policy behavior can change. Outputs are research analytics, not personalized advice.</p>"
+        "</div></details>"
+        + section_heading(
+            "rebalance",
+            "Decision · Actions",
+            "Prioritized rebalance plan",
+            "Review target changes against costs, liquidity, mandate limits, and the stated confidence before acting.",
+        )
+        + table_html(recs_display)
+        + "<details><summary>Bank-level reasons and confidence</summary><div>"
+        + table_html(signals_display)
+        + "</div></details>"
+        + section_heading(
+            "change-conditions",
+            "Decision · Monitoring",
+            "What would change the recommendation",
+            "These triggers keep the decision conditional and auditable instead of presenting a static answer as certainty.",
+        )
+        + table_html(change_conditions)
+    )
+
+    performance_body = (
+        local_tabs(
+            [
+                ("strategy-performance", "Strategy performance"),
+                ("paper-portfolio", "Paper portfolio"),
+                ("benchmarks", "Benchmarks"),
+                ("risk-activity", "Risk & activity"),
+            ]
+        )
+        + card(
+            "Historical simulation and paper results",
+            "All results on this page are simulated or paper-traded with fake capital. They are not live returns, "
+            "broker records, forecasts, or evidence of future performance.",
+            "warning",
+        )
+        + section_heading(
+            "strategy-performance",
+            "Performance · Historical simulation",
+            "RL and CVaR strategy performance",
+            "The comparison uses the same starting capital and transaction-cost framework.",
+        )
+        + table_html(comparison)
+        + "<div class='chart-grid'>"
+        + chart_panel(
+            "CVaR paper fund and benchmarks",
+            "Simulated portfolio value versus reference portfolios over the common historical period.",
+            chart_html(cvar_value_chart(cvar_paper.ledger, cvar_benchmarks), True),
+        )
+        + chart_panel(
+            "Strategy exposure",
+            "Bank exposure and cash posture for CVaR and the RL research baseline.",
+            chart_html(exposure_chart(cvar_paper.ledger, rl_paper.ledger)),
+        )
+        + "</div>"
+        + section_heading(
+            "paper-portfolio",
+            "Performance · Paper portfolio",
+            "Current CVaR paper fund",
+            "Fake-money holdings and transactions generated using information available at each rebalance date.",
+        )
+        + metric_grid(
+            [
+                ("Starting capital", "$100,000"),
+                ("Current paper value", f"${cvar_summary['ending_value']:,.0f}"),
+                ("Cumulative return", f"{cvar_summary['cumulative_return']:.1%}"),
+                ("Annualized volatility", f"{cvar_summary['annualized_volatility']:.1%}"),
+                ("Sharpe ratio", f"{cvar_summary['sharpe_ratio']:.2f}"),
+                ("Realized CVaR", f"{cvar_summary['conditional_value_at_risk']:.1%}"),
+                ("Maximum drawdown", f"{cvar_summary['max_drawdown']:.1%}"),
+                ("Transaction costs", f"${cvar_summary['total_transaction_costs']:,.2f}"),
+            ]
+        )
+        + table_html(cvar_holdings_display, label="CVaR paper fund holdings")
+        + section_heading(
+            "benchmarks",
+            "Performance · Context",
+            "Benchmark comparison and drawdowns",
+            "Reference portfolios provide context; differing exposures mean they are not perfect substitutes.",
+        )
+        + "<div class='chart-grid'>"
+        + chart_panel(
+            "Drawdown comparison",
+            "Peak-to-trough decline for the paper strategy and benchmark series.",
+            chart_html(performance_drawdown_chart(cvar_paper.ledger, cvar_benchmarks)),
+        )
+        + chart_panel(
+            "Latest paper allocation",
+            "The most recent paper weights show current concentration and cash posture.",
+            chart_html(performance_allocation_chart(cvar_paper.weights)),
+        )
+        + "</div>"
+        + section_heading(
+            "risk-activity",
+            "Performance · Activity",
+            "Risk posture, turnover, and transactions",
+            "Transaction activity is retained for auditability and shown behind progressive disclosure.",
+        )
+        + chart_panel(
+            "Cash and systemic risk",
+            "Paper cash weight shown with the contemporaneous risk score.",
+            chart_html(cash_risk_chart(cvar_paper.ledger)),
+        )
+        + "<details><summary>Recent simulated transactions</summary><div>"
+        + table_html(cvar_trades_display, label="CVaR paper fund recent transactions")
+        + "</div></details>"
+        + "<details><summary>RL paper portfolio detail</summary><div>"
+        + metric_grid(
+            [
+                ("Policy source", paper_policy_source),
+                ("Current value", f"${paper_summary['ending_value']:,.0f}"),
+                ("Cumulative return", f"{paper_summary['cumulative_return']:.1%}"),
+                ("Sharpe ratio", f"{paper_summary['sharpe_ratio']:.2f}"),
+                ("Maximum drawdown", f"{paper_summary['max_drawdown']:.1%}"),
+            ]
+        )
+        + table_html(paper_holdings_display, label="RL paper portfolio holdings")
+        + table_html(paper_trades_display, label="RL paper portfolio recent transactions")
+        + "</div></details>"
+    )
+
+    research_body = (
+        local_tabs(
+            [
+                ("data", "Data"),
+                ("methodology", "Methodology"),
+                ("assumptions", "Assumptions"),
+                ("limitations", "Limitations"),
+                ("references", "References"),
+            ]
+        )
+        + section_heading(
+            "data",
+            "Research · Data",
+            "Data catalog and lineage",
+            "Each input is documented by role, date range, shape, and analytical purpose.",
+        )
+        + metric_grid(
+            [
+                ("CSV files", f"{len(inventory):,}"),
+                ("Total rows", f"{int(inventory['Rows'].fillna(0).sum()):,}"),
+                ("Documented files", f"{inventory['Explanation'].notna().sum():,}"),
+                ("Latest dataset", latest_date),
+            ]
+        )
+        + table_html(inventory[["CSV", "Rows", "Columns", "Date Range", "Role", "Explanation"]])
+        + section_heading(
+            "methodology",
+            "Research · Methodology",
+            "How the analytical system works",
+            "Technical depth is available here without competing with the primary decision workflow.",
+        )
+        + "<div class='page-links'>"
+        "<a href='#risk-method'><strong>Risk score</strong><span>Point-in-time rolling features and historical percentile ranks.</span></a>"
+        "<a href='#graph-method'><strong>Contagion graph</strong><span>Dynamic interdependence from correlations and exposure proxies.</span></a>"
+        "<a href='#scenario-method'><strong>Scenario propagation</strong><span>Exogenous shocks spread through a normalized adjacency matrix.</span></a>"
+        "<a href='#portfolio-method'><strong>Portfolio models</strong><span>Experimental RL and constrained graph-aware CVaR allocation.</span></a>"
+        "</div>"
+        "<details id='risk-method'><summary>Risk score methodology</summary><div><p>"
+        "Market, bank, macro, volatility, drawdown, and correlation features use rolling point-in-time windows. "
+        "Components are normalized to interpretable 0–100 stress scores and combined into the composite risk score."
+        "</p></div></details>"
+        "<details id='graph-method'><summary>Network methodology</summary><div><p>"
+        "The graph represents interdependence using rolling correlations and configurable exposure proxies. "
+        "Centrality and density inform transmission analysis and covariance inflation."
+        "</p></div></details>"
+        "<details id='scenario-method'><summary>Scenario methodology</summary><div><p>"
+        "Scenarios inject documented exogenous bank shocks and propagate them through the normalized positive-correlation network. "
+        "Outputs are conditional stress paths, not forecasts."
+        "</p></div></details>"
+        "<details id='portfolio-method'><summary>Portfolio methodology</summary><div><p>"
+        "The CVaR objective balances expected return, expected shortfall, volatility, graph contagion, and turnover under "
+        "long-only, cash, single-name, and financial-exposure constraints. RL remains an experimental comparator."
+        "</p></div></details>"
+        + section_heading(
+            "assumptions",
+            "Research · Assumptions",
+            "Material modeling assumptions",
+            "These assumptions are required to interpret the outputs safely.",
+        )
+        + "<ul class='driver-list'>"
+        "<li>Credit spreads, mortgage stress, capital, and exposure profiles may use public proxies or manual templates.</li>"
+        "<li>Historical return relationships are informative but may not persist during a future crisis.</li>"
+        "<li>Backtests use simplified transaction-cost, liquidity, and execution assumptions.</li>"
+        "<li>Paper simulations use prior-day established holdings to avoid earning returns on future information.</li>"
+        "</ul>"
+        + section_heading(
+            "limitations",
+            "Research · Limitations",
+            "Known boundaries of the analysis",
+            "These limits apply across every page and should be considered before using any result.",
+        )
+        + "<ul class='driver-list'>"
+        "<li>This is an educational research simulator, not personalized financial advice or a regulatory model.</li>"
+        "<li>Public market data cannot observe all balance-sheet, funding, capital, mortgage, CRE, or counterparty channels.</li>"
+        "<li>RL behavior is sensitive to reward design, training history, and regime coverage.</li>"
+        "<li>Scenario propagation simplifies feedback loops and should not be interpreted as a probability forecast.</li>"
+        "<li>Backtests and paper portfolios may overfit and do not represent live performance.</li>"
+        "</ul>"
+        + section_heading(
+            "references",
+            "Research · References",
+            "Primary data and internal documentation",
+            "Source names identify provenance without implying endorsement.",
+        )
+        + "<p>Market data: Yahoo Finance-compatible public series. Macro and rate data: Bank of Canada Valet series. "
+        "Internal documentation: methodology report, model card, limitations report, configuration files, and dataset README.</p>"
+    )
+
+    return {
+        "overview": page_template(
+            "overview",
+            "Systemic risk, translated into a portfolio decision",
+            "A single institutional workflow for Canadian bank market conditions, contagion, scenarios, models, and action.",
+            overview_body,
+            latest_date,
+        ),
+        "risk": page_template(
+            "risk",
+            "Systemic risk evidence",
+            "Network interconnectedness and the composite risk score in one analytical area.",
+            risk_body,
+            latest_date,
+        ),
+        "scenarios": page_template(
+            "scenarios",
+            "Scenario analysis",
+            "Assumptions, bank transmission, network propagation, portfolio impact, and resulting risk response.",
+            scenario_body,
+            latest_date,
+        ),
+        "models": page_template(
+            "models",
+            "Portfolio models",
+            "Experimental RL, governed CVaR, comparative behavior, and validation evidence.",
+            models_body,
+            latest_date,
+        ),
+        "decision": page_template(
+            "decision",
+            "Portfolio decision",
+            "The definitive risk budget, allocation recommendation, rationale, and rebalance endpoint.",
+            decision_body,
+            latest_date,
+        ),
+        "performance": page_template(
+            "performance",
+            "Performance and paper portfolios",
+            "Clearly labeled historical simulations, paper holdings, benchmarks, drawdowns, and activity.",
+            performance_body,
+            latest_date,
+        ),
+        "research": page_template(
+            "research",
+            "Research and methodology",
+            "Data lineage, methodology, assumptions, limitations, and references.",
+            research_body,
+            latest_date,
+        ),
+    }
 
 
 def write_pages() -> None:
@@ -1497,10 +2753,10 @@ def write_pages() -> None:
     PUBLIC.mkdir(parents=True)
     pages = build_pages()
     for slug, html in pages.items():
-        filename = "index.html" if slug == "about" else f"{slug}.html"
+        filename = "index.html" if slug == "overview" else f"{slug}.html"
         (PUBLIC / filename).write_text(html, encoding="utf-8")
         (ROOT / filename).write_text(html, encoding="utf-8")
-    ROOT_INDEX.write_text(pages["about"], encoding="utf-8")
+    ROOT_INDEX.write_text(pages["overview"], encoding="utf-8")
     print(f"Wrote {len(pages)} pages to {PUBLIC} and root HTML files")
 
 

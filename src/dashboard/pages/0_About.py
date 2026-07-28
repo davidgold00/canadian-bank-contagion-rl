@@ -9,7 +9,6 @@ from src.dashboard.insight_utils import latest_valid_date, load_features
 from src.dashboard.ui_components import analyst_header, apply_dashboard_style, business_value_panel, decision_callout, insight_card, mandate_fit_table
 
 
-st.set_page_config(page_title="About | Canadian Bank Contagion RL", layout="wide")
 apply_dashboard_style()
 
 features = load_features()
@@ -121,7 +120,7 @@ with tab3:
                 "Decision Use": "Extend the model with ownership overlap and market-implied credit risk.",
             },
         ],
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 

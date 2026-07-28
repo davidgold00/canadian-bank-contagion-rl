@@ -78,7 +78,6 @@ def chart_for_csv(selected: str, df: pd.DataFrame) -> go.Figure:
     return fig
 
 
-st.set_page_config(page_title="Data Catalog", layout="wide")
 apply_dashboard_style()
 
 inventory = csv_inventory()
@@ -137,7 +136,7 @@ tab1, tab2, tab3 = st.tabs(["CSV Inventory", "Chart Explorer", "How Data Flows"]
 
 with tab1:
     st.subheader("Inventory and Business Meaning")
-    st.dataframe(inventory, use_container_width=True, hide_index=True)
+    st.dataframe(inventory, width="stretch", hide_index=True)
 
 with tab2:
     st.subheader("CSV Chart Explorer")
@@ -154,7 +153,7 @@ with tab2:
     c1, c2 = st.columns([0.65, 0.35])
     with c1:
         fig = chart_for_csv(selected, df)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     with c2:
         st.markdown("#### File Profile")
         file_profile = pd.DataFrame(
@@ -167,12 +166,12 @@ with tab2:
         )
         st.dataframe(
             file_profile,
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
 
     st.markdown("#### Preview")
-    st.dataframe(df.head(25), use_container_width=True)
+    st.dataframe(df.head(25), width="stretch")
 
 with tab3:
     st.subheader("From CSV to Insight")

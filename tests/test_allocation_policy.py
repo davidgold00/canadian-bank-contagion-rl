@@ -1,7 +1,12 @@
 import numpy as np
 import pandas as pd
 
-from src.portfolio.allocation_policy import BANKS, CASH_ASSET, generate_model_allocation
+from src.portfolio.allocation_policy import (
+    BANKS,
+    CASH_ASSET,
+    FINANCIAL_EXPOSURE_ASSETS,
+    generate_model_allocation,
+)
 
 
 def _sample_prices_features(n=40):
@@ -32,6 +37,7 @@ def test_fallback_weights_sum_to_one_and_are_long_only():
     assert abs(result.weights.sum() - 1.0) < 1e-9
     assert (result.weights >= 0).all()
     assert result.weights.loc[[b for b in BANKS if b in result.weights.index]].sum() <= 0.70 + 1e-9
+    assert result.weights.reindex(FINANCIAL_EXPOSURE_ASSETS).fillna(0.0).sum() <= 0.70 + 1e-9
     assert result.weights.loc[[b for b in BANKS if b in result.weights.index]].max() <= 0.20 + 1e-9
     assert CASH_ASSET in result.reasons
 

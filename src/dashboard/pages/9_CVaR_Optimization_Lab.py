@@ -40,7 +40,6 @@ from src.portfolio.cvar_optimizer import (
 )
 from src.portfolio.portfolio_constraints import PortfolioConstraints
 
-st.set_page_config(page_title="CVaR Optimization Lab", layout="wide")
 apply_dashboard_style()
 
 
@@ -250,7 +249,7 @@ with tab1:
             **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
             height=460,
         )
-        st.plotly_chart(fig_w, use_container_width=True)
+        st.plotly_chart(fig_w, width="stretch")
 
     with c2:
         rc = result.risk_contributions.sort_values("Contagion Contribution", ascending=True)
@@ -269,7 +268,7 @@ with tab1:
             **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
             height=460,
         )
-        st.plotly_chart(fig_ctg, use_container_width=True)
+        st.plotly_chart(fig_ctg, width="stretch")
 
     insight_card(
         "How to Read the Weights",
@@ -330,9 +329,9 @@ with tab2:
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=500,
     )
-    st.plotly_chart(fig_frontier, use_container_width=True)
+    st.plotly_chart(fig_frontier, width="stretch")
 
-    st.dataframe(frontier, use_container_width=True, hide_index=True)
+    st.dataframe(frontier, width="stretch", hide_index=True)
     insight_card(
         "Reading the Frontier",
         "Each point represents a different risk-aversion setting. Moving left (lower CVaR) means accepting lower expected return "
@@ -363,7 +362,7 @@ with tab3:
             **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
             height=420,
         )
-        st.plotly_chart(fig_vol, use_container_width=True)
+        st.plotly_chart(fig_vol, width="stretch")
 
     with c2:
         rc_cvar = result.risk_contributions.sort_values("CVaR Contribution", ascending=True)
@@ -382,13 +381,13 @@ with tab3:
             **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
             height=420,
         )
-        st.plotly_chart(fig_cvar_c, use_container_width=True)
+        st.plotly_chart(fig_cvar_c, width="stretch")
 
     # Full risk decomp table
     rd_display = rd.copy()
     for col in ["Weight", "Standalone Vol", "Marginal Risk", "Component Risk", "% of Portfolio Risk"]:
         rd_display[col] = rd_display[col].map(lambda x: f"{x:.2%}")
-    st.dataframe(rd_display, use_container_width=True, hide_index=True)
+    st.dataframe(rd_display, width="stretch", hide_index=True)
 
     interpretation_box("Risk Budget Interpretation", [
         "Component risk = weight × marginal contribution. Sums to total portfolio volatility.",
@@ -408,7 +407,7 @@ with tab4:
             colorscale="RdBu_r", colorbar=dict(title="Cov", tickfont=dict(color=PALETTE["muted"])),
         ))
         fig_base.update_layout(title="Shrinkage Covariance (Ledoit-Wolf)", **PLOTLY_TEMPLATE["layout"].to_plotly_json(), height=500)
-        st.plotly_chart(fig_base, use_container_width=True)
+        st.plotly_chart(fig_base, width="stretch")
 
     with c2:
         adj_cov = result.adjusted_covariance
@@ -417,7 +416,7 @@ with tab4:
             colorscale="RdBu_r", colorbar=dict(title="Adj Cov", tickfont=dict(color=PALETTE["muted"])),
         ))
         fig_adj.update_layout(title="Graph-Adjusted Effective Covariance", **PLOTLY_TEMPLATE["layout"].to_plotly_json(), height=500)
-        st.plotly_chart(fig_adj, use_container_width=True)
+        st.plotly_chart(fig_adj, width="stretch")
 
     insight_card(
         "Why the Graph Adjustment Matters",
@@ -427,7 +426,7 @@ with tab4:
         "This prevents the optimizer from treating correlated banks as genuine diversifiers.",
         status="warning" if diag['graph_density'] > 0.65 else "info",
     )
-    st.dataframe(penalty_table, use_container_width=True, hide_index=True)
+    st.dataframe(penalty_table, width="stretch", hide_index=True)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 with tab5:
@@ -480,13 +479,13 @@ with tab5:
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=400,
     )
-    st.plotly_chart(fig_loss, use_container_width=True)
+    st.plotly_chart(fig_loss, width="stretch")
 
     loss_display = loss_df.copy()
     loss_display["Weight"] = loss_display["Weight"].map(lambda x: f"{x:.1%}")
     loss_display["Shock"] = loss_display["Shock"].map(lambda x: f"{x:+.1%}")
     loss_display["P&L"] = loss_display["P&L"].map(lambda x: f"{x:+.2%}")
-    st.dataframe(loss_display, use_container_width=True, hide_index=True)
+    st.dataframe(loss_display, width="stretch", hide_index=True)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 with tab6:
@@ -520,15 +519,15 @@ with tab6:
         {"Method": "Monte Carlo (5,000 sims)", "CVaR": format_percent(mc_result["mc_cvar"]),
          "Assumption": "Cholesky multivariate normal", "Best For": "Scenario sampling, non-additive structures"},
     ])
-    st.dataframe(cvar_compare, use_container_width=True, hide_index=True)
+    st.dataframe(cvar_compare, width="stretch", hide_index=True)
 
     st.subheader("Raw Diagnostics")
-    st.dataframe(diagnostics_table.astype(str), use_container_width=True, hide_index=True)
-    st.dataframe(result.constraint_diagnostics.astype(str), use_container_width=True, hide_index=True)
+    st.dataframe(diagnostics_table.astype(str), width="stretch", hide_index=True)
+    st.dataframe(result.constraint_diagnostics.astype(str), width="stretch", hide_index=True)
 
     with st.expander("Raw covariance matrices"):
-        st.dataframe(result.base_covariance.round(6), use_container_width=True)
-        st.dataframe(result.adjusted_covariance.round(6), use_container_width=True)
+        st.dataframe(result.base_covariance.round(6), width="stretch")
+        st.dataframe(result.adjusted_covariance.round(6), width="stretch")
 
     st.warning(
         "Limitations: Historical CVaR depends on the lookback window and the quality/completeness of the return series. "

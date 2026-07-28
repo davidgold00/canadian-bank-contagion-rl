@@ -19,7 +19,6 @@ from src.portfolio.paper_trader import CVaRPaperPortfolioSimulator, PaperPortfol
 from src.portfolio.performance_metrics import drawdown_series, performance_summary, rolling_cvar  # noqa: E402
 
 
-st.set_page_config(page_title="RL vs CVaR Comparison", layout="wide")
 apply_dashboard_style()
 
 
@@ -362,7 +361,7 @@ decision_memo(
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["Performance", "Risk Regimes", "Allocation Stability", "Research Interpretation", "Raw Diagnostics"])
 
 with tab1:
-    st.dataframe(format_metrics(metrics), use_container_width=True, hide_index=True)
+    st.dataframe(format_metrics(metrics), width="stretch", hide_index=True)
     with st.expander("How to interpret this table for a business user", expanded=False):
         mandate_fit_table()
     equity_series = {
@@ -376,7 +375,7 @@ with tab1:
             "Equity Curve Comparison",
             "Portfolio value",
         ),
-        use_container_width=True,
+        width="stretch",
     )
     c_left, c_right = st.columns(2)
     with c_left:
@@ -388,7 +387,7 @@ with tab1:
                 "Drawdown",
                 ".0%",
             ),
-            use_container_width=True,
+            width="stretch",
         )
     with c_right:
         rolling_cvar_map = {
@@ -402,7 +401,7 @@ with tab1:
                 "CVaR",
                 ".1%",
             ),
-            use_container_width=True,
+            width="stretch",
         )
 
 with tab2:
@@ -425,7 +424,7 @@ with tab2:
     for col in display.columns:
         if col != "Strategy":
             display[col] = display[col].map(lambda x: format_percent(x, 2))
-    st.dataframe(display, use_container_width=True, hide_index=True)
+    st.dataframe(display, width="stretch", hide_index=True)
     st.plotly_chart(
         line_chart(
             {
@@ -438,17 +437,17 @@ with tab2:
             "Weight",
             ".0%",
         ),
-        use_container_width=True,
+        width="stretch",
     )
 
 with tab3:
     c1, c2 = st.columns(2)
     with c1:
-        st.plotly_chart(allocation_heatmap(cvar.weights, "CVaR Allocation Heatmap"), use_container_width=True)
-        st.plotly_chart(line_chart({"CVaR turnover": cvar.ledger["turnover"]}, "CVaR Turnover", "Turnover", ".0%"), use_container_width=True)
+        st.plotly_chart(allocation_heatmap(cvar.weights, "CVaR Allocation Heatmap"), width="stretch")
+        st.plotly_chart(line_chart({"CVaR turnover": cvar.ledger["turnover"]}, "CVaR Turnover", "Turnover", ".0%"), width="stretch")
     with c2:
-        st.plotly_chart(allocation_heatmap(rl.weights, "RL Allocation Heatmap"), use_container_width=True)
-        st.plotly_chart(line_chart({"RL turnover": rl.ledger["turnover"]}, "RL Turnover", "Turnover", ".0%"), use_container_width=True)
+        st.plotly_chart(allocation_heatmap(rl.weights, "RL Allocation Heatmap"), width="stretch")
+        st.plotly_chart(line_chart({"RL turnover": rl.ledger["turnover"]}, "RL Turnover", "Turnover", ".0%"), width="stretch")
 
 with tab4:
     st.subheader("Institutional Interpretation")
@@ -485,7 +484,7 @@ with tab5:
     c1, c2 = st.columns(2)
     with c1:
         st.subheader("CVaR Ledger")
-        st.dataframe(cvar.ledger.tail(100), use_container_width=True)
+        st.dataframe(cvar.ledger.tail(100), width="stretch")
     with c2:
         st.subheader("RL Ledger")
-        st.dataframe(rl.ledger.tail(100), use_container_width=True)
+        st.dataframe(rl.ledger.tail(100), width="stretch")

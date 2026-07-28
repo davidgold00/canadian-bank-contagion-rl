@@ -21,7 +21,6 @@ from src.dashboard.insight_utils import (
 from src.dashboard.ui_components import PALETTE, PLOTLY_TEMPLATE, analyst_header, apply_dashboard_style, decision_callout, decision_memo, insight_card, page_intro
 
 
-st.set_page_config(page_title="Systemic Bank Network", layout="wide")
 apply_dashboard_style()
 
 prices = load_prices()
@@ -231,7 +230,7 @@ decision_memo(
 
 left, right = st.columns([0.64, 0.36])
 with left:
-    st.plotly_chart(network_fig(graph, stress), use_container_width=True)
+    st.plotly_chart(network_fig(graph, stress), width="stretch")
 with right:
     if density > 0.70:
         insight_card(
@@ -281,7 +280,7 @@ with tab1:
     show = edges.copy()
     show["Correlation"] = show["Correlation"].map(lambda x: f"{x:.2f}")
     show["Strength"] = show["Strength"].map(lambda x: f"{x:.2f}")
-    st.dataframe(show, use_container_width=True, hide_index=True)
+    st.dataframe(show, width="stretch", hide_index=True)
     top = edges.iloc[0]
     st.warning(
         f"The strongest current channel is {top['Bank Pair']} with correlation {top['Correlation']:.2f}. "
@@ -304,11 +303,11 @@ with tab2:
         axis=1,
     )
     show = ranking[
-        ["Bank", "Name", "Node Stress", "Network Centrality", "Action Readout", "Systemic Interpretation"]
+        ["Bank", "Name", "Node Stress", "Network Centrality", "Risk response", "Systemic Interpretation"]
     ].copy()
     show["Node Stress"] = show["Node Stress"].map(lambda x: f"{x:.1f}/100")
     show["Network Centrality"] = show["Network Centrality"].map(lambda x: f"{x:.2f}")
-    st.dataframe(show, use_container_width=True, hide_index=True)
+    st.dataframe(show, width="stretch", hide_index=True)
 
     c_left, c_right = st.columns(2)
     with c_left:
@@ -327,7 +326,7 @@ with tab2:
             **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
             height=390,
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     with c_right:
         stress_rank = ranking.sort_values("Node Stress", ascending=True)
         fig = go.Figure(go.Bar(
@@ -348,7 +347,7 @@ with tab2:
             **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
             height=390,
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 with tab3:
     st.subheader("Correlation Matrix")
@@ -372,7 +371,7 @@ with tab3:
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=560,
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     decision_callout(
         plain_english="A matrix full of high positive correlations (dark red) means all banks are being driven by the same factors — making diversification across banks less effective.",
         action="When most pairs exceed 0.75, treat the whole bank allocation as one concentrated position and size accordingly.",

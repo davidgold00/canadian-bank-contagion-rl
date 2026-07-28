@@ -27,7 +27,6 @@ from src.dashboard.ui_components import (
     page_intro,
 )
 
-st.set_page_config(page_title="Stress Testing Lab", layout="wide")
 apply_dashboard_style()
 
 BANKS = ["RY.TO", "TD.TO", "BMO.TO", "BNS.TO", "CM.TO", "NA.TO"]
@@ -291,7 +290,7 @@ with tab1:
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=460,
     )
-    st.plotly_chart(fig_prop, use_container_width=True)
+    st.plotly_chart(fig_prop, width="stretch")
 
     ordered_stress = final_stress.sort_values(ascending=True)
     fig_final = go.Figure(go.Bar(
@@ -313,7 +312,7 @@ with tab1:
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=380,
     )
-    st.plotly_chart(fig_final, use_container_width=True)
+    st.plotly_chart(fig_final, width="stretch")
 
     scenario_table = pd.DataFrame({
         "Bank": BANKS,
@@ -321,7 +320,7 @@ with tab1:
         "Final Stress": [f"{final_stress.get(b, 0):.1f}/100" for b in BANKS],
         "Incremental": [f"{final_stress.get(b, 0) - initial.get(b, 0):+.1f}" for b in BANKS],
     })
-    st.dataframe(scenario_table, use_container_width=True, hide_index=True)
+    st.dataframe(scenario_table, width="stretch", hide_index=True)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 with tab2:
@@ -383,13 +382,13 @@ with tab2:
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=400,
     )
-    st.plotly_chart(fig_pnl, use_container_width=True)
+    st.plotly_chart(fig_pnl, width="stretch")
 
     pnl_display = pnl_df.copy()
     pnl_display["Weight"] = pnl_display["Weight"].map(lambda x: f"{x:.1%}")
     pnl_display["Scenario Shock"] = pnl_display["Scenario Shock"].map(lambda x: f"{x:+.1%}")
     pnl_display["P&L Contribution"] = pnl_display["P&L Contribution"].map(lambda x: f"{x:+.2%}")
-    st.dataframe(pnl_display, use_container_width=True, hide_index=True)
+    st.dataframe(pnl_display, width="stretch", hide_index=True)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 with tab3:
@@ -435,7 +434,7 @@ with tab3:
         height=460,
         showlegend=False,
     )
-    st.plotly_chart(fig_mc, use_container_width=True)
+    st.plotly_chart(fig_mc, width="stretch")
 
     insight_card(
         "How to Use the MC Distribution",
@@ -505,7 +504,7 @@ with tab4:
     )
     fig_net.update_xaxes(visible=False)
     fig_net.update_yaxes(visible=False)
-    st.plotly_chart(fig_net, use_container_width=True)
+    st.plotly_chart(fig_net, width="stretch")
 
 # ═══════════════════════════════════════════════════════════════════════════════
 with tab5:

@@ -1,5 +1,5 @@
 """
-Investment signal generation for the Canadian Bank Contagion Command Center.
+Investment signal generation for Northern Signal.
 
 Translates raw risk metrics into explicit portfolio decisions:
   - Multi-factor composite scores per bank (momentum, stress, mean-reversion, macro)
@@ -149,7 +149,7 @@ def _composite_score(
     """
     Weighted composite attractiveness score (0-100, HIGHER = more attractive long).
     Weights shift by regime: in Low risk, momentum matters more;
-    in High/Severe, stress protection (inverted stress) matters more.
+    in Elevated/High/Severe, stress protection (inverted stress) matters more.
     """
     mom = _momentum_score(bank, features)
     stress = _stress_score(bank, features)

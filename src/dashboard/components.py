@@ -40,7 +40,7 @@ def explanation_box(title: str, body: str, tone: str = "info") -> None:
 
 def dataframe_with_context(df: pd.DataFrame, context: str, hide_index: bool = True) -> None:
     st.caption(context)
-    st.dataframe(df, use_container_width=True, hide_index=hide_index)
+    st.dataframe(df, width="stretch", hide_index=hide_index)
 
 
 def disclaimer_box() -> None:

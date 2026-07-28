@@ -1,5 +1,5 @@
 """
-Premium UI components for the Canadian Bank Contagion Command Center.
+Premium UI components for Northern Signal.
 
 Design language: professional financial terminal — dark accent palette,
 monospace data, color-coded risk indicators, clear signal typography.
@@ -584,7 +584,7 @@ def mandate_fit_table() -> None:
                 },
             ]
         ),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -680,13 +680,13 @@ def signal_table(signals_df: pd.DataFrame) -> None:
             "21D Return": signals_df["21D Return"].map(lambda x: f"{x:+.1%}" if pd.notna(x) else "N/A"),
             "Target Wt": signals_df["Target Weight"].map(lambda x: f"{x:.1%}" if pd.notna(x) else "N/A"),
             "Δ Wt": signals_df["Weight Delta"].map(lambda x: f"{x:+.1%}" if pd.notna(x) else "N/A"),
-            "Decision Readout": signals_df.apply(readout, axis=1),
+            "Portfolio Recommendation": signals_df.apply(readout, axis=1),
         }
     )
 
     st.dataframe(
         display,
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
         column_config={
             "Ticker": st.column_config.TextColumn("Ticker", width="small"),
@@ -698,7 +698,7 @@ def signal_table(signals_df: pd.DataFrame) -> None:
             "21D Return": st.column_config.TextColumn("21D Ret", width="small"),
             "Target Wt": st.column_config.TextColumn("Target Wt", width="small"),
             "Δ Wt": st.column_config.TextColumn("Δ Wt", width="small"),
-            "Decision Readout": st.column_config.TextColumn("Decision Readout", width="large"),
+            "Portfolio Recommendation": st.column_config.TextColumn("Portfolio Recommendation", width="large"),
         },
     )
 
@@ -706,10 +706,12 @@ def signal_table(signals_df: pd.DataFrame) -> None:
 # ── Risk badge ──────────────────────────────────────────────────────────────
 
 def risk_badge(score: float) -> None:
-    if score >= 80:
+    if score >= 90:
         st.error(f"Severe Stress — {score:.1f}/100")
+    elif score >= 80:
+        st.error(f"High Stress — {score:.1f}/100")
     elif score >= 60:
-        st.warning(f"High Stress — {score:.1f}/100")
+        st.warning(f"Elevated Stress — {score:.1f}/100")
     elif score >= 30:
         st.info(f"Moderate Stress — {score:.1f}/100")
     else:
@@ -780,14 +782,14 @@ def styled_heatmap(matrix: pd.DataFrame, title: str, height: int = 500) -> go.Fi
 
 def plot_time_series(df: pd.DataFrame, y: str, title: str, explanation: str | None = None) -> None:
     fig = styled_line(df, y, title)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     if explanation:
         st.markdown(f"<p class='cc-caption'>{explanation}</p>", unsafe_allow_html=True)
 
 
 def plot_heatmap(matrix: pd.DataFrame, title: str, explanation: str | None = None) -> None:
     fig = styled_heatmap(matrix, title)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     if explanation:
         st.markdown(f"<p class='cc-caption'>{explanation}</p>", unsafe_allow_html=True)
 
@@ -892,7 +894,7 @@ def decision_memo(title: str, rows: list[dict[str, str]], tone: str = "info") ->
     insight_card(title, "Each line converts a model observation into a decision implication and a monitoring trigger.", status=tone)
     st.dataframe(
         pd.DataFrame(rows),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
         column_config={
             "Observation": st.column_config.TextColumn("Observation", width="medium"),

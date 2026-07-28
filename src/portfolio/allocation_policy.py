@@ -9,6 +9,7 @@ import pandas as pd
 
 
 BANKS = ["RY.TO", "TD.TO", "BMO.TO", "BNS.TO", "CM.TO", "NA.TO"]
+FINANCIAL_EXPOSURE_ASSETS = BANKS + ["XFN.TO"]
 ETF_CANDIDATES = ["XFN.TO", "XIU.TO", "XIC.TO"]
 CASH_ASSET = "cash"
 DEFAULT_TRADABLES = BANKS + ["XFN.TO", "XIU.TO", CASH_ASSET]
@@ -158,7 +159,7 @@ def _fallback_weights(
 
     xfn_weight = 0.0
     if "XFN.TO" in assets:
-        xfn_weight = float(np.clip((58.0 - risk) / 100.0, 0.0, 0.18))
+        xfn_weight = float(np.clip((58.0 - risk) / 100.0, 0.0, min(0.18, max_bank_exposure)))
 
     market_etf = "XIU.TO" if "XIU.TO" in assets else "XIC.TO" if "XIC.TO" in assets else None
     market_weight = 0.0
@@ -166,7 +167,8 @@ def _fallback_weights(
         market_weight = float(np.clip((50.0 - risk) / 140.0, 0.0, 0.10))
 
     remaining = max(1.0 - cash_weight - xfn_weight - market_weight, 0.0)
-    bank_budget = min(remaining, max_bank_exposure)
+    financial_room = max(max_bank_exposure - xfn_weight, 0.0)
+    bank_budget = min(remaining, financial_room)
     cash_weight += max(remaining - bank_budget, 0.0)
 
     weights = pd.Series(0.0, index=assets, dtype=float)
@@ -200,7 +202,7 @@ def enforce_allocation_constraints(
     max_bank_exposure: float = 0.80,
     banks: Sequence[str] = BANKS,
 ) -> pd.Series:
-    """Enforce long-only, cash-balanced, capped bank allocation constraints."""
+    """Enforce long-only, cash-balanced, capped Canadian-financial exposure."""
     out = weights.astype(float).replace([np.inf, -np.inf], np.nan).fillna(0.0).clip(lower=0.0)
     if CASH_ASSET not in out.index:
         out.loc[CASH_ASSET] = 0.0
@@ -215,11 +217,12 @@ def enforce_allocation_constraints(
             out.loc[bank] = max_single_name_weight
             out.loc[CASH_ASSET] += excess
 
-    bank_total = float(out.loc[bank_cols].sum()) if bank_cols else 0.0
-    if bank_total > max_bank_exposure and bank_total > 0:
-        scale = max_bank_exposure / bank_total
-        released = bank_total - max_bank_exposure
-        out.loc[bank_cols] *= scale
+    financial_cols = [asset for asset in FINANCIAL_EXPOSURE_ASSETS if asset in out.index]
+    financial_total = float(out.loc[financial_cols].sum()) if financial_cols else 0.0
+    if financial_total > max_bank_exposure and financial_total > 0:
+        scale = max_bank_exposure / financial_total
+        released = financial_total - max_bank_exposure
+        out.loc[financial_cols] *= scale
         out.loc[CASH_ASSET] += released
 
     out = out.clip(lower=0.0)

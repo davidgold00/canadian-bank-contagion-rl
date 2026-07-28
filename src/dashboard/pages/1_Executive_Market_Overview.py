@@ -49,7 +49,6 @@ from src.dashboard.ui_components import (
 )
 
 
-st.set_page_config(page_title="Market Overview", layout="wide")
 apply_dashboard_style()
 
 
@@ -198,7 +197,7 @@ with tab1:
             **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
             height=430,
         )
-        st.plotly_chart(fig_score, use_container_width=True)
+        st.plotly_chart(fig_score, width="stretch")
 
     with right:
         action_list("Decision Actions Now", regime["actions"])
@@ -233,11 +232,11 @@ with tab1:
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=380,
     )
-    st.plotly_chart(fig_drivers, use_container_width=True)
+    st.plotly_chart(fig_drivers, width="stretch")
 
     show = drivers[["Driver", "Latest", "Stress Percentile", "Status", "Why it matters"]].copy()
     show["Stress Percentile"] = show["Stress Percentile"].map(lambda x: f"{x:.0%}" if pd.notna(x) else "N/A")
-    st.dataframe(show, use_container_width=True, hide_index=True)
+    st.dataframe(show, width="stretch", hide_index=True)
 
     top_driver = drivers.iloc[0] if not drivers.empty else None
     if top_driver is not None:
@@ -261,7 +260,7 @@ with tab2:
     st.markdown(
         "Multi-factor composite scores combining cross-sectional momentum, node stress (inverted), "
         "mean-reversion potential, and macro tailwinds. "
-        "Regime-conditioned: in High/Severe regimes, stress protection dominates momentum."
+        "Regime-conditioned: in Elevated/High/Severe regimes, stress protection dominates momentum."
     )
 
     signal_table(signals)
@@ -291,7 +290,7 @@ with tab2:
             **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
             height=370,
         )
-        st.plotly_chart(composite_fig, use_container_width=True)
+        st.plotly_chart(composite_fig, width="stretch")
 
     with col2:
         target_w = signals.set_index("Bank")["Target Weight"]
@@ -315,7 +314,7 @@ with tab2:
             **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
             height=370,
         )
-        st.plotly_chart(fig_delta, use_container_width=True)
+        st.plotly_chart(fig_delta, width="stretch")
 
     action_list("Key Risks Flagged by the Model", positioning["key_risks"])
 
@@ -352,7 +351,7 @@ with tab3:
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=440,
     )
-    st.plotly_chart(scatter, use_container_width=True)
+    st.plotly_chart(scatter, width="stretch")
 
     returns_fig = go.Figure(go.Bar(
         x=bank_perf["Bank"],
@@ -372,15 +371,15 @@ with tab3:
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=380,
     )
-    st.plotly_chart(returns_fig, use_container_width=True)
+    st.plotly_chart(returns_fig, width="stretch")
 
     display = bank_perf[[
-        "Bank", "Name", "21D Return", "21D Volatility", "63D Drawdown", "Node Stress", "Action Readout", "Economic Lens"
+        "Bank", "Name", "21D Return", "21D Volatility", "63D Drawdown", "Node Stress", "Risk response", "Economic Lens"
     ]].copy()
     for col in ["21D Return", "21D Volatility", "63D Drawdown"]:
         display[col] = display[col].map(lambda x: pct(x) if pd.notna(x) else "N/A")
     display["Node Stress"] = display["Node Stress"].map(lambda x: f"{x:.1f}/100")
-    st.dataframe(display, use_container_width=True, hide_index=True)
+    st.dataframe(display, width="stretch", hide_index=True)
 
     top_stress = bank_perf.iloc[0] if not bank_perf.empty else None
     if top_stress is not None:
@@ -391,7 +390,7 @@ with tab3:
                 f"Economic context: {top_stress['Economic Lens']}. "
                 "Node Stress combines recent volatility, drawdown depth, and beta to the financial sector."
             ),
-            action=top_stress["Action Readout"] + " — check the Investment Decision Center for specific weight recommendations.",
+            action=top_stress["Risk response"] + " — check the Decision area for specific weight recommendations.",
             tone="warning" if top_stress["Node Stress"] < 70 else "danger",
         )
 
@@ -419,7 +418,7 @@ with tab4:
                 **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
                 height=420,
             )
-            st.plotly_chart(fig_rates, use_container_width=True)
+            st.plotly_chart(fig_rates, width="stretch")
 
     with c2:
         if not prices.empty:
@@ -439,7 +438,7 @@ with tab4:
                 **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
                 height=420,
             )
-            st.plotly_chart(fig_ctx, use_container_width=True)
+            st.plotly_chart(fig_ctx, width="stretch")
 
     insight_card(
         "Economic Transmission",
@@ -455,7 +454,7 @@ with tab4:
         latest_macro = macro[macro_cols].dropna(how="all").tail(1).T.reset_index()
         latest_macro.columns = ["Macro Field", "Latest Value"]
         latest_macro["Latest Value"] = latest_macro["Latest Value"].map(lambda x: f"{x:.3f}%")
-        st.dataframe(latest_macro, use_container_width=True, hide_index=True)
+        st.dataframe(latest_macro, width="stretch", hide_index=True)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 with tab5:
@@ -472,7 +471,7 @@ with tab5:
         {"Field": "bank node stress", "Meaning": "Bank-level stress score (vol + drawdown + beta)", "Investment Use": "Rank which holding to trim or hedge first"},
         {"Field": "investment signals", "Meaning": "Multi-factor composite score per bank", "Investment Use": "Explicit BUY/HOLD/REDUCE signals with conviction and target weights"},
     ]
-    st.dataframe(pd.DataFrame(fields), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(fields), width="stretch", hide_index=True)
 
 st.caption(
     "Educational research dashboard. Simulated paper portfolio only. "

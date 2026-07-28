@@ -20,7 +20,6 @@ from src.dashboard.ui_components import (  # noqa: E402
 )
 
 
-st.set_page_config(page_title="Business Value Center", layout="wide")
 apply_dashboard_style()
 
 features = load_features()
@@ -138,7 +137,7 @@ with tab1:
                 },
             ]
         ),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -174,7 +173,7 @@ with tab2:
                 },
             ]
         ),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -235,6 +234,6 @@ with tab4:
                 },
             ]
         ),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )

@@ -1,0 +1,835 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Systemic risk evidence | Northern Signal</title>
+  <meta name="description" content="Canadian bank systemic risk, contagion scenarios, portfolio models, and governed investment decisions.">
+  <meta name="theme-color" content="#0f1923">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    /* ── Tokens ── */
+    :root {
+      --bg:        #0f1923;
+      --surface:   #16202d;
+      --card:      #1c2a38;
+      --border:    #2a3a4a;
+      --border-accent: #486078;
+      --ink:       #e8edf2;
+      --muted:     #91a6b8;
+      --blue:      #0969b8;
+      --blue-lt:   #64b5f6;
+      --green:     #00c853;
+      --amber:     #ffb300;
+      --red:       #ff6b63;
+      --teal:      #00bcd4;
+      --radius:    8px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Base ── */
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      line-height: 1.55;
+      font-size: 15px;
+    }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+    .skip-link {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      z-index: 1000;
+      transform: translateY(-160%);
+      padding: 10px 14px;
+      border-radius: 6px;
+      background: #fff;
+      color: #0f1923;
+      font-weight: 700;
+    }
+    .skip-link:focus { transform: translateY(0); }
+    :focus-visible {
+      outline: 3px solid #90caf9;
+      outline-offset: 3px;
+      border-radius: 4px;
+    }
+
+    /* ── Navigation ── */
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      gap: 20px;
+      align-items: center;
+      min-height: 64px;
+      padding: 10px max(24px, 6vw);
+      background: rgba(15, 25, 35, 0.92);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
+    .nav-brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      letter-spacing: 0.02em;
+      color: var(--ink);
+      text-decoration: none;
+      margin-right: auto;
+      white-space: nowrap;
+    }
+    .nav-brand > span:first-child { color: var(--blue-lt); }
+    .nav-links { display: flex; align-items: center; gap: 4px; }
+    .nav-link {
+      color: var(--muted);
+      text-decoration: none;
+      border-radius: 5px;
+      padding: 8px 10px;
+      font-size: 0.82rem;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .nav-link:hover {
+      color: var(--ink);
+      background: rgba(30, 136, 229, 0.08);
+    }
+    .nav-link.active {
+      background: rgba(66, 165, 245, 0.12);
+      color: #90caf9;
+      font-weight: 600;
+    }
+    .nav-toggle {
+      display: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 7px 11px;
+      background: var(--surface);
+      color: var(--ink);
+      font: inherit;
+    }
+
+    /* ── Header ── */
+    header {
+      padding: 58px max(24px, 6vw) 40px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+    .eyebrow {
+      display: block;
+      margin-bottom: 10px;
+      color: #90caf9;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+    }
+    h1 {
+      font-size: 2.7rem;
+      font-weight: 700;
+      letter-spacing: 0;
+      line-height: 1.1;
+      color: var(--ink);
+      margin-bottom: 10px;
+      position: relative;
+    }
+    .subtitle {
+      font-size: 1.05rem;
+      color: #9bb4c8;
+      max-width: 820px;
+      margin-bottom: 14px;
+      position: relative;
+    }
+    .pill {
+      display: inline-block;
+      margin: 3px 6px 3px 0;
+      padding: 4px 10px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.04);
+      color: var(--muted);
+      font-size: 0.76rem;
+      letter-spacing: 0.02em;
+    }
+
+    /* ── Main ── */
+    main {
+      padding: 32px 6vw 64px;
+      max-width: 1360px;
+      margin: 0 auto;
+    }
+    h2 {
+      font-size: clamp(1.2rem, 2.5vw, 1.7rem);
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: var(--ink);
+      margin: 44px 0 14px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    h3 { font-size: 1.05rem; font-weight: 600; color: var(--ink); margin-bottom: 8px; margin-top: 24px; }
+    p { color: #c5d1db; max-width: 960px; }
+    a { color: var(--blue-lt); }
+
+    /* ── Metric grid ── */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin: 22px 0 28px;
+    }
+    .metric {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 16px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+      position: relative;
+      overflow: hidden;
+    }
+    .metric::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--blue), transparent);
+    }
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      font-weight: 500;
+      margin-bottom: 6px;
+    }
+    .metric strong {
+      display: block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.5rem;
+      font-weight: 500;
+      color: var(--ink);
+      line-height: 1.1;
+    }
+    .metric.green::before { background: linear-gradient(90deg, var(--green), transparent); }
+    .metric.red::before   { background: linear-gradient(90deg, var(--red), transparent); }
+    .metric.amber::before { background: linear-gradient(90deg, var(--amber), transparent); }
+    .metric.teal::before  { background: linear-gradient(90deg, var(--teal), transparent); }
+
+    /* ── Callout cards ── */
+    .callout {
+      border-left: 4px solid var(--blue);
+      background: rgba(30, 136, 229, 0.07);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      padding: 16px 20px;
+      margin: 18px 0;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+    }
+    .callout-title { color: var(--blue-lt); margin: 0 0 6px; font-size: 0.95rem; font-weight: 700; }
+    .callout p  { color: #c5d1db; font-size: 0.91rem; margin: 0; }
+    .callout.danger  { border-left-color: var(--red);   background: rgba(244, 67, 54, 0.07);  }
+    .callout.danger .callout-title  { color: #ffaaa5; }
+    .callout.warning { border-left-color: var(--amber); background: rgba(255, 179, 0, 0.07); }
+    .callout.warning .callout-title { color: #ffe082; }
+    .callout.success { border-left-color: var(--green); background: rgba(0, 200, 83, 0.07); }
+    .callout.success .callout-title { color: #a5d6a7; }
+    .callout.teal    { border-left-color: var(--teal);  background: rgba(0, 188, 212, 0.07); }
+    .callout.teal .callout-title    { color: #80deea; }
+
+    /* ── Chart grid ── */
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+    .chart-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    }
+    .chart-context { padding: 18px 20px 0; }
+    .chart-context h3 { margin: 0 0 4px; }
+    .chart-context p, figcaption {
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+    figcaption { padding: 0 20px 18px; }
+
+    /* ── Data table ── */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 14px 0 28px;
+      font-size: 0.87rem;
+      background: var(--surface);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .data-table th {
+      background: #1c2a38;
+      color: var(--muted);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      font-weight: 600;
+      padding: 11px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .data-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(42, 58, 74, 0.6);
+      color: #c5d1db;
+      vertical-align: top;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.83rem;
+    }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: rgba(30, 136, 229, 0.04); }
+    .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .table-scroll:focus-visible { outline-offset: -3px; }
+
+    /* ── Local navigation & page structure ── */
+    .local-tabs {
+      position: sticky;
+      top: 64px;
+      z-index: 80;
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      margin: -32px -6vw 32px;
+      padding: 12px 6vw;
+      background: rgba(22, 32, 45, 0.96);
+      border-bottom: 1px solid var(--border);
+    }
+    .local-tabs a {
+      flex: 0 0 auto;
+      padding: 7px 11px;
+      border-radius: 5px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+    .local-tabs a:hover { color: var(--ink); background: var(--card); }
+    .local-tabs a[aria-current='location'] { color: #90caf9; background: var(--card); }
+    .section-heading {
+      scroll-margin-top: 128px;
+      margin: 56px 0 18px;
+      max-width: 880px;
+    }
+    .section-heading > span {
+      color: #90caf9;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .section-heading h2 { margin: 5px 0 8px; }
+    .section-heading p { color: var(--muted); }
+    .executive-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr);
+      gap: 20px;
+      margin: 8px 0 30px;
+    }
+    .hero-panel, .evidence-panel {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--card);
+      padding: 26px;
+    }
+    .hero-score {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin: 10px 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: clamp(2.5rem, 8vw, 5rem);
+      line-height: 1;
+    }
+    .hero-score small { color: var(--muted); font-size: 1rem; }
+    .driver-list { margin: 16px 0 0; padding-left: 1.2rem; }
+    .driver-list li { padding: 7px 0; border-bottom: 1px solid rgba(42,58,74,.65); }
+    .driver-list li:last-child { border: 0; }
+    .button-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 9px 15px;
+      border: 1px solid var(--blue);
+      border-radius: 6px;
+      background: var(--blue);
+      color: #fff;
+      text-decoration: none;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .button.secondary { background: transparent; color: #90caf9; border-color: var(--border-accent); }
+    .journey {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 1px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--border);
+    }
+    .journey a { min-height: 138px; padding: 20px; background: var(--surface); color: var(--ink); text-decoration: none; }
+    .journey span { display: block; color: #90caf9; font: 500 .75rem 'JetBrains Mono', monospace; }
+    .journey strong { display: block; margin: 8px 0 5px; }
+    .journey small { color: var(--muted); }
+    details {
+      margin: 18px 0;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+    summary { cursor: pointer; padding: 14px 17px; color: var(--ink); font-weight: 650; }
+    details > div { padding: 0 17px 17px; }
+    .label {
+      display: inline-block;
+      padding: 3px 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--muted);
+      font-size: .7rem;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+    .control-panel {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) auto;
+      gap: 16px;
+      align-items: end;
+      margin: 20px 0;
+      padding: 20px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--card);
+    }
+    .field label { display: block; margin-bottom: 7px; color: var(--ink); font-weight: 650; }
+    .field small { display: block; margin-top: 6px; color: var(--muted); }
+    select, input[type='range'] {
+      width: 100%;
+      accent-color: var(--blue-lt);
+    }
+    select {
+      min-height: 42px;
+      padding: 8px 10px;
+      border: 1px solid var(--border-accent);
+      border-radius: 6px;
+      background: var(--surface);
+      color: var(--ink);
+      font: inherit;
+    }
+    .status-line { min-height: 24px; color: var(--muted); font-size: .86rem; }
+
+    /* ── Page links ── */
+    .page-links {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+    .page-links a {
+      display: block;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      color: var(--ink);
+      text-decoration: none;
+      background: var(--card);
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .page-links a:hover {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 1px rgba(30,136,229,0.3);
+    }
+    .page-links a strong { color: var(--blue-lt); display: block; margin-bottom: 4px; }
+    .page-links a span   { color: var(--muted); font-size: 0.84rem; }
+
+    /* ── Signal badges ── */
+    .sig-buy    { display:inline-block; padding:3px 10px; border-radius:999px; background:rgba(0,200,83,0.1);   color:var(--green); border:1px solid var(--green); font-size:0.76rem; font-weight:700; letter-spacing:0.05em; font-family:monospace; }
+    .sig-hold   { display:inline-block; padding:3px 10px; border-radius:999px; background:rgba(255,179,0,0.1);  color:var(--amber); border:1px solid var(--amber); font-size:0.76rem; font-weight:700; letter-spacing:0.05em; font-family:monospace; }
+    .sig-reduce { display:inline-block; padding:3px 10px; border-radius:999px; background:rgba(244,67,54,0.1);  color:var(--red);   border:1px solid var(--red);   font-size:0.76rem; font-weight:700; letter-spacing:0.05em; font-family:monospace; }
+
+    /* ── Regime banner ── */
+    .regime-banner {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 20px;
+      border-radius: var(--radius);
+      margin: 20px 0;
+      border: 1px solid var(--border);
+    }
+    .regime-banner .score {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 2rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .regime-banner .label { font-weight: 700; font-size: 1rem; margin-bottom: 3px; }
+    .regime-banner .desc  { color: #c5d1db; font-size: 0.87rem; }
+
+    /* ── Footer ── */
+    footer {
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+      padding-top: 22px;
+      margin-top: 48px;
+      font-size: 0.83rem;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 980px) {
+      .grid, .chart-grid, .page-links, .executive-grid { grid-template-columns: 1fr; }
+      .control-panel { grid-template-columns: 1fr; align-items: stretch; }
+      .journey { grid-template-columns: 1fr 1fr; }
+      header, main { padding-left: 20px; padding-right: 20px; }
+      .nav { padding: 10px 20px; }
+      .nav-toggle { display: inline-flex; }
+      .nav-links {
+        display: none;
+        position: absolute;
+        top: 63px;
+        left: 0;
+        right: 0;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 2px;
+        padding: 10px 20px 18px;
+        background: #0f1923;
+        border-bottom: 1px solid var(--border);
+      }
+      .nav-links.open { display: flex; }
+      .nav-link { padding: 11px; }
+      .local-tabs { top: 64px; margin-left: -20px; margin-right: -20px; padding-left: 20px; padding-right: 20px; }
+      h1 { font-size: 1.8rem; }
+    }
+    @media (max-width: 600px) {
+      .grid { grid-template-columns: repeat(2, 1fr); }
+      .journey { grid-template-columns: 1fr; }
+      .hero-panel, .evidence-panel { padding: 20px; }
+      .metric { padding: 14px 12px; }
+      .metric strong { font-size: 1.12rem; overflow-wrap: anywhere; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <nav class='nav' aria-label='Primary navigation'><a class='nav-brand' href='/' aria-label='Northern Signal overview'><span aria-hidden='true'>&#9670;</span><span>Northern Signal</span></a><button class='nav-toggle' type='button' aria-expanded='false' aria-controls='primary-links'><span class='sr-only'>Toggle navigation</span><span aria-hidden='true'>Menu</span></button><div class='nav-links' id='primary-links'><a class='nav-link' href='/'>Overview</a><a class='nav-link active' href='/risk' aria-current='page'>Risk</a><a class='nav-link' href='/scenarios'>Scenarios</a><a class='nav-link' href='/models'>Models</a><a class='nav-link' href='/decision'>Decision</a><a class='nav-link' href='/performance'>Performance</a><a class='nav-link' href='/research'>Research</a></div></nav>
+  <header>
+    <span class="eyebrow">Canadian systemic-risk research</span>
+    <h1>Systemic risk evidence</h1>
+    <p class="subtitle">Network interconnectedness and the composite risk score in one analytical area.</p>
+    <span class="pill">&#9679; Data through 2026-07-27</span>
+    <span class="pill">Yahoo Finance · Bank of Canada</span>
+    <span class="pill">CVaR · Graph Network · RL</span>
+  </header>
+  <main id="main-content" tabindex="-1">
+    <nav class='local-tabs' aria-label='Page sections'><a href='#network'>Network</a><a href='#composite-score'>Composite score</a></nav><section class='section-heading' id='network'><span>Risk evidence · Network</span><h2>Where stress can propagate</h2><p>Node size represents network centrality and color represents bank-level stress. Dense co-movement reduces the diversification available within the sector.</p></section><div class='grid'><div class='metric blue'><span>Average correlation</span><strong>0.76</strong></div><div class='metric blue'><span>Most stressed bank</span><strong>CM.TO</strong></div><div class='metric blue'><span>Measurement window</span><strong>63 trading days</strong></div><div class='metric blue'><span>Interpretation</span><strong>Diversification audit</strong></div></div><div class='chart-grid'><figure class='chart-card'><div class='chart-context'><h3>Canadian bank contagion network</h3></div><div>                        <script>window.PlotlyConfig = {MathJaxConfig: 'local'};</script>
+        <script charset="utf-8" src="https://cdn.plot.ly/plotly-3.5.0.min.js" integrity="sha256-fHbNLP+GlIXN+efbQec78UkemUz3NJp7UmfGxC1tNxs=" crossorigin="anonymous"></script>                <div id="950da8ed-0a3e-42f1-812e-f138799499cc" class="plotly-graph-div" style="height:580px; width:100%;"></div>            <script>                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("950da8ed-0a3e-42f1-812e-f138799499cc")) {                    Plotly.newPlot(                        "950da8ed-0a3e-42f1-812e-f138799499cc",                        [{"hoverinfo":"skip","line":{"color":"rgba(120,145,166,0.3)","width":1.5},"mode":"lines","x":[-0.7074798434639794,-0.8142519774393822,null,-0.7074798434639794,0.12651230374994826,null,-0.7074798434639794,0.2707077135247144,null,-0.7074798434639794,1.0,null,-0.7074798434639794,0.12451180362869847,null,-0.8142519774393822,0.12651230374994826,null,-0.8142519774393822,0.2707077135247144,null,-0.8142519774393822,1.0,null,-0.8142519774393822,0.12451180362869847,null,0.12651230374994826,0.2707077135247144,null,0.12651230374994826,1.0,null,0.12651230374994826,0.12451180362869847,null,0.2707077135247144,1.0,null,0.2707077135247144,0.12451180362869847,null,1.0,0.12451180362869847,null],"y":[0.5863053958535004,-0.395222665841182,null,0.5863053958535004,-0.9204517084152704,null,0.5863053958535004,0.8378584896479475,null,0.5863053958535004,-0.04371257815841992,null,0.5863053958535004,-0.06477693308657546,null,-0.395222665841182,-0.9204517084152704,null,-0.395222665841182,0.8378584896479475,null,-0.395222665841182,-0.04371257815841992,null,-0.395222665841182,-0.06477693308657546,null,-0.9204517084152704,0.8378584896479475,null,-0.9204517084152704,-0.04371257815841992,null,-0.9204517084152704,-0.06477693308657546,null,0.8378584896479475,-0.04371257815841992,null,0.8378584896479475,-0.06477693308657546,null,-0.04371257815841992,-0.06477693308657546,null],"type":"scatter"},{"hoverinfo":"text","hovertext":["\u003cb\u003eRY.TO\u003c\u002fb\u003e\u003cbr\u003eRoyal Bank of Canada\u003cbr\u003eStress: 47.4\u002f100\u003cbr\u003elargest diversified Canadian bank; often a proxy for system-wide confidence","\u003cb\u003eTD.TO\u003c\u002fb\u003e\u003cbr\u003eToronto-Dominion Bank\u003cbr\u003eStress: 61.7\u002f100\u003cbr\u003elarge Canadian and US retail footprint; sensitive to North American credit cycles","\u003cb\u003eBMO.TO\u003c\u002fb\u003e\u003cbr\u003eBank of Montreal\u003cbr\u003eStress: 53.1\u002f100\u003cbr\u003eCanada\u002fUS bank with capital-markets and commercial-credit exposure","\u003cb\u003eBNS.TO\u003c\u002fb\u003e\u003cbr\u003eScotiabank\u003cbr\u003eStress: 63.6\u002f100\u003cbr\u003emore international exposure than peers; useful for global risk read-through","\u003cb\u003eCM.TO\u003c\u002fb\u003e\u003cbr\u003eCIBC\u003cbr\u003eStress: 67.5\u002f100\u003cbr\u003edomestic consumer and mortgage sensitivity tends to matter in housing stress","\u003cb\u003eNA.TO\u003c\u002fb\u003e\u003cbr\u003eNational Bank\u003cbr\u003eStress: 66.5\u002f100\u003cbr\u003eQuebec-heavy franchise; smaller but can show regional sentiment shifts"],"marker":{"cmax":100,"cmin":0,"color":[47.3521408075772,61.73371127205416,53.104207647642646,63.55337092667789,67.51819494114646,66.5408249322792],"colorbar":{"tickfont":{"color":"#7a91a6"},"title":{"text":"Stress"}},"colorscale":[[0,"#00c853"],[0.5,"#ffb300"],[1.0,"#f44336"]],"line":{"color":"#16202d","width":2},"showscale":true,"size":[92.0,92.0,92.0,92.0,92.0,92.0]},"mode":"markers+text","text":["RY.TO","TD.TO","BMO.TO","BNS.TO","CM.TO","NA.TO"],"textposition":"top center","x":[-0.7074798434639794,-0.8142519774393822,0.12651230374994826,0.2707077135247144,1.0,0.12451180362869847],"y":[0.5863053958535004,-0.395222665841182,-0.9204517084152704,0.8378584896479475,-0.04371257815841992,-0.06477693308657546],"type":"scatter"}],                        {"template":{"data":{"histogram2dcontour":[{"type":"histogram2dcontour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"choropleth":[{"type":"choropleth","colorbar":{"outlinewidth":0,"ticks":""}}],"histogram2d":[{"type":"histogram2d","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"heatmap":[{"type":"heatmap","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"contourcarpet":[{"type":"contourcarpet","colorbar":{"outlinewidth":0,"ticks":""}}],"contour":[{"type":"contour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"surface":[{"type":"surface","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"mesh3d":[{"type":"mesh3d","colorbar":{"outlinewidth":0,"ticks":""}}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"parcoords":[{"type":"parcoords","line":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolargl":[{"type":"scatterpolargl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"scattergeo":[{"type":"scattergeo","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolar":[{"type":"scatterpolar","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"scattergl":[{"type":"scattergl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatter3d":[{"type":"scatter3d","line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermap":[{"type":"scattermap","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermapbox":[{"type":"scattermapbox","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterternary":[{"type":"scatterternary","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattercarpet":[{"type":"scattercarpet","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"type":"carpet"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}],"barpolar":[{"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"pie":[{"automargin":true,"type":"pie"}]},"layout":{"autotypenumbers":"strict","colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"hovermode":"closest","hoverlabel":{"align":"left"},"paper_bgcolor":"white","plot_bgcolor":"#E5ECF6","polar":{"bgcolor":"#E5ECF6","angularaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"radialaxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"ternary":{"bgcolor":"#E5ECF6","aaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"baxis":{"gridcolor":"white","linecolor":"white","ticks":""},"caxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]]},"xaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"yaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"scene":{"xaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"yaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"zaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"geo":{"bgcolor":"white","landcolor":"#E5ECF6","subunitcolor":"white","showland":true,"showlakes":true,"lakecolor":"white"},"title":{"x":0.05},"mapbox":{"style":"light"}}},"xaxis":{"visible":false,"tickfont":{"color":"#7a91a6"},"title":{"font":{"color":"#7a91a6"}},"gridcolor":"#2a3a4a","linecolor":"#2a3a4a"},"yaxis":{"visible":false,"tickfont":{"color":"#7a91a6"},"title":{"font":{"color":"#7a91a6"}},"gridcolor":"#2a3a4a","linecolor":"#2a3a4a"},"title":{"text":"Bank Contagion Network (size = centrality, color = stress)","font":{"size":14,"color":"#e8edf2"}},"showlegend":false,"font":{"family":"'JetBrains Mono', 'SF Mono', monospace","color":"#e8edf2","size":12},"legend":{"font":{"color":"#e8edf2"},"bgcolor":"rgba(0,0,0,0)"},"margin":{"l":30,"r":20,"t":55,"b":35},"paper_bgcolor":"#16202d","plot_bgcolor":"#0f1923","colorway":["#1e88e5","#00c853","#ffb300","#f44336","#00bcd4","#e040fb"],"height":580},                        {"displayModeBar": false, "responsive": true}                    )                };            </script>        </div><figcaption>Larger institutions are more central transmission points; warmer colors indicate greater current node stress.</figcaption></figure><figure class='chart-card'><div class='chart-context'><h3>Cross-bank correlation</h3></div><div>                            <div id="fd7504d1-8665-4d6d-ad27-c30b54b071e0" class="plotly-graph-div" style="height:460px; width:100%;"></div>            <script>                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("fd7504d1-8665-4d6d-ad27-c30b54b071e0")) {                    Plotly.newPlot(                        "fd7504d1-8665-4d6d-ad27-c30b54b071e0",                        [{"colorbar":{"tickfont":{"color":"#7a91a6"},"title":{"text":"Corr"}},"colorscale":[[0.0,"rgb(5,48,97)"],[0.1,"rgb(33,102,172)"],[0.2,"rgb(67,147,195)"],[0.3,"rgb(146,197,222)"],[0.4,"rgb(209,229,240)"],[0.5,"rgb(247,247,247)"],[0.6,"rgb(253,219,199)"],[0.7,"rgb(244,165,130)"],[0.8,"rgb(214,96,77)"],[0.9,"rgb(178,24,43)"],[1.0,"rgb(103,0,31)"]],"text":{"dtype":"f8","bdata":"AAAAAAAA8D+F61G4HoXrP5qZmZmZmek\u002fmpmZmZmZ6T+4HoXrUbjmP1yPwvUoXOc\u002fhetRuB6F6z8AAAAAAADwP0jhehSuR+k\u002fhetRuB6F6z8UrkfhehTmP1yPwvUoXOc\u002fmpmZmZmZ6T9I4XoUrkfpPwAAAAAAAPA\u002fPQrXo3A96j+uR+F6FK7nP83MzMzMzOQ\u002fmpmZmZmZ6T+F61G4HoXrPz0K16NwPeo\u002fAAAAAAAA8D+kcD0K16PoP2ZmZmZmZuY\u002fuB6F61G45j8UrkfhehTmP65H4XoUruc\u002fpHA9Ctej6D8AAAAAAADwP3E9CtejcOU\u002fXI\u002fC9Shc5z9cj8L1KFznP83MzMzMzOQ\u002fZmZmZmZm5j9xPQrXo3DlPwAAAAAAAPA\u002f","shape":"6, 6"},"texttemplate":"%{text}","x":["RY.TO","TD.TO","BMO.TO","BNS.TO","CM.TO","NA.TO"],"y":["RY.TO","TD.TO","BMO.TO","BNS.TO","CM.TO","NA.TO"],"z":{"dtype":"f8","bdata":"AAAAAAAA8D8w4C2\u002fJn\u002frP64K5QYQrek\u002fah65y0q56T8IJHxppNbmP\u002fNC4Y8RWOc\u002fMOAtvyZ\u002f6z8AAAAAAADwP7xDs+jWLOk\u002fvs11uRiS6z8\u002fx4LMUwfmPxzifvA3gOc\u002frgrlBhCt6T+8Q7Po1izpPwAAAAAAAPA\u002fIlRaAXk16j9rnybTW8XnP5gPEYgn9OQ\u002fah65y0q56T++zXW5GJLrPyJUWgF5Neo\u002fAAAAAAAA8D+uQI6dd7DoP1gUJALfh+Y\u002fCCR8aaTW5j8\u002fx4LMUwfmP2ufJtNbxec\u002frkCOnXew6D8AAAAAAADwP6h3lMqcdOU\u002f80LhjxFY5z8c4n7wN4DnP5gPEYgn9OQ\u002fWBQkAt+H5j+od5TKnHTlPwAAAAAAAPA\u002f","shape":"6, 6"},"zmax":1,"zmin":-1,"type":"heatmap"}],                        {"template":{"data":{"histogram2dcontour":[{"type":"histogram2dcontour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"choropleth":[{"type":"choropleth","colorbar":{"outlinewidth":0,"ticks":""}}],"histogram2d":[{"type":"histogram2d","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"heatmap":[{"type":"heatmap","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"contourcarpet":[{"type":"contourcarpet","colorbar":{"outlinewidth":0,"ticks":""}}],"contour":[{"type":"contour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"surface":[{"type":"surface","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"mesh3d":[{"type":"mesh3d","colorbar":{"outlinewidth":0,"ticks":""}}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"parcoords":[{"type":"parcoords","line":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolargl":[{"type":"scatterpolargl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"scattergeo":[{"type":"scattergeo","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolar":[{"type":"scatterpolar","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"scattergl":[{"type":"scattergl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatter3d":[{"type":"scatter3d","line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermap":[{"type":"scattermap","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermapbox":[{"type":"scattermapbox","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterternary":[{"type":"scatterternary","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattercarpet":[{"type":"scattercarpet","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"type":"carpet"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}],"barpolar":[{"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"pie":[{"automargin":true,"type":"pie"}]},"layout":{"autotypenumbers":"strict","colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"hovermode":"closest","hoverlabel":{"align":"left"},"paper_bgcolor":"white","plot_bgcolor":"#E5ECF6","polar":{"bgcolor":"#E5ECF6","angularaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"radialaxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"ternary":{"bgcolor":"#E5ECF6","aaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"baxis":{"gridcolor":"white","linecolor":"white","ticks":""},"caxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]]},"xaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"yaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"scene":{"xaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"yaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"zaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"geo":{"bgcolor":"white","landcolor":"#E5ECF6","subunitcolor":"white","showland":true,"showlakes":true,"lakecolor":"white"},"title":{"x":0.05},"mapbox":{"style":"light"}}},"title":{"text":"63-Day Bank Correlation Matrix","font":{"size":14,"color":"#e8edf2"}},"font":{"family":"'JetBrains Mono', 'SF Mono', monospace","color":"#e8edf2","size":12},"xaxis":{"tickfont":{"color":"#7a91a6"},"title":{"font":{"color":"#7a91a6"}},"gridcolor":"#2a3a4a","linecolor":"#2a3a4a"},"yaxis":{"tickfont":{"color":"#7a91a6"},"title":{"font":{"color":"#7a91a6"}},"gridcolor":"#2a3a4a","linecolor":"#2a3a4a"},"legend":{"font":{"color":"#e8edf2"},"bgcolor":"rgba(0,0,0,0)"},"margin":{"l":30,"r":20,"t":55,"b":35},"paper_bgcolor":"#16202d","plot_bgcolor":"#0f1923","colorway":["#1e88e5","#00c853","#ffb300","#f44336","#00bcd4","#e040fb"],"height":460},                        {"displayModeBar": false, "responsive": true}                    )                };            </script>        </div><figcaption>Pairwise return correlation over 63 trading days; values nearer 1 imply less independent risk.</figcaption></figure></div><h3>Centrality and material propagation pathways</h3><p>Material links use an absolute 63-day correlation threshold of 0.35. Weighted centrality is the average absolute strength of those links across the five possible peers.</p><div class='table-scroll' role='region' aria-label='Data table: Bank, Material links, Weighted centrality'><table border="1" class="dataframe data-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Bank</th>
+      <th>Material links</th>
+      <th>Weighted centrality</th>
+      <th>Strongest pathway</th>
+      <th>Node stress</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>TD.TO</td>
+      <td>5</td>
+      <td>0.79</td>
+      <td>BNS.TO (0.86)</td>
+      <td>61.7/100</td>
+    </tr>
+    <tr>
+      <td>BNS.TO</td>
+      <td>5</td>
+      <td>0.79</td>
+      <td>TD.TO (0.86)</td>
+      <td>63.6/100</td>
+    </tr>
+    <tr>
+      <td>RY.TO</td>
+      <td>5</td>
+      <td>0.78</td>
+      <td>TD.TO (0.86)</td>
+      <td>47.4/100</td>
+    </tr>
+    <tr>
+      <td>BMO.TO</td>
+      <td>5</td>
+      <td>0.76</td>
+      <td>BNS.TO (0.82)</td>
+      <td>53.1/100</td>
+    </tr>
+    <tr>
+      <td>CM.TO</td>
+      <td>5</td>
+      <td>0.72</td>
+      <td>BNS.TO (0.77)</td>
+      <td>67.5/100</td>
+    </tr>
+    <tr>
+      <td>NA.TO</td>
+      <td>5</td>
+      <td>0.70</td>
+      <td>TD.TO (0.73)</td>
+      <td>66.5/100</td>
+    </tr>
+  </tbody>
+</table></div><details><summary>Strongest pairwise pathways and bank context</summary><div><div class='table-scroll' role='region' aria-label='Data table: Source, Target, 63D correlation'><table border="1" class="dataframe data-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Source</th>
+      <th>Target</th>
+      <th>63D correlation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>RY.TO</td>
+      <td>TD.TO</td>
+      <td>0.86</td>
+    </tr>
+    <tr>
+      <td>BNS.TO</td>
+      <td>TD.TO</td>
+      <td>0.86</td>
+    </tr>
+    <tr>
+      <td>BMO.TO</td>
+      <td>BNS.TO</td>
+      <td>0.82</td>
+    </tr>
+    <tr>
+      <td>BMO.TO</td>
+      <td>RY.TO</td>
+      <td>0.80</td>
+    </tr>
+    <tr>
+      <td>BNS.TO</td>
+      <td>RY.TO</td>
+      <td>0.80</td>
+    </tr>
+    <tr>
+      <td>BMO.TO</td>
+      <td>TD.TO</td>
+      <td>0.79</td>
+    </tr>
+    <tr>
+      <td>BNS.TO</td>
+      <td>CM.TO</td>
+      <td>0.77</td>
+    </tr>
+    <tr>
+      <td>BMO.TO</td>
+      <td>CM.TO</td>
+      <td>0.74</td>
+    </tr>
+    <tr>
+      <td>NA.TO</td>
+      <td>TD.TO</td>
+      <td>0.73</td>
+    </tr>
+    <tr>
+      <td>NA.TO</td>
+      <td>RY.TO</td>
+      <td>0.73</td>
+    </tr>
+  </tbody>
+</table></div><div class='table-scroll' role='region' aria-label='Data table: Bank, Name, 21D Return'><table border="1" class="dataframe data-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Bank</th>
+      <th>Name</th>
+      <th>21D Return</th>
+      <th>Node Stress</th>
+      <th>Risk response</th>
+      <th>Economic Lens</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>CM.TO</td>
+      <td>CIBC</td>
+      <td>4.2%</td>
+      <td>67.5/100</td>
+      <td>Monitor closely</td>
+      <td>domestic consumer and mortgage sensitivity tends to matter in housing stress</td>
+    </tr>
+    <tr>
+      <td>NA.TO</td>
+      <td>National Bank</td>
+      <td>3.5%</td>
+      <td>66.5/100</td>
+      <td>Monitor closely</td>
+      <td>Quebec-heavy franchise; smaller but can show regional sentiment shifts</td>
+    </tr>
+    <tr>
+      <td>BNS.TO</td>
+      <td>Scotiabank</td>
+      <td>1.1%</td>
+      <td>63.6/100</td>
+      <td>Monitor closely</td>
+      <td>more international exposure than peers; useful for global risk read-through</td>
+    </tr>
+    <tr>
+      <td>TD.TO</td>
+      <td>Toronto-Dominion Bank</td>
+      <td>-0.0%</td>
+      <td>61.7/100</td>
+      <td>Monitor closely</td>
+      <td>large Canadian and US retail footprint; sensitive to North American credit cycles</td>
+    </tr>
+    <tr>
+      <td>BMO.TO</td>
+      <td>Bank of Montreal</td>
+      <td>1.4%</td>
+      <td>53.1/100</td>
+      <td>Monitor closely</td>
+      <td>Canada/US bank with capital-markets and commercial-credit exposure</td>
+    </tr>
+    <tr>
+      <td>RY.TO</td>
+      <td>Royal Bank of Canada</td>
+      <td>3.4%</td>
+      <td>47.4/100</td>
+      <td>Monitor closely</td>
+      <td>largest diversified Canadian bank; often a proxy for system-wide confidence</td>
+    </tr>
+  </tbody>
+</table></div></div></details><section class='section-heading' id='composite-score'><span>Risk evidence · Composite score</span><h2>How the current score is formed</h2><p>The risk score combines market, volatility, correlation, macro, and bank-level signals on a consistent 0–100 scale.</p></section><div class='regime-banner' style='background:rgba(255,179,0,0.08);border-color:#ffb300;'><div class='score' style='color:#ffb300'>59/100</div><div><div class='label' style='color:#ffb300'>Moderate Risk Regime</div><div class='desc'>Some stress channels are active, but the system is not in a broad crisis regime.</div></div></div><div class='grid'><div class='metric blue'><span>Risk score</span><strong>59.1/100</strong></div><div class='metric blue'><span>Risk regime</span><strong>Moderate</strong></div><div class='metric blue'><span>Historical percentile</span><strong>62%</strong></div><div class='metric blue'><span>Data updated</span><strong>2026-07-27</strong></div></div><div class='chart-grid'><figure class='chart-card'><div class='chart-context'><h3>Component scores</h3></div><div>                            <div id="5bc3324d-ac3c-46b6-8b0d-0a548cd04027" class="plotly-graph-div" style="height:500px; width:100%;"></div>            <script>                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("5bc3324d-ac3c-46b6-8b0d-0a548cd04027")) {                    Plotly.newPlot(                        "5bc3324d-ac3c-46b6-8b0d-0a548cd04027",                        [{"marker":{"cmax":100,"cmin":0,"color":[3.9644012944983817,29.28802588996764,39.60847412174846,45.99514563106796,54.41729323308271,58.36021505376344,59.0825356170779,68.08795923840172,82.63682933405231],"colorscale":[[0,"#00c853"],[0.5,"#ffb300"],[1.0,"#f44336"]],"showscale":false},"orientation":"h","text":["4.0","29.3","39.6","46.0","54.4","58.4","59.1","68.1","82.6"],"textposition":"auto","x":{"dtype":"f8","bdata":"lLmgBhi3D0Dzz5EQvEk9QJyv4nrizUNA2xia7mD\u002fRkBXd1rdaTVLQG644YYbLk1AaQ3whpCKTUBBFMkfoQVRQNe40s\u002fBqFRA"},"y":["Oil shock","CAD pressure","Yield curve pressure","Bank volatility","Volatility spike","Financials drawdown","Composite score","Global volatility","Bank correlation"],"type":"bar"}],                        {"template":{"data":{"histogram2dcontour":[{"type":"histogram2dcontour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"choropleth":[{"type":"choropleth","colorbar":{"outlinewidth":0,"ticks":""}}],"histogram2d":[{"type":"histogram2d","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"heatmap":[{"type":"heatmap","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"contourcarpet":[{"type":"contourcarpet","colorbar":{"outlinewidth":0,"ticks":""}}],"contour":[{"type":"contour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"surface":[{"type":"surface","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"mesh3d":[{"type":"mesh3d","colorbar":{"outlinewidth":0,"ticks":""}}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"parcoords":[{"type":"parcoords","line":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolargl":[{"type":"scatterpolargl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"scattergeo":[{"type":"scattergeo","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolar":[{"type":"scatterpolar","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"scattergl":[{"type":"scattergl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatter3d":[{"type":"scatter3d","line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermap":[{"type":"scattermap","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermapbox":[{"type":"scattermapbox","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterternary":[{"type":"scatterternary","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattercarpet":[{"type":"scattercarpet","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"type":"carpet"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}],"barpolar":[{"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"pie":[{"automargin":true,"type":"pie"}]},"layout":{"autotypenumbers":"strict","colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"hovermode":"closest","hoverlabel":{"align":"left"},"paper_bgcolor":"white","plot_bgcolor":"#E5ECF6","polar":{"bgcolor":"#E5ECF6","angularaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"radialaxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"ternary":{"bgcolor":"#E5ECF6","aaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"baxis":{"gridcolor":"white","linecolor":"white","ticks":""},"caxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]]},"xaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"yaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"scene":{"xaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"yaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"zaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"geo":{"bgcolor":"white","landcolor":"#E5ECF6","subunitcolor":"white","showland":true,"showlakes":true,"lakecolor":"white"},"title":{"x":0.05},"mapbox":{"style":"light"}}},"title":{"text":"Current Component Stress Scores (0\u2013100)","font":{"size":14,"color":"#e8edf2"}},"xaxis":{"title":{"text":"Score","font":{"color":"#7a91a6"}},"tickfont":{"color":"#7a91a6"},"gridcolor":"#2a3a4a","linecolor":"#2a3a4a"},"font":{"family":"'JetBrains Mono', 'SF Mono', monospace","color":"#e8edf2","size":12},"yaxis":{"tickfont":{"color":"#7a91a6"},"title":{"font":{"color":"#7a91a6"}},"gridcolor":"#2a3a4a","linecolor":"#2a3a4a"},"legend":{"font":{"color":"#e8edf2"},"bgcolor":"rgba(0,0,0,0)"},"margin":{"l":30,"r":20,"t":55,"b":35},"paper_bgcolor":"#16202d","plot_bgcolor":"#0f1923","colorway":["#1e88e5","#00c853","#ffb300","#f44336","#00bcd4","#e040fb"],"height":500},                        {"displayModeBar": false, "responsive": true}                    )                };            </script>        </div><figcaption>Current component values on the same 0–100 stress scale; higher values are more adverse.</figcaption></figure><figure class='chart-card'><div class='chart-context'><h3>Six-month stress breadth</h3></div><div>                            <div id="658ada63-2ee6-4b4f-9c83-8399c356551d" class="plotly-graph-div" style="height:540px; width:100%;"></div>            <script>                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("658ada63-2ee6-4b4f-9c83-8399c356551d")) {                    Plotly.newPlot(                        "658ada63-2ee6-4b4f-9c83-8399c356551d",                        [{"colorbar":{"tickfont":{"color":"#7a91a6"},"title":{"text":"Stress"}},"colorscale":[[0.0,"rgb(0,104,55)"],[0.1,"rgb(26,152,80)"],[0.2,"rgb(102,189,99)"],[0.3,"rgb(166,217,106)"],[0.4,"rgb(217,239,139)"],[0.5,"rgb(255,255,191)"],[0.6,"rgb(254,224,139)"],[0.7,"rgb(253,174,97)"],[0.8,"rgb(244,109,67)"],[0.9,"rgb(215,48,39)"],[1.0,"rgb(165,0,38)"]],"x":["2026-01-29T00:00:00.000000","2026-01-30T00:00:00.000000","2026-02-02T00:00:00.000000","2026-02-03T00:00:00.000000","2026-02-04T00:00:00.000000","2026-02-05T00:00:00.000000","2026-02-06T00:00:00.000000","2026-02-09T00:00:00.000000","2026-02-10T00:00:00.000000","2026-02-11T00:00:00.000000","2026-02-12T00:00:00.000000","2026-02-13T00:00:00.000000","2026-02-17T00:00:00.000000","2026-02-18T00:00:00.000000","2026-02-19T00:00:00.000000","2026-02-20T00:00:00.000000","2026-02-23T00:00:00.000000","2026-02-24T00:00:00.000000","2026-02-25T00:00:00.000000","2026-02-26T00:00:00.000000","2026-02-27T00:00:00.000000","2026-03-02T00:00:00.000000","2026-03-03T00:00:00.000000","2026-03-04T00:00:00.000000","2026-03-05T00:00:00.000000","2026-03-06T00:00:00.000000","2026-03-09T00:00:00.000000","2026-03-10T00:00:00.000000","2026-03-11T00:00:00.000000","2026-03-12T00:00:00.000000","2026-03-13T00:00:00.000000","2026-03-16T00:00:00.000000","2026-03-17T00:00:00.000000","2026-03-18T00:00:00.000000","2026-03-19T00:00:00.000000","2026-03-20T00:00:00.000000","2026-03-23T00:00:00.000000","2026-03-24T00:00:00.000000","2026-03-25T00:00:00.000000","2026-03-26T00:00:00.000000","2026-03-27T00:00:00.000000","2026-03-30T00:00:00.000000","2026-03-31T00:00:00.000000","2026-04-01T00:00:00.000000","2026-04-02T00:00:00.000000","2026-04-06T00:00:00.000000","2026-04-07T00:00:00.000000","2026-04-08T00:00:00.000000","2026-04-09T00:00:00.000000","2026-04-10T00:00:00.000000","2026-04-13T00:00:00.000000","2026-04-14T00:00:00.000000","2026-04-15T00:00:00.000000","2026-04-16T00:00:00.000000","2026-04-17T00:00:00.000000","2026-04-20T00:00:00.000000","2026-04-21T00:00:00.000000","2026-04-22T00:00:00.000000","2026-04-23T00:00:00.000000","2026-04-24T00:00:00.000000","2026-04-27T00:00:00.000000","2026-04-28T00:00:00.000000","2026-04-29T00:00:00.000000","2026-04-30T00:00:00.000000","2026-05-01T00:00:00.000000","2026-05-04T00:00:00.000000","2026-05-05T00:00:00.000000","2026-05-06T00:00:00.000000","2026-05-07T00:00:00.000000","2026-05-08T00:00:00.000000","2026-05-11T00:00:00.000000","2026-05-12T00:00:00.000000","2026-05-13T00:00:00.000000","2026-05-14T00:00:00.000000","2026-05-15T00:00:00.000000","2026-05-18T00:00:00.000000","2026-05-19T00:00:00.000000","2026-05-20T00:00:00.000000","2026-05-21T00:00:00.000000","2026-05-22T00:00:00.000000","2026-05-25T00:00:00.000000","2026-05-26T00:00:00.000000","2026-05-27T00:00:00.000000","2026-05-28T00:00:00.000000","2026-05-29T00:00:00.000000","2026-06-01T00:00:00.000000","2026-06-02T00:00:00.000000","2026-06-03T00:00:00.000000","2026-06-04T00:00:00.000000","2026-06-05T00:00:00.000000","2026-06-08T00:00:00.000000","2026-06-09T00:00:00.000000","2026-06-10T00:00:00.000000","2026-06-11T00:00:00.000000","2026-06-12T00:00:00.000000","2026-06-15T00:00:00.000000","2026-06-16T00:00:00.000000","2026-06-17T00:00:00.000000","2026-06-18T00:00:00.000000","2026-06-19T00:00:00.000000","2026-06-22T00:00:00.000000","2026-06-23T00:00:00.000000","2026-06-24T00:00:00.000000","2026-06-25T00:00:00.000000","2026-06-26T00:00:00.000000","2026-06-29T00:00:00.000000","2026-06-30T00:00:00.000000","2026-07-01T00:00:00.000000","2026-07-02T00:00:00.000000","2026-07-03T00:00:00.000000","2026-07-06T00:00:00.000000","2026-07-07T00:00:00.000000","2026-07-08T00:00:00.000000","2026-07-09T00:00:00.000000","2026-07-10T00:00:00.000000","2026-07-13T00:00:00.000000","2026-07-14T00:00:00.000000","2026-07-15T00:00:00.000000","2026-07-16T00:00:00.000000","2026-07-17T00:00:00.000000","2026-07-20T00:00:00.000000","2026-07-21T00:00:00.000000","2026-07-22T00:00:00.000000","2026-07-23T00:00:00.000000","2026-07-24T00:00:00.000000","2026-07-27T00:00:00.000000"],"y":["Bank volatility","Bank correlation","Financials drawdown","Global volatility","Volatility spike","Yield curve pressure","Oil shock","CAD pressure","Composite score"],"z":{"dtype":"f8","bdata":"2zWjr\u002fzzS0AD6zM8Gr9NQE+c9p28S1BAHOR63WKmTkD7DI\u002fGL01NQBRlLqgBxk1A2\u002fuQLcWKTkDuvxcWUCJQQFqnHs+uGVBA+wyPxi\u002fNUEBspbc5cdpRQOcGuV632FFAGHWoom3tUUCUGPlGochSQG9z4rTvpFFAi5msEUDoUUAwbu9DttRSQMzD5UDL4FJAQk9\u002f7dzgVUC64lWXpBRWQMfQdAf7LVdAQzJ2LEEsV0Dfh2wpVjhXQM5syv33wlZAN4amO9jvVkCjDlW0rVVXQD9kS7HCYVdAs4hPIJVcV0CDGmDc3kdXQMMCSox8Y1dAu8VM1ghgV0DfKBTpzKZXQFuKFQ4TpVdA+N8LCyixV0DnZRGfQKpXQLtm9JV\u002fzldAV7zqkpTaV0BPf+3cINdXQNxa6W1O3FdAYyZrBBA6V0ArOS+L+ERWQBavuiSlllVA58Rp38k7V0BzoGVw90BXQNZKb3PiNFdAO\u002fV4ds0oV0A6syn330tWQEvOyyI+wVZA3+bEad\u002fJVkAOVbStld5WQP6YasLA+lVAPuCssuenVUC1MTTdwf5UQAWUGPlGIVVAvW4xkzUCVUARXfGqSxJUQLDfamNoelNArM\u002fwaPzSUkBA6OmvndtSQDir7Pkp2FJA7HWLmayRTkA6VNG2VvpMQNRfOzfI9U5A2hia7mA\u002fTUBTC8nYsQRNQF8W8QmkUlBA4rTv5F1UUEB8wFllz09SQINcr1vM5FFAiCra1kqvUUBnNuX+e6FRQEAF83A5kFFA\u002f15YQIlRUkCoom2t9HZTQKDEyDcKBVNAoMTINwoFU0CgxMg3CgVTQKDEyDcKBVNAoMTINwoFU0CgxMg3CgVTQKDEyDcKBVNAoMTINwoFU0CgxMg3CgVTQKDEyDcKBVNAoMTINwoFU0CgxMg3CgVTQKDEyDcKBVNAoMTINwoFU0CgxMg3CgVTQKDEyDcKBVNAoMTINwoFU0CgxMg3CgVTQKDEyDcKBVNAoMTINwoFU0CgxMg3CgVTQKDEyDcKBVNAoMTINwoFU0AdCcGbtE5UQJnJGgGE3lNA+ARSyXmZU0CtEUDo6a9TQKXUQjJ2rFNAhOBNWqeeU0AQOKvs+elRQAMtg7sHnE5AtCn33wsLTkDbGJruYP9GQNsYmu5g\u002f0ZA2xia7mD\u002fRkDbGJruYP9GQNsYmu5g\u002f0ZA2xia7mD\u002fRkDbGJruYP9GQNsYmu5g\u002f0ZA2xia7mD\u002fRkDbGJruYP9GQNsYmu5g\u002f0ZA2xia7mD\u002fRkDbGJruYP9GQNsYmu5g\u002f0ZA2xia7mD\u002fRkDbGJruYP9GQNsYmu5g\u002f0ZA2xia7mD\u002fRkDbGJruYP9GQNsYmu5g\u002f0ZARXv+Tc4PM0D5YP98MW81QCiX2vVOKDhAQ8UO8hGsN0BpUo5aYHw2QHdpqNhBPjZA9ykgRqiCN0DO5NHLAz04QGyLTEeDejlA\u002f1GMe6riOED6Yt4yy4A6QAd6+LCsQjpAqw8hdQviOUAbAbBSOu86QP0arUQh9jpAQA8fllVIPEBkZb\u002fHGiw9QIm7X\u002fnfDz5AACul8+6CQUACi0pozeA7QCrM2nY+A0FAr3sALYSpQEB+DkZ93QNAQD\u002fYP1\u002fMWz5A\u002fXLW4ZgNQUCCRwRqAAJDQP9PrcUQ0UNATEeDeiU1READZGPgEYFEQA+ghTAVkUZAEfxsOcDLRkBV8N6K9B1IQJG85KYmEEhA37O6Wzt0SEDDhYZfePBIQLkmO\u002fPso0lAHxVmbTufS0ACi0pozeBLQJ559tH2qExA1VZOpUk5TkAh8jxRs2JOQHlIXnJTE05AVyXfC+T4UEClHLXA+FxRQHgVPaf9SVFAHAdNdAckUUBnRlQXxhJRQHrNC7lTv1FA9ctZh2M2UkCA6xxhVcdSQGRhAVznCFNAR9flVnlKU0B2OkV5H5hTQGh1t3bouFNAxY0CN982VEB5oIcPyypUQD0mDm9DG1RAay2GiD4uVEDVrndCwVBUQE319v56UlRAa9v5DJRLVEBtN+EVP4ZUQJ5SD0o7SVVAGPV1D6CFVUAI1AAEvmtVQHNV8r1AjlVAsH3f4h27VUBXJ77BfQpWQKTCrG3nM1ZAWNUxRtMnVkB2DcHPlgNWQFd5Sj0o7VVAOu8uOLouVkBIBkm2m\u002fBVQDpBu7NkEVZA4DwmDm9DVkAsKqE1g09WQMUO8hGsv1ZAte18BsqlVkBbO3TcfrpWQC\u002fib0fZxFZAUjgQeZ6oV0AI+QjW37lXQJarku8FclZAWYOlyihFVkB4Fxxdl1tWQAKJa7Izz1ZAmAd6+LCsVkBppBrWCl9WQKYelHaSblZAPlVxzmXBVkDUgfOYOLxWQNLJJIfiRlZADkSeJ2pWVkCVT6vmWjdWQOCOsokZJlZADDpDmmn+VUC\u002fQm3lVJpVQLvcKk+pB1VAuCRcPVOSVEC3yHQ0qFdUQPLmBsyELFRAOGTkz+xNU0AJUxEp8eJSQK+gCP+l91JAh+QlNzWBUUCkbkE8oz9RQJdXJ77BfVFAav4iKRyIUUAOQr9x0ERRQEb6DnMBh1BA2hw2sNMpUED1HeYCDhlSQNjlVnlKPVJAQ8MvPHiaUkAH9ykgRqhSQJ11OGbDhVJA99W0FGSOUkBT5KRHWrRSQDDq6x5AC1JAxjt2uzRUVEACtu9bvGNUQNYKX0tsi1RAnJpAOOXTVECN1bI1rvRUQNe40s\u002fBqFRARRNNNNEkUUA00UQTTXRSQAossMACi01ADjfccMNNT0DMLrvssgtNQAAAAAAAQE9AFlhggQVWSUAAAAAAAAA+QFJKKaWU0iFAHnnkkUdeSEBkjDHGGKNNQDfccMMNd0pA4YYbbrhhSEB\u002f+umnn75DQLjhhhtu+EZAd9lll132OkAQQgghhNBKQFtrrbXW2kpAUkoppZTSIUBSSimllNIhQKKJJppo4kxAww033HADSUDtsssuu2xQQEQTTTTRRE5ALrvssstuUUAZY4wxxjhUQDfccMMN11RAXnbZZZfdU0AkjzzyyGNUQD3yyCOP3FVArbXWWmstVkBrrbXWWotUQG644YYbzlNA7bLLLrvMVECUUkoppfRVQEIIIYQQ4lZAOuecc85ZVUCXXXbZZTdVQCmllFJKKVRAGWOMMcZ4VUBba6211npWQE000UQTbVZASimllFIKVEDccMMNN\u002fxSQLDAAgssUFJAdtlll12WUUCVUkoppfRQQAMLLLDAwkVAW2uttdbaNUBSSimllNIhQFJKKaWU0iFAUkoppZTSIUBSSimllNIhQA033HDDTUBAUkoppZTSIUBSSimllNIhQP30008\u002fvURAIYQQQgihR0AfeeSRR35GQB955JFHfkZACyywwAJLR0CiiSaaaGJFQKuqqqqqKk1AUkoppZTSIUDfe++99141QIcbbrjhhkZAWGCBBRbYPEBSSimllNIhQAghhBBCiEBAPfLII4+8MkAvu+yyyy5AQBFCCCGEkDRAHnnkkUceR0BSSimllNIhQHTOOeecE0FAdM4555wTQUB55JFHHvk9QFJKKaWU0iFAUkoppZTSIUBSSimllNIhQFJKKaWU0iFA+N577703QUDwvffee29DQL333nvvfUpAaaKJJpqoSUCKJppooslPQB555JFHnkRAttZaa631SEBSSimllNIhQLbWWmuttTJAUkoppZTSIUBSSimllNIhQOB77733XjpAUkoppZTSIUBSSimllNIhQFJKKaWU0iFAUkoppZTSIUBSSimllNIhQFJKKaWU0iFA6JxzzjnnMUBSSimllNIhQFJKKaWU0iFAYYEFFlhgPkBSSimllNIxQGaXXXbZ5TdAUkoppZTSIUBSSimllNIhQFJKKaWU0iFAwAILLLAAQUCXXXbZZZc0QFJKKaWU0iFAUkoppZTSIUDUTz\u002f99BNMQGOMMcYY40RAUkoppZTSIUDEDTfccMM8QFJKKaWU0iFAUkoppZTSIUC11lprrTU\u002fQEoppZRSSkVAqqqqqqqqUEC44YYbbrhPQJRSSimlVE9AfO+99977UUBHHnnkkWdQQG644YYbLk1A8QQ40DcjTED6hP8WIT5OQBula+ALo0lAv+Q8eXoIUEDavuQ8efpQQFD\u002faXjGZVRAHSvMQoMIU0BfL26LgRFOQE3VjQ5sOk9AmjB8f0\u002faTkCJ1psCOoNTQDsRNctwRVNA8MEHH3zwUkANk4JyvFdSQHbIGKee6VJAb10\u002flWKkUUBorzXSaqxTQJ6mtQokQ1JA+Y0sh9\u002fIT0Aw5vcVwPJQQIKg\u002ftPwjFJAZG44KokSVECl+m3e2JlVQCpN3Id10FNAV2pDigKrVUC0m+QeXtVXQCqgMxDUf1ZAV9S7UOhIVkDUDqhwp+lVQPe0dJwJNFdA7h2MF5kqV0A+pYn7sI5VQOTyTmLo11RACUSR\u002fBFaVkCMavAyesxVQBnc2szYCldARRBjDe3TVkA8rrZrbxlXQHgwXmSqblZALytb0FU+V0Cz0CACUSRYQGAfR7TeFFhAn3hzjhVmVkBwZDn8RhZWQExdIXq9uFVAWRW5+MniVUAIec3fBKlWQBGIIvkjtFNA0PvsRNQsUkBWzcHpA9dRQFGsEvBntlFAzNEQ23mBUEB\u002fDKqjsENQQHKHG\u002f+8z09AJu7DOihWTkDO5v4PJ1dRQOs24F76MVJA3xTQGQhqUUBLwJ\u002fZvuRRQIAhmNhdGVFAOd4r8VcPUEAsrifenGNPQHOePD1EPlFAKXseBIQtTEA53ivxV49MQOLrVPsDZlBAl6VUv80bTkCz4EfZ8yBOQI3EQSK97UxA++VKbUhRTUAzJ\u002fW9oYxQQNKIRw4wBFBACYfBrc2MT0CQT2niPqxNQKITwiU6oVBA9DdBqlBZT0B56\u002fqpFCNQQPqE\u002fxYhPk5ApQqVtXuWS0BzgCGY2F1LQAlLi2P2y0pA7E0BnYGgTECxpBGPHGBJQEUQYw3t00ZAIIrkj9ACRUB2bse3W0hIQI60Gksa8UZAyR+hBc5XSEB+fRzRelNFQHScCTRqJVRA3xTQGQhqUUA\u002fHfaPX5BSQGtvmXXfuVRAv80bO\u002fMZUkAlWDwBDvROQHv57nfdBklAOzZK18AXSkAwsbsyzaNQQG+LgRFxAUpAb4uBEXEBSkDkAEMwsbtNQND77ETULFJAMOb3FcDyUEDqIfIpTVxRQFf50Fw4m1BAmjB8f0\u002faTkBShcraPUtKQAlLi2P2y0pApy13uPHPSECnLXe48c9IQIMIRJH8EUZAogzIvlWvSEABMwnaGDZMQOunUozEQUdAi4ERcQG7Q0BwvorriTdNQIQPPvjgg0pAVgn4M9uXRkBbZt13TnlLQMnFTxaLNlFAxhrap8P+UEAo5ZbKactMQBON6VYuDUtA10irsaQRUUAXIT6HbtZQQEEUyR+hBVFAb5kG+D7pUkClIpaKWEpTQCHCqlE9K01AsT401ocGVECjkGb5B0FVQE\u002fByyl4uVdAFqYMBg4vVkBb3Wl1pzVSQBd67Az7hUhAXW+ZBvg+QED07qlyFaZAQAH1t0G7fU1AFqYMBg4vVkA7zsbviHpUQFrz+fEwulVApUNuxSZxNUCebAfXZm5PQIYT8wQ6b0JAKoOBw3PpNUAU6Lx7qlw3QKAUx+RAXFFA8iUSKm2xT0BJqLTFGylXQItCmuUfhFZAvlrSIbfiV0D0+fEwWqhYQNIht2KTOFdAa18XWRRSU0CFPxP+TFhWQNdbpgG+z1ZA1N8G7fZqL0B2hv1iiLAyQImwalTPmitA443UyXawUUDphRPzBDojQL5PimNyIEZA3xx9c\u002fTNVUAN+8UQYZVXQApIvkRCpU1ALf8g2DquVkDddL1lGmBXQFWuwpTBgFdAX0N5DeW1NUCLTeKjZAZCQNhFFoU0yx9AHIi7shIUAUBvut4yDfARQDkbvyNqahdAXXrhxDyBDkDIuCDjgowTQPJG6mQ7uA5AFbFUxFIR+z85G78jamonQMLA4bn0QjhA60NjfWgsNUAiodIWb+RHQIwWeuwMm1JAsVTEUhFLUUDPpRdOzFNTQHTphRPz5FJAK0HRTdebQUCJj5IZAVQ2QPTYGfaLoUlACki+REKlLUBLUHTT9ZY1QODazP1XAE5AuDZz\u002fxWQRUB1sh1cm7k5QCHCqlE9K01ANLWviyxKTUCBw3PphdNLQBCCreNsvFBAt2KT+CgZUEDpm6Nvjv5MQJ1sB9dm7lJAfzFEWDVqREASKm3xRqpLQGmWfxBs3UVAqX1dZFEIRUClQ27FJnE1QO+ImtrXxTxA1pIOuRWbP0CgFMfkQNw9QAAWkHyJBEBADeU1lNdQOkC3V0s65JZEQEp8lMwIoDxA9oDZA2YPSEAFL6fg5dRGQGYa4PukOFhAz4+H0UIPVkD4VLkKU0ZXQAHU3wbtNlhAQAi2jrMxV0DsF0OEVaMaQLhMA3yfFClAY4iwalTPIEA+SmYEUH8bQI+dYb8YIiVAj51hvxgiJUD4SXFMDmRSQIU\u002fE\u002f5MWFZAqYilIpYKTUDiufTCiZlVQOK59MKJmVVAtebz42H0TkD\u002fNmi3V0slQPFG6mQ7ODJARgD1t0G7KEBGAPW3QbsoQCRU2uKN1DFAx86wXwwRR0ASFN10vWVOQJyut0wDPEdAnK63TAM8R0BweC69cOJTQJkG+D4pDk9AAsmXSKi0PED70FgfGstRQNkOrs3c\u002f1ZAG78jamqfU0BkciDuympQQMLA4bn0AlJA\u002fW3Qbq+2VEC05vPjYbRIQFd3Wt1pNUtAXZLs6oI9OkBe8zdBqlA5QBwGtzYztjhAXvM3QapQOUDCBx988ME5QMIHH3zwwTlAwgcffPDBOUDCBx988ME5QHK1XXvLrDtAI8Tn0M2qPEAL6AwE9Z8+QLG0OGa\u002fXD9AsbQ4Zr9cP0BkUB2FHTI+QP\u002fa6vOvrT5A\u002f9rq86+tPkBiOy9QcNxAQPikTcVmN0FA+KRNxWY3QUCTLxs0+bJBQJMvGzT5skFApJIoIc0UQkDAmN9XAMtBQJMvGzT5skFABEj3DsaLQECl3FI5bbk\u002fQKSSKCHNFEJA+KRNxWY3QUAESPcOxotAQJyv4nrizUNASl9Ug5fRQkApznWM4lxCQCnOdYziXEJAnK\u002fieuLNQ0DjLoWsv5hJQJ5TXoLFE0xApTakKLBaSkA9AQ70zchJQHOsMAsNIkpAU1CO90r8SUAL2OUsUqNIQAvY5SxSo0hAOaL1poDOR0DH7JcrtSFFQDAiLmCXs0VAOaL1poDOR0DwZ7YvOU9IQGG1zu34dkdA\u002fQEzCdoYRkDvyjSPOntEQP0BMwnaGEZAMCIuYJezRUDH7JcrtSFFQJyv4nrizUNA\u002fQEzCdoYRkDH7JcrtSFFQDWtVSAZckZAYbXO7fh2R0AL2OUsUqNIQDmi9aaAzkdA\u002fQEzCdoYRkAL2OUsUqNIQCAwk6CNYUpA4y6FrL+YSUBTUI73SvxJQCAwk6CNYUpAdHf0JxrTSUA9AQ70zchJQFNQjvdK\u002fElA3tiZzzApSUCLXPxksWhJQEiktz0tHUlAnCBVqKzdSEDjLoWsv5hJQPBnti85T0hA8Ge2LzlPSEA1rVUgGXJGQGG1zu34dkdAC9jlLFKjSECLXPxksWhJQJwgVais3UhA8Ge2LzlPSEDe2JnPMClJQOMuhay\u002fmElAOaL1poDOR0CcIFWorN1IQN7Ymc8wKUlAnCBVqKzdSEDwZ7YvOU9IQItc\u002fGSxaElAnuLrVPsDR0A5ovWmgM5HQDWtVSAZckZAOaL1poDOR0A5ovWmgM5HQHea1iqQDEdAC9jlLFKjSEDjLoWsv5hJQOMuhay\u002fmElA3tiZzzApSUCcIFWorN1IQDWtVSAZckZAC9jlLFKjSEA5ovWmgM5HQDmi9aaAzkdAOaL1poDOR0A++OCDDz5IQD744IMPPkhA78o0jzp7RECcr+J64s1DQN6cY4VZaERA78o0jzp7REAdYAgmdldDQCnOdYziXEJAyLdbSMLSREDH7JcrtSFFQB1gCCZ2V0NAHWAIJnZXQ0DenGOFWWhEQJyv4nrizUNApJIoIc0UQkD4pE3FZjdBQB1gCCZ2V0NAyLdbSMLSRECcr+J64s1DQJyv4nrizUNAq0tSaiEZIUDUvpN3UYceQPwx1YSB9TJAXQ60DO4eM0BTaiEZO5YcQMuen4J5uCBA0plNuf9eLECccv+9sIAxQM6J076TdzVAEUDo6a+dO0DH0HQH+y1HQEGJkW8UijlAjNv7kC1FP0CM2\u002fuQLUU\u002fQPLsmtFX\u002fitAE0gl52URL0CtU49n14wkQA5yvW4xkzVArVOPZ9eMNEDitO\u002fkXVRAQOHuAWeVPTpAe34K5uFyMUBQ5oIaYNwaQI7jOI7jOAZAELxJ69Tj+T8TBtZneDTuPw3uHnBW2eM\u002fDnK9bjGT9T8LKDHyjULxPw4wbu9DtuQ\u002fDGqAcXsf4j8PtAzuHnDmPwvm4XKgZeA\u002fELxJ69Tj2T8Qevpr5wbpPxA4q+z5Keg\u002fDE13sN9q8z8TSCXnZRHvPwuHiTIX1PA\u002fELxJ69Tj6T8LKDHyjULhPxNIJedlEd8\u002fEUDo6a+d6z8MCygx8o3yPw5yvW4xk+U\u002fFIp0ZlPu7z8TSCXnZRH\u002fP6nkvCzik0pAlRj5RqFID0DwhQWUGPkoQATOKnt+ikJAOY7jOI4jVEAc5HrdYqZOQCva1kpv80xAom2t9DbnVkDgTVqnHo9TQOCssuenIFNAM3YsQWyIPECbE6d9J+9BQOrx7JrRV0BAbk6c9p28RUCgxMg3CkVJQBtD0x3st0FAW8xkjQBCQkD+mGrCwPpFQBfUAOP2flFAWcQnkEoOVUBrBBB6+qtXQMhUEwbW50hAxOVAy+DuTkCPhOBNWqdGQAQQevprZ0NAMW7vQ7YUKUBQIJWcl0UoQC4HWgZ3DyZAD5cDLYO79z+OQpHObMoFQJAIf0w1YThATFJqIRk7QkDb+5AtxUpIQNv7kC3FSkhAHIUindkUT0CeXTP6yj9WQOvU49k141dAb3PitO\u002fkV0AiuuJVl2RVQLNGAKGnf1ZAHCbKXFADU0AbQ9Md7DdOQM+uGX3lX1FA+602hqY7UUAuZrJGAKFVQC6oAcbtfVZAP8Oj8UvzVkCjr\u002fxzJMRXQHzAWWXPj1hAgC8soMTIWEB48i7qUMVYQIZk7FiCeFhAhmTsWIJ4WEAiuuJVl4RYQCK64lWXhFhAtGtGX\u002fmnWEDERJkLakBYQNDwaPzSfFhAUCCVnJdFWECj8UvzEaFYQNycOO07uVhAsgSxIbrCWECyBLEhusJYQBgWUGLkm1hAdINcr1uMWEBXvOqSlNpXQAQtg7sHXFhALyygxMg3WEABhJ7+2nlUQPPPkRC8SU1AOrMp998LQEBN1ggg9PRDQMWrLkmpBTVAxasuSakFNUCTd1GHKtoeQJHObMr99wpADlW0rZXe9j8V6cym3H\u002f\u002fP5S5oAYYtw9A4GpjaLqDOECbE6d9J+8xQJPzsohPoEBAE2UuqAFGQUBRRdta6W06QJCpJgyszzhA8IUFlBj5OECsjaHpDvYxQJSUWkjGjh1ALL3NidO+IUDMZI0AQk8jQA+XAy2DuydAssJhoswFK0DwJq1Tj2cpQH7IlmKFwzVAsJ0b5HrdOECMfKNQpDMzQCL8MdWEAUBAH8+uGX3lRkDV49k1oy9EQOP2PmRLsU1Ai7a10tucUEDgamNoukNSQAgg9PTXTkpAzkeEP6aaRECpom2t9LZJQPMR4Y+ppkFAoekO9lttO0A79Xh2zehAQEDL4O4BZ0pAWultTpx2TUBft5jJGsFQQPtr5wa53kxA+ojwx1STS0BEdMWrLklOQDmO4ziOY0pAEHr6a+cGSUBzoGVw94BNQHn6a+cGOUxA3d6HbCnWT0CQCH9MNSFSQBG8SevUo1NA1YSB9RmeVECJTyCVnNdTQIgN0RWv+lJAPuCssuenVUAh1+sWMxlUQBFd8apLElRAkc5syv23VEAZmu5gvxVUQBncPeCs8lRAE2UuqAFGUUARQOjpr51LQJHObMr990pA5wa5XrcYSECt9DYnTvtEQKUzm3L\u002fvT9A9PTXzg3yQkCj8UvzEWFCQAwLKDHyjUJAELxJ69TjOUA0m3L\u002fvbAuQNsYmu5gvzBAMFHmghpgKkDsdYuZrBEiQE5apx7PriVArI2h6Q72IUDt+SmYh8sjQHwfsqVY4TFALeITSCXnM0CAcXsfsqU5QLzqkpRaSDNAklILydgxQECUd1GHKlpCQB4uB1oGd0ZAKpiHy4EWTEAZ+UahSOdJQJUY+UahSE9A8xHhj6kmTkAEb9I69XhPQKWS87KIT09AvvLPkRB8UEDE5UDL4G5SQK9bzGSNwFFApTObcv+9T0A8u2b0lX9TQMnYsQSxYVRAITZEV7yqU0BCrtctZnJVQMl5WcQn0FRAwt0Dzio7VUAhGTuWIPZUQM3oK\u002f8cCVVAFczD5UBLVEAl52URn8BUQHUH+602BlRAUaQzm3K\u002fU0D5RqFIZ3ZUQD4i\u002fDHVhFZAzw1yvW4xV0DvAWeVPT9XQFfZ81Mwj1ZAow5VtK1VV0CvuiSlFpJXQF8W8QmkklZAL+pQRdtaV0DTfET4Y2pXQK941SUptVZA9528izrUVkBSKNKZTXlVQGKizAU1gFVAOS+L+ASSVEAxUeaCGiBUQPAmrVOPJ1NAIJWcl0U8U0C8qEMVbWtSQOinYB4uR1JACqSS87IITEBxOdAyuHtKQJy0Tj2eXUJA4hNIJedlPEDkOI7jOI4+QCRjxxLEBkNAI1uKFQ4TPEDAFxZQYuQ4QPPPkRC8ST1AmRaZCdhDSEAESnKEVMtJQFunBkH1QkhAmPS2CVlnSUBXtw3dI+1IQDx8m0nUw0pAnKdxLNVQSUBRXPVoZipGQORE0y4UaERAPoOX+uuDSEDEgoL3gLVLQOe8J2WL80pApRdWSaJhSkC8huz8161JQD2ZsGhgGEpAayZE1rzwR0B2JXD2Yd9LQAuFWNUzaEtAzVH3o+GvR0AwLFHu83FHQEVFVKjH+U1A4sY9m2K7TUApN3G3OdBPQGvKsUshOk5ArK9NYvssUEDynKj7FW5RQEXCdi4wYFFA64+liREuUUDYfBRo7DhRQEkblKej\u002f1FAcAMfTd4SUkCks4MTVZ5RQEcIqCZNUVFAGIu5Iu7dUUCGlyQ+KAhSQEFJu\u002fH5j1JAUT5szxNrUkD7Gubl23dSQJam83sPM1JAxA1lfkWpUkAL7txn3N9SQOyncTUNr1JAuu3qH9mRUkD9NBZwn11SQIewILudIVJAWGbJPwT7UUBn3mah09JRQHQUfMFEOlBAtyD4xFngTUDeIdSdrbtMQMhhFtLMakxAQ9IbbP3wS0CpsiKS\u002frNLQAuF02m+AE5AKNKItw+FS0A\u002fv6yEmvRLQNq7ER+ZQU9ACraokldYT0BWAkZOO2BPQIJ+\u002fJFoD09AiXiJWDtlTUDxCEAZ56NMQOINDut0ek9A8Zji9awdSUD7c6O7vlFKQKIKCuZMR05AbvFq91E2TECBzE6H5yZLQGsVjT3dME1A+LNKAr28S0Bgc8LIZ8RNQEWzeQdoUkxAPslegy8uT0BGliutzmtLQEBRmr56hU5APYIaQTc2TkAasjUBp\u002f5NQBCRjI4nqEtA+lHMmBYaS0COMOcs2hZLQFfq\u002fNsB\u002fUpAJlEs7mE7TkBZwasNWxJOQB0aMRMRfE5AkcOgafTmTUBZNjySiM1PQJoyonDodk1AumR2iqqQTkB9\u002fWfH9MJJQCqA7L2+ek5AyF9KzzSNTEBKs68HTgBNQDyV37QIa09A1VQ3qu6nTEC2w4obDZNLQCwDqHW0Y0pAPXBHAjuJSkDdBqvg+UxMQKfOzZtJdkpA2CLdiEgTS0ARYQB7N9tKQMH+8oEkGExA+ztdt+VhTUDm6JG1t25LQLNhFcWru0pA\u002fmIQW1gXSEAvcTlZsbVFQAMaQsCu5kVANB8E8joHSEAvyeKKdJVGQL3QxU+ylERA6S4JHpb0REAbySCJ8iZLQGOVGGyXyEhAKitsh9XuREAX6g7EFNRIQK8P5dVGQkZAOvTGh698RUCWr6x+scBIQPl1wndGAUtAMZNUJ8w8TkDAdMQ2ZedMQG0oS5QQikxA1YqbHJr7TkDrTeCk4U9OQGkN8IaQik1A","shape":"9, 126"},"zmax":100,"zmin":0,"type":"heatmap"}],                        {"template":{"data":{"histogram2dcontour":[{"type":"histogram2dcontour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"choropleth":[{"type":"choropleth","colorbar":{"outlinewidth":0,"ticks":""}}],"histogram2d":[{"type":"histogram2d","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"heatmap":[{"type":"heatmap","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"contourcarpet":[{"type":"contourcarpet","colorbar":{"outlinewidth":0,"ticks":""}}],"contour":[{"type":"contour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"surface":[{"type":"surface","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"mesh3d":[{"type":"mesh3d","colorbar":{"outlinewidth":0,"ticks":""}}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"parcoords":[{"type":"parcoords","line":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolargl":[{"type":"scatterpolargl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"scattergeo":[{"type":"scattergeo","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolar":[{"type":"scatterpolar","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"scattergl":[{"type":"scattergl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatter3d":[{"type":"scatter3d","line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermap":[{"type":"scattermap","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermapbox":[{"type":"scattermapbox","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterternary":[{"type":"scatterternary","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattercarpet":[{"type":"scattercarpet","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"type":"carpet"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}],"barpolar":[{"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"pie":[{"automargin":true,"type":"pie"}]},"layout":{"autotypenumbers":"strict","colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"hovermode":"closest","hoverlabel":{"align":"left"},"paper_bgcolor":"white","plot_bgcolor":"#E5ECF6","polar":{"bgcolor":"#E5ECF6","angularaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"radialaxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"ternary":{"bgcolor":"#E5ECF6","aaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"baxis":{"gridcolor":"white","linecolor":"white","ticks":""},"caxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]]},"xaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"yaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"scene":{"xaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"yaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"zaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"geo":{"bgcolor":"white","landcolor":"#E5ECF6","subunitcolor":"white","showland":true,"showlakes":true,"lakecolor":"white"},"title":{"x":0.05},"mapbox":{"style":"light"}}},"title":{"text":"Stress Breadth \u2014 Last 6 Months","font":{"size":14,"color":"#e8edf2"}},"font":{"family":"'JetBrains Mono', 'SF Mono', monospace","color":"#e8edf2","size":12},"xaxis":{"tickfont":{"color":"#7a91a6"},"title":{"font":{"color":"#7a91a6"}},"gridcolor":"#2a3a4a","linecolor":"#2a3a4a"},"yaxis":{"tickfont":{"color":"#7a91a6"},"title":{"font":{"color":"#7a91a6"}},"gridcolor":"#2a3a4a","linecolor":"#2a3a4a"},"legend":{"font":{"color":"#e8edf2"},"bgcolor":"rgba(0,0,0,0)"},"margin":{"l":30,"r":20,"t":55,"b":35},"paper_bgcolor":"#16202d","plot_bgcolor":"#0f1923","colorway":["#1e88e5","#00c853","#ffb300","#f44336","#00bcd4","#e040fb"],"height":540},                        {"displayModeBar": false, "responsive": true}                    )                };            </script>        </div><figcaption>Historical component scores over approximately 126 trading days, separating current state from change over time.</figcaption></figure></div><details><summary>Bank-level node stress and threshold interpretation</summary><div><p>Low: 0–30; moderate: 30–60; elevated: 60–80; high: 80–90; severe: 90–100. Node stress is supporting evidence—not a direct additive contribution to the composite score—and combines volatility, drawdown, and sector beta percentile ranks.</p><div class='table-scroll' role='region' aria-label='Data table: Bank, Name, 21D Volatility'><table border="1" class="dataframe data-table">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Bank</th>
+      <th>Name</th>
+      <th>21D Volatility</th>
+      <th>63D Drawdown</th>
+      <th>Node Stress</th>
+      <th>Risk response</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>CM.TO</td>
+      <td>CIBC</td>
+      <td>14.4%</td>
+      <td>-1.8%</td>
+      <td>67.5/100</td>
+      <td>Monitor closely</td>
+    </tr>
+    <tr>
+      <td>NA.TO</td>
+      <td>National Bank</td>
+      <td>13.0%</td>
+      <td>-2.9%</td>
+      <td>66.5/100</td>
+      <td>Monitor closely</td>
+    </tr>
+    <tr>
+      <td>BNS.TO</td>
+      <td>Scotiabank</td>
+      <td>14.3%</td>
+      <td>-3.3%</td>
+      <td>63.6/100</td>
+      <td>Monitor closely</td>
+    </tr>
+    <tr>
+      <td>TD.TO</td>
+      <td>Toronto-Dominion Bank</td>
+      <td>11.0%</td>
+      <td>-3.7%</td>
+      <td>61.7/100</td>
+      <td>Monitor closely</td>
+    </tr>
+    <tr>
+      <td>BMO.TO</td>
+      <td>Bank of Montreal</td>
+      <td>12.1%</td>
+      <td>-2.2%</td>
+      <td>53.1/100</td>
+      <td>Monitor closely</td>
+    </tr>
+    <tr>
+      <td>RY.TO</td>
+      <td>Royal Bank of Canada</td>
+      <td>9.7%</td>
+      <td>-2.6%</td>
+      <td>47.4/100</td>
+      <td>Monitor closely</td>
+    </tr>
+  </tbody>
+</table></div></div></details><div class='button-row'><a class='button' href='/decision'>Use this evidence in the decision</a></div>
+    <footer>
+      <strong>Research-use notice.</strong> Analytical outputs are not personalized financial advice,
+      a trading system, or a regulatory bank risk model. Performance views are historical simulations
+      or paper portfolios; no real trades are placed. <a href="/research#limitations">Read limitations</a>.
+    </footer>
+  </main>
+  <script>
+    const toggle = document.querySelector('.nav-toggle');
+    const links = document.querySelector('.nav-links');
+    if (toggle && links) {
+      toggle.addEventListener('click', () => {
+        const open = toggle.getAttribute('aria-expanded') === 'true';
+        toggle.setAttribute('aria-expanded', String(!open));
+        links.classList.toggle('open', !open);
+      });
+      links.addEventListener('click', () => {
+        toggle.setAttribute('aria-expanded', 'false');
+        links.classList.remove('open');
+      });
+    }
+    document.querySelectorAll('.table-scroll').forEach((wrapper) => {
+      if (wrapper.scrollWidth > wrapper.clientWidth) wrapper.setAttribute('tabindex', '0');
+    });
+    const sectionLinks = [...document.querySelectorAll('.local-tabs a')];
+    const markSection = () => {
+      const activeHash = window.location.hash || sectionLinks[0]?.hash;
+      sectionLinks.forEach((link) => {
+        if (link.hash === activeHash) link.setAttribute('aria-current', 'location');
+        else link.removeAttribute('aria-current');
+      });
+    };
+    markSection();
+    window.addEventListener('hashchange', markSection);
+  </script>
+</body>
+</html>

@@ -1,5 +1,67 @@
 {
   "version": 2,
+  "redirects": [
+    {
+      "source": "/market-overview",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/systemic-bank-network",
+      "destination": "/risk#network",
+      "permanent": true
+    },
+    {
+      "source": "/contagion-risk-score",
+      "destination": "/risk#composite-score",
+      "permanent": true
+    },
+    {
+      "source": "/stress-testing-lab",
+      "destination": "/scenarios",
+      "permanent": true
+    },
+    {
+      "source": "/rl-portfolio-agent",
+      "destination": "/models#rl-strategy",
+      "permanent": true
+    },
+    {
+      "source": "/cvar-optimization-lab",
+      "destination": "/models#cvar-strategy",
+      "permanent": true
+    },
+    {
+      "source": "/rl-vs-cvar-comparison",
+      "destination": "/models#comparison",
+      "permanent": true
+    },
+    {
+      "source": "/model-validation",
+      "destination": "/models#validation",
+      "permanent": true
+    },
+    {
+      "source": "/investment-decision-center",
+      "destination": "/decision",
+      "permanent": true
+    },
+    {
+      "source": "/performance-tracker",
+      "destination": "/performance#strategy-performance",
+      "permanent": true
+    },
+    {
+      "source": "/cvar-paper-fund",
+      "destination": "/performance#paper-portfolio",
+      "permanent": true
+    },
+    {
+      "source": "/data-catalog",
+      "destination": "/research#data",
+      "permanent": true
+    }
+  ],
   "builds": [
     {
       "src": "*.html",

@@ -23,7 +23,6 @@ from src.dashboard.insight_utils import (
 from src.dashboard.ui_components import PALETTE, PLOTLY_TEMPLATE, action_list, analyst_header, apply_dashboard_style, decision_callout, decision_memo, insight_card, page_intro
 
 
-st.set_page_config(page_title="Contagion Risk Score", layout="wide")
 apply_dashboard_style()
 
 features = load_features()
@@ -126,7 +125,7 @@ c6.metric("Latest Date", latest_valid_date(features))
 
 left, right = st.columns([0.40, 0.60])
 with left:
-    st.plotly_chart(gauge(score), use_container_width=True)
+    st.plotly_chart(gauge(score), width="stretch")
 with right:
     fig = go.Figure()
     fig.add_trace(go.Scatter(
@@ -136,20 +135,23 @@ with right:
     fig.add_hrect(y0=0,  y1=30,  fillcolor="#00c853", opacity=0.05, line_width=0)
     fig.add_hrect(y0=30, y1=60,  fillcolor="#ffb300", opacity=0.05, line_width=0)
     fig.add_hrect(y0=60, y1=80,  fillcolor="#ff6f00", opacity=0.06, line_width=0)
-    fig.add_hrect(y0=80, y1=100, fillcolor="#f44336", opacity=0.07, line_width=0)
+    fig.add_hrect(y0=80, y1=90, fillcolor="#f44336", opacity=0.07, line_width=0)
+    fig.add_hrect(y0=90, y1=100, fillcolor="#b71c1c", opacity=0.09, line_width=0)
     fig.add_hline(y=30, line_dash="dot", line_color="#00c853", opacity=0.6,
                   annotation_text="Low→Moderate", annotation_font_color="#00c853", annotation_position="top left")
     fig.add_hline(y=60, line_dash="dot", line_color="#ffb300", opacity=0.6,
-                  annotation_text="Moderate→High", annotation_font_color="#ffb300", annotation_position="top left")
+                  annotation_text="Moderate→Elevated", annotation_font_color="#ffb300", annotation_position="top left")
     fig.add_hline(y=80, line_dash="dot", line_color="#f44336", opacity=0.6,
-                  annotation_text="High→Severe", annotation_font_color="#f44336", annotation_position="top left")
+                  annotation_text="Elevated→High", annotation_font_color="#f44336", annotation_position="top left")
+    fig.add_hline(y=90, line_dash="dot", line_color="#b71c1c", opacity=0.6,
+                  annotation_text="High→Severe", annotation_font_color="#ef9a9a", annotation_position="top left")
     fig.update_layout(
         title="Score History — How Has Risk Changed Over Time?",
         yaxis_title="0 = no stress, 100 = maximum stress",
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=330,
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 insight_card(f"Interpretation: {regime['label']} Risk", regime["summary"], status=regime["tone"])
 
@@ -205,7 +207,7 @@ with tab1:
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=520,
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     decision_callout(
         plain_english="Drivers with scores above 75 are at their most stressed quartile historically. When several are above 75 simultaneously, the composite score rises rapidly.",
         action="Focus attention on the top 2–3 drivers. Those are the specific channels most likely to cause portfolio losses if conditions worsen.",
@@ -215,19 +217,19 @@ with tab1:
     drivers = drivers_now
     show = drivers.copy()
     show["Stress Percentile"] = show["Stress Percentile"].map(lambda x: f"{x:.0%}" if x == x else "N/A")
-    st.dataframe(show, use_container_width=True, hide_index=True)
+    st.dataframe(show, width="stretch", hide_index=True)
 
 with tab2:
     st.subheader("Bank-Level Contributors")
     bank_table = bank_stress_snapshot(features)
     show = bank_table[
-        ["Bank", "Name", "Node Stress", "21D Return", "21D Volatility", "63D Drawdown", "Beta to XFN", "Action Readout"]
+        ["Bank", "Name", "Node Stress", "21D Return", "21D Volatility", "63D Drawdown", "Beta to XFN", "Risk response"]
     ].copy()
     for col in ["21D Return", "21D Volatility", "63D Drawdown"]:
         show[col] = show[col].map(lambda x: pct(x) if x == x else "N/A")
     show["Node Stress"] = show["Node Stress"].map(lambda x: f"{x:.1f}/100")
     show["Beta to XFN"] = show["Beta to XFN"].map(lambda x: f"{x:.2f}" if x == x else "N/A")
-    st.dataframe(show, use_container_width=True, hide_index=True)
+    st.dataframe(show, width="stretch", hide_index=True)
 
     leader = bank_table.iloc[0]
     insight_card(
@@ -257,7 +259,7 @@ with tab3:
         **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=560,
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     decision_callout(
         plain_english="A single red row means one channel is stressed. Multiple red rows on the same day means stress is widespread — the most dangerous signal for contagion.",
         action="When 3 or more drivers are simultaneously in the red, treat the regime as elevated even if the composite score hasn't peaked yet.",
@@ -283,17 +285,23 @@ with tab4:
             },
             {
                 "Score Band": "60-80",
-                "Label": "High",
+                "Label": "Elevated",
                 "Business Meaning": "Systemic pressure is elevated.",
                 "Portfolio Posture": "Trim high-stress names, raise liquidity, run scenario tests.",
             },
             {
-                "Score Band": "80-100",
+                "Score Band": "80-90",
+                "Label": "High",
+                "Business Meaning": "Broad stress channels are active.",
+                "Portfolio Posture": "Materially reduce concentration and test tail-risk protection.",
+            },
+            {
+                "Score Band": "90-100",
                 "Label": "Severe",
                 "Business Meaning": "Multiple stress channels are flashing.",
                 "Portfolio Posture": "Defensive allocation dominates until breadth improves.",
             },
         ],
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )

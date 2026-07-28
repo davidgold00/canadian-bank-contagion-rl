@@ -14,7 +14,6 @@ from src.portfolio.paper_trader import CVaRPaperPortfolioSimulator, PaperPortfol
 from src.portfolio.performance_metrics import drawdown_series, performance_summary, rolling_cvar, rolling_sharpe  # noqa: E402
 
 
-st.set_page_config(page_title="CVaR Paper Fund", layout="wide")
 apply_dashboard_style()
 
 
@@ -253,9 +252,9 @@ decision_memo(
 tab1, tab2, tab3, tab4, tab5 = st.tabs(["Overview", "Risk Analytics", "Allocation & Turnover", "Trades & Holdings", "Methodology"])
 
 with tab1:
-    st.plotly_chart(value_chart(ledger, benchmarks), use_container_width=True)
+    st.plotly_chart(value_chart(ledger, benchmarks), width="stretch")
     pnl = ledger["portfolio_value"] - float(initial_capital)
-    st.plotly_chart(line_chart({"Cumulative P&L": pnl}, "Cumulative Simulated P&L", "CAD"), use_container_width=True)
+    st.plotly_chart(line_chart({"Cumulative P&L": pnl}, "Cumulative Simulated P&L", "CAD"), width="stretch")
 
 with tab2:
     c1, c2 = st.columns(2)
@@ -263,29 +262,29 @@ with tab2:
         drawdowns = {"CVaR paper fund": drawdown_series(ledger["portfolio_value"])}
         for col in benchmarks.columns:
             drawdowns[col] = drawdown_series(benchmarks[col])
-        st.plotly_chart(line_chart(drawdowns, "Drawdown vs Benchmarks", "Drawdown", ".0%"), use_container_width=True)
-        st.plotly_chart(line_chart({"Rolling CVaR": ledger["realized_cvar_63d"]}, "Rolling 63D CVaR", "CVaR", ".1%"), use_container_width=True)
+        st.plotly_chart(line_chart(drawdowns, "Drawdown vs Benchmarks", "Drawdown", ".0%"), width="stretch")
+        st.plotly_chart(line_chart({"Rolling CVaR": ledger["realized_cvar_63d"]}, "Rolling 63D CVaR", "CVaR", ".1%"), width="stretch")
     with c2:
-        st.plotly_chart(line_chart({"Rolling volatility": ledger["realized_volatility_63d"]}, "Rolling 63D Volatility", "Volatility", ".1%"), use_container_width=True)
-        st.plotly_chart(line_chart({"Rolling Sharpe": rolling_sharpe(ledger["daily_return"], 63)}, "Rolling 63D Sharpe", "Sharpe"), use_container_width=True)
+        st.plotly_chart(line_chart({"Rolling volatility": ledger["realized_volatility_63d"]}, "Rolling 63D Volatility", "Volatility", ".1%"), width="stretch")
+        st.plotly_chart(line_chart({"Rolling Sharpe": rolling_sharpe(ledger["daily_return"], 63)}, "Rolling 63D Sharpe", "Sharpe"), width="stretch")
 
 with tab3:
-    st.plotly_chart(allocation_chart(result.weights), use_container_width=True)
+    st.plotly_chart(allocation_chart(result.weights), width="stretch")
     c1, c2 = st.columns(2)
     with c1:
-        st.plotly_chart(line_chart({"Bank exposure": ledger["bank_exposure"], "Cash": ledger["cash_weight"]}, "Bank Exposure and Cash Weight", "Weight", ".0%"), use_container_width=True)
+        st.plotly_chart(line_chart({"Bank exposure": ledger["bank_exposure"], "Cash": ledger["cash_weight"]}, "Bank Exposure and Cash Weight", "Weight", ".0%"), width="stretch")
     with c2:
-        st.plotly_chart(line_chart({"Turnover": ledger["turnover"], "Graph density": ledger["graph_density"]}, "Turnover and Graph Density", "Level", ".1%"), use_container_width=True)
+        st.plotly_chart(line_chart({"Turnover": ledger["turnover"], "Graph density": ledger["graph_density"]}, "Turnover and Graph Density", "Level", ".1%"), width="stretch")
 
 with tab4:
     st.subheader("Current Holdings")
-    st.dataframe(format_holdings(result.current_holdings), use_container_width=True, hide_index=True)
+    st.dataframe(format_holdings(result.current_holdings), width="stretch", hide_index=True)
     st.subheader("Recent Trades")
-    st.dataframe(format_trades(result.trades.tail(75)), use_container_width=True, hide_index=True)
+    st.dataframe(format_trades(result.trades.tail(75)), width="stretch", hide_index=True)
     with st.expander("Daily portfolio ledger"):
         ledger_display = ledger.reset_index().copy()
         ledger_display["date"] = pd.to_datetime(ledger_display["date"]).dt.date
-        st.dataframe(ledger_display if show_full_ledger else ledger_display.tail(120), use_container_width=True, hide_index=True)
+        st.dataframe(ledger_display if show_full_ledger else ledger_display.tail(120), width="stretch", hide_index=True)
 
 with tab5:
     st.markdown(

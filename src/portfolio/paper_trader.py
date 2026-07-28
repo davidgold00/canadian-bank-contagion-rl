@@ -10,6 +10,7 @@ import pandas as pd
 from .allocation_policy import (
     BANKS,
     CASH_ASSET,
+    FINANCIAL_EXPOSURE_ASSETS,
     AllocationPolicyResult,
     available_assets,
     generate_model_allocation,
@@ -64,7 +65,9 @@ class PaperPortfolioSimulator:
         out.index = pd.to_datetime(out.index)
         out = out.sort_index()
         numeric = out.apply(pd.to_numeric, errors="coerce")
-        return numeric.ffill().bfill().dropna(how="all")
+        # Forward filling is point-in-time safe; backward filling would inject a
+        # later quote into dates before that quote existed.
+        return numeric.dropna(axis=1, how="all").ffill().dropna(how="all")
 
     @staticmethod
     def _prepare_features(features: pd.DataFrame, index: pd.Index) -> pd.DataFrame:
@@ -74,7 +77,9 @@ class PaperPortfolioSimulator:
             out = out.set_index("date")
         out.index = pd.to_datetime(out.index)
         out = out.sort_index().apply(pd.to_numeric, errors="coerce")
-        return out.reindex(index).ffill().bfill()
+        # Leading missing values deliberately remain missing.  Downstream policy
+        # code already supplies neutral defaults when no observation exists yet.
+        return out.reindex(index).ffill()
 
     def simulate(
         self,
@@ -203,7 +208,13 @@ class PaperPortfolioSimulator:
             post_values = shares * price_today
             portfolio_value = float(cash + post_values.sum())
             actual_weights = self._current_weights(cash, post_values, portfolio_value)
-            bank_exposure = float(actual_weights.reindex([b for b in BANKS if b in actual_weights.index]).fillna(0.0).sum())
+            financial_exposure = float(
+                actual_weights.reindex(
+                    [asset for asset in FINANCIAL_EXPOSURE_ASSETS if asset in actual_weights.index]
+                )
+                .fillna(0.0)
+                .sum()
+            )
             turnover = day_turnover_notional / max(pre_trade_value, 1.0)
             daily_pnl = portfolio_value - previous_value
             daily_return = daily_pnl / previous_value if previous_value else 0.0
@@ -220,7 +231,10 @@ class PaperPortfolioSimulator:
                     "transaction_costs": float(day_costs),
                     "contagion_risk_score": risk_score,
                     "cash_weight": float(actual_weights.get(CASH_ASSET, 0.0)),
-                    "bank_exposure": bank_exposure,
+                    # Keep the legacy field as an alias for existing dashboard
+                    # consumers while exposing the precise metric name.
+                    "bank_exposure": financial_exposure,
+                    "financial_exposure": financial_exposure,
                     "number_of_trades": day_trade_count,
                     "policy_source": allocation.policy_source,
                     "policy_note": ppo_note if allocation.policy_source != "trained PPO model" else "PPO inference succeeded.",
@@ -302,6 +316,9 @@ class PaperPortfolioSimulator:
             index = index[index >= pd.Timestamp(start_date)]
         if end_date is not None:
             index = index[index <= pd.Timestamp(end_date)]
+        if self.risky_assets:
+            valid_prices = self.prices.reindex(index=index, columns=self.risky_assets).notna().all(axis=1)
+            index = index[valid_prices]
         return pd.DatetimeIndex(index)
 
     def _current_weights(self, cash: float, asset_values: pd.Series, total_value: float) -> pd.Series:
@@ -377,7 +394,7 @@ class PaperPortfolioSimulator:
         return total_cost, rows
 
     def _build_benchmarks(self, dates: pd.DatetimeIndex, initial_capital: float) -> pd.DataFrame:
-        prices = self.prices.reindex(dates).ffill().bfill()
+        prices = self.prices.reindex(dates).ffill()
         returns = prices[self.risky_assets].pct_change().fillna(0.0)
         out = pd.DataFrame(index=dates)
 
@@ -392,3 +409,278 @@ class PaperPortfolioSimulator:
 
         out["Cash"] = initial_capital
         return out
+
+
+class CVaRPaperPortfolioSimulator(PaperPortfolioSimulator):
+    """Paper portfolio that rebalances using graph-adjusted CVaR optimization."""
+
+    def simulate_cvar(
+        self,
+        initial_capital: float = 100_000.0,
+        transaction_cost_bps: float = 5.0,
+        rebalance_threshold: float = 0.01,
+        start_date: str | pd.Timestamp | None = None,
+        end_date: str | pd.Timestamp | None = None,
+        confidence_level: float = 0.95,
+        lookback_window: int = 252,
+        rebalance_frequency: int = 5,
+        max_single_name_weight: float = 0.20,
+        max_bank_exposure: float = 0.70,
+        min_cash_weight: float = 0.04,
+        max_cash_weight: float = 0.60,
+        risk_aversion: float = 6.0,
+        turnover_penalty: float = 0.20,
+        contagion_penalty: float = 0.80,
+        graph_penalty_strength: float = 0.40,
+    ) -> SimulationResult:
+        from .cvar_optimizer import optimize_cvar_portfolio
+        from .performance_metrics import drawdown_series, rolling_cvar
+        from .portfolio_constraints import PortfolioConstraints
+        from .regime_detection import latest_contagion_score, regime_constraints
+
+        if initial_capital <= 0:
+            raise ValueError("initial_capital must be positive.")
+
+        available_dates = self._simulation_dates(None, None)
+        if len(available_dates) == 0:
+            raise ValueError("No simulation dates have complete risky-asset prices.")
+        warmup_date = available_dates[min(max(lookback_window, 63), len(available_dates) - 1)]
+        start = pd.Timestamp(start_date) if start_date is not None else warmup_date
+        if start < warmup_date:
+            start = warmup_date
+        dates = self._simulation_dates(start, end_date)
+        if len(dates) == 0:
+            raise ValueError("No simulation dates are available after filtering.")
+
+        transaction_cost_rate = transaction_cost_bps / 10_000
+        shares = pd.Series(0.0, index=self.risky_assets, dtype=float)
+        avg_cost = pd.Series(0.0, index=self.risky_assets, dtype=float)
+        cash = float(initial_capital)
+        previous_value = float(initial_capital)
+        target_weights = pd.Series(0.0, index=self.assets, dtype=float)
+        target_weights.loc[CASH_ASSET] = 1.0
+        first_rebalance = True
+        latest_allocation_date: pd.Timestamp | None = None
+
+        ledger_rows: list[dict] = []
+        trade_rows: list[dict] = []
+        holding_rows: list[dict] = []
+        weight_rows: list[pd.Series] = []
+
+        latest_result = None
+        for step, date in enumerate(dates):
+            price_today = self.prices.reindex(columns=self.risky_assets).loc[date].astype(float)
+            pre_trade_asset_values = shares * price_today
+            pre_trade_value = max(float(cash + pre_trade_asset_values.sum()), 0.0)
+            current_weights = self._current_weights(cash, pre_trade_asset_values, pre_trade_value)
+
+            rebalance_today = first_rebalance or step % max(rebalance_frequency, 1) == 0
+            if rebalance_today:
+                score = latest_contagion_score(self.features.loc[:date])
+                regime = regime_constraints(score)
+                constraints = PortfolioConstraints(
+                    max_single_name_weight=min(max_single_name_weight, regime["max_single_name_weight"]),
+                    max_bank_exposure=min(max_bank_exposure, regime["max_bank_exposure"]),
+                    min_cash_weight=max(min_cash_weight, regime["min_cash_weight"]),
+                    max_cash_weight=max_cash_weight,
+                )
+                latest_result = optimize_cvar_portfolio(
+                    prices_history=self.prices.loc[:date],
+                    features_history=self.features.loc[:date],
+                    assets=self.assets,
+                    confidence_level=confidence_level,
+                    lookback_window=lookback_window,
+                    risk_aversion=risk_aversion,
+                    turnover_penalty=turnover_penalty,
+                    contagion_penalty=contagion_penalty,
+                    graph_penalty_strength=graph_penalty_strength,
+                    constraints=constraints,
+                    previous_weights=current_weights,
+                )
+                target_weights = latest_result.weights.reindex(self.assets).fillna(0.0)
+                latest_allocation_date = date
+            first_rebalance = False
+
+            trade_values = pd.Series(0.0, index=self.risky_assets, dtype=float)
+            if rebalance_today:
+                target_values = self._target_values_with_cost_reserve(
+                    target_weights,
+                    pre_trade_asset_values,
+                    pre_trade_value,
+                    transaction_cost_rate,
+                )
+                trade_values = target_values.reindex(self.risky_assets).fillna(0.0) - pre_trade_asset_values
+                small = (trade_values.abs() / max(pre_trade_value, 1.0)) < rebalance_threshold
+                trade_values.loc[small] = 0.0
+
+            day_costs = 0.0
+            day_turnover_notional = 0.0
+            day_trade_count = 0
+            for asset, trade_value in trade_values.items():
+                price = float(price_today[asset])
+                if abs(trade_value) < 1e-8 or price <= 0 or np.isnan(price):
+                    continue
+                action = "BUY" if trade_value > 0 else "SELL"
+                share_delta = trade_value / price
+                transaction_cost = abs(trade_value) * transaction_cost_rate
+                old_shares = float(shares[asset])
+                if self.long_only and old_shares + share_delta < -1e-8:
+                    share_delta = -old_shares
+                    trade_value = share_delta * price
+                    transaction_cost = abs(trade_value) * transaction_cost_rate
+                    action = "SELL"
+                cash -= trade_value + transaction_cost
+                shares[asset] += share_delta
+                day_costs += transaction_cost
+                day_turnover_notional += abs(trade_value)
+                day_trade_count += 1
+
+                if action == "BUY" and shares[asset] > 0:
+                    existing_cost = avg_cost[asset] * max(old_shares, 0.0)
+                    avg_cost[asset] = (existing_cost + abs(trade_value) + transaction_cost) / shares[asset]
+                elif shares[asset] <= 1e-10:
+                    shares[asset] = 0.0
+                    avg_cost[asset] = 0.0
+
+                reason = self._cvar_trade_reason(asset, trade_value, latest_result, current_weights, target_weights)
+                trade_rows.append(
+                    {
+                        "date": date,
+                        "asset": asset,
+                        "action": action,
+                        "shares": float(abs(share_delta)),
+                        "price": price,
+                        "notional": float(abs(trade_value)),
+                        "transaction_cost": float(transaction_cost),
+                        "reason": reason,
+                        "target_weight": float(target_weights.get(asset, 0.0)),
+                        "pre_trade_weight": float(current_weights.get(asset, 0.0)),
+                    }
+                )
+
+            if self.long_only and cash < -1e-6:
+                repair_cost, repair_trades = self._raise_cash(date, shares, avg_cost, price_today, -cash, transaction_cost_rate)
+                cash = 0.0
+                day_costs += repair_cost
+                day_turnover_notional += sum(row["notional"] for row in repair_trades)
+                day_trade_count += len(repair_trades)
+                trade_rows.extend(repair_trades)
+
+            post_values = shares * price_today
+            portfolio_value = float(cash + post_values.sum())
+            actual_weights = self._current_weights(cash, post_values, portfolio_value)
+            turnover = day_turnover_notional / max(pre_trade_value, 1.0)
+            daily_pnl = portfolio_value - previous_value
+            daily_return = daily_pnl / previous_value if previous_value else 0.0
+            financial_exposure = float(
+                actual_weights.reindex(
+                    [asset for asset in FINANCIAL_EXPOSURE_ASSETS if asset in actual_weights.index]
+                )
+                .fillna(0.0)
+                .sum()
+            )
+            diagnostics = latest_result.diagnostics if latest_result is not None else {}
+            graph = latest_result.graph_metrics if latest_result is not None else None
+            stress_exposure = 0.0
+            if graph is not None:
+                stress_index = graph.node_stress.index
+                stress_exposure = float(
+                    actual_weights.reindex(stress_index).fillna(0.0).dot(graph.node_stress.reindex(stress_index).fillna(0.0) / 100.0)
+                )
+
+            ledger_rows.append(
+                {
+                    "date": date,
+                    "portfolio_value": portfolio_value,
+                    "cash": float(cash),
+                    "daily_return": float(daily_return),
+                    "daily_pnl": float(daily_pnl),
+                    "turnover": float(turnover),
+                    "transaction_costs": float(day_costs),
+                    "contagion_risk_score": float(diagnostics.get("contagion_score", 50.0)),
+                    "cash_weight": float(actual_weights.get(CASH_ASSET, 0.0)),
+                    "bank_exposure": financial_exposure,
+                    "financial_exposure": financial_exposure,
+                    "number_of_trades": day_trade_count,
+                    "policy_source": "graph-adjusted CVaR optimizer",
+                    "allocation_observation_date": latest_allocation_date,
+                    "realized_cvar_input": float(diagnostics.get("historical_cvar", 0.0)),
+                    "graph_density": float(diagnostics.get("graph_density", 0.0)),
+                    "average_correlation": float(diagnostics.get("average_correlation", 0.0)),
+                    "stress_exposure": stress_exposure,
+                }
+            )
+            weight_rows.append(actual_weights.rename(date))
+
+            for asset in self.risky_assets:
+                market_value = float(post_values.get(asset, 0.0))
+                holding_rows.append(
+                    {
+                        "date": date,
+                        "asset": asset,
+                        "shares": float(shares[asset]),
+                        "latest_price": float(price_today[asset]),
+                        "market_value": market_value,
+                        "weight": float(actual_weights.get(asset, 0.0)),
+                        "average_cost": float(avg_cost[asset]),
+                        "unrealized_pnl": float((price_today[asset] - avg_cost[asset]) * shares[asset]) if shares[asset] else 0.0,
+                    }
+                )
+            holding_rows.append(
+                {
+                    "date": date,
+                    "asset": CASH_ASSET,
+                    "shares": 0.0,
+                    "latest_price": 1.0,
+                    "market_value": float(cash),
+                    "weight": float(actual_weights.get(CASH_ASSET, 0.0)),
+                    "average_cost": 1.0,
+                    "unrealized_pnl": 0.0,
+                }
+            )
+            previous_value = portfolio_value
+
+        ledger = pd.DataFrame(ledger_rows).set_index("date")
+        ledger["realized_volatility_63d"] = ledger["daily_return"].rolling(63).std().fillna(0.0) * np.sqrt(252)
+        ledger["realized_cvar_63d"] = rolling_cvar(ledger["daily_return"], 63, confidence_level).fillna(0.0)
+        ledger["realized_drawdown"] = drawdown_series(ledger["portfolio_value"])
+        trades = pd.DataFrame(trade_rows)
+        if not trades.empty:
+            trades["date"] = pd.to_datetime(trades["date"])
+        else:
+            trades = pd.DataFrame(columns=["date", "asset", "action", "shares", "price", "notional", "transaction_cost", "reason"])
+        holdings = pd.DataFrame(holding_rows)
+        holdings["date"] = pd.to_datetime(holdings["date"])
+        weights = pd.DataFrame(weight_rows).fillna(0.0)
+        weights.index.name = "date"
+        benchmarks = self._build_benchmarks(dates, initial_capital)
+        current_holdings = holdings.loc[holdings["date"] == holdings["date"].max()].copy()
+        return SimulationResult(
+            ledger=ledger,
+            trades=trades,
+            holdings=holdings,
+            weights=weights,
+            benchmarks=benchmarks,
+            current_holdings=current_holdings,
+            policy_source="graph-adjusted CVaR optimizer",
+        )
+
+    @staticmethod
+    def _cvar_trade_reason(asset, trade_value, optimization_result, current_weights, target_weights) -> str:
+        if optimization_result is None:
+            return "Rebalanced toward lower-CVaR allocation."
+        diagnostics = optimization_result.diagnostics
+        centrality = optimization_result.graph_metrics.centrality.get(asset, 0.0)
+        score = float(diagnostics.get("contagion_score", 50.0))
+        graph_density = float(diagnostics.get("graph_density", 0.0))
+        if asset == CASH_ASSET:
+            return "Increased cash because graph-adjusted downside risk rose."
+        if trade_value < 0 and score >= 60:
+            return "Reduced exposure because systemic stress exceeded threshold."
+        if trade_value < 0 and centrality >= 0.65:
+            return "Reduced concentration in high-centrality bank."
+        if trade_value > 0 and graph_density >= 0.70:
+            return "Rebalanced toward lower-CVaR allocation while graph density remained elevated."
+        if abs(target_weights.get(asset, 0.0) - current_weights.get(asset, 0.0)) > 0.03:
+            return "Correlation regime shifted; rebalanced toward the optimized risk budget."
+        return "Rebalanced toward lower-CVaR allocation."
