@@ -6,6 +6,7 @@ def test_dashboard_does_not_use_deprecated_container_width() -> None:
     offenders = [
         str(path)
         for path in dashboard_files
+        if path.name != "streamlit_compat.py"
         if "use_container_width" in path.read_text(encoding="utf-8")
     ]
 

@@ -1,10 +1,15 @@
+import sys
 from pathlib import Path
 
 import streamlit as st
 
-
 ROOT = Path(__file__).resolve().parent
 PAGES = ROOT / "pages"
+sys.path.insert(0, str(ROOT))
+
+from streamlit_compat import install_streamlit_width_compat  # noqa: E402
+
+install_streamlit_width_compat(st)
 
 st.set_page_config(
     page_title="Northern Signal",

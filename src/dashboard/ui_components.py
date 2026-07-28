@@ -12,6 +12,10 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
+from src.dashboard.streamlit_compat import install_streamlit_width_compat
+
+install_streamlit_width_compat(st)
+
 # ── Shared colour tokens ────────────────────────────────────────────────────
 PALETTE = {
     "bg": "#0f1923",
