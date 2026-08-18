@@ -189,12 +189,3 @@ Important disclaimers:
 - Transaction costs, liquidity, taxes, and market impact are simplified.
 - Use the dashboard as a research and explanation tool, not as a trading system.
 
-## Interview Talking Points
-
-- Time-series split and no-lookahead portfolio simulation.
-- Graph-based systemic-risk framing for Canadian banks.
-- Interpretable contagion score with driver decomposition.
-- Scenario propagation similar to a simplified OSFI or Bank of Canada stress-testing workflow.
-- PPO-ready allocation layer with a transparent fallback policy.
-- Paper portfolio ledger with holdings, trades, cash, P&L, costs, and benchmark comparison.
-- Dashboard design focused on "what it means" and "what a risk analyst would do next."
