@@ -1312,6 +1312,81 @@ def attribution_chart(attribution: pd.DataFrame, score: float) -> go.Figure:
     return _dark_chart(fig, height=430)
 
 
+def risk_adjusted_comparison(
+    cvar_ledger: pd.DataFrame,
+    rl_ledger: pd.DataFrame,
+    cvar_summary: dict,
+    rl_summary: dict,
+    cvar_label: str = "CVaR optimizer",
+    rl_label: str = "RL research baseline",
+) -> pd.DataFrame:
+    """Risk-adjusted comparison of the two backtest series, with plain-language reads.
+
+    Every figure is computed from the same ledgers the performance charts already
+    plot; nothing here re-runs or re-estimates a strategy.
+    """
+    def _below_start(ledger: pd.DataFrame) -> tuple[float, int, int]:
+        values = ledger["portfolio_value"].dropna()
+        if values.empty:
+            return float("nan"), 0, 0
+        start = float(values.iloc[0])
+        below = int((values < start).sum())
+        return below / len(values), below, len(values)
+
+    cvar_below, cvar_below_days, days = _below_start(cvar_ledger)
+    rl_below, rl_below_days, _ = _below_start(rl_ledger)
+
+    cvar_dd, rl_dd = abs(cvar_summary["max_drawdown"]), abs(rl_summary["max_drawdown"])
+    cvar_ret, rl_ret = cvar_summary["cumulative_return"], rl_summary["cumulative_return"]
+
+    # Max drawdown - shallower is better.
+    shallow, deep = (cvar_label, rl_label) if cvar_dd <= rl_dd else (rl_label, cvar_label)
+    dd_gap = abs(cvar_dd - rl_dd) * 100
+    shallow_ret, deep_ret = (cvar_ret, rl_ret) if cvar_dd <= rl_dd else (rl_ret, cvar_ret)
+    ret_gap = (deep_ret - shallow_ret) * 100
+    if ret_gap > 0:
+        dd_note = (
+            f"{shallow} held its worst peak-to-trough fall {dd_gap:.1f} percentage points shallower than {deep}, "
+            f"and gave up {ret_gap:.1f} percentage points of cumulative return to do it."
+        )
+    else:
+        dd_note = (
+            f"{shallow} held its worst peak-to-trough fall {dd_gap:.1f} percentage points shallower than {deep} "
+            f"while also finishing {abs(ret_gap):.1f} percentage points ahead on cumulative return."
+        )
+
+    sharpe_leader = cvar_label if cvar_summary["sharpe_ratio"] >= rl_summary["sharpe_ratio"] else rl_label
+    sharpe_note = (
+        f"{sharpe_leader} earned more return per unit of overall price swing "
+        f"({max(cvar_summary['sharpe_ratio'], rl_summary['sharpe_ratio']):.2f} against "
+        f"{min(cvar_summary['sharpe_ratio'], rl_summary['sharpe_ratio']):.2f}), so on this sample its extra "
+        "movement was paid for."
+    )
+
+    sortino_leader = cvar_label if cvar_summary["sortino_ratio"] >= rl_summary["sortino_ratio"] else rl_label
+    sortino_note = (
+        f"Sortino ignores upside swings and counts only losing days, and {sortino_leader} leads here too "
+        f"({max(cvar_summary['sortino_ratio'], rl_summary['sortino_ratio']):.2f} against "
+        f"{min(cvar_summary['sortino_ratio'], rl_summary['sortino_ratio']):.2f}), so its volatility leaned "
+        "toward gains rather than losses."
+    )
+
+    calmer, choppier = (cvar_label, rl_label) if cvar_below <= rl_below else (rl_label, cvar_label)
+    calm_days, chop_days = (cvar_below_days, rl_below_days) if cvar_below <= rl_below else (rl_below_days, cvar_below_days)
+    below_note = (
+        f"{calmer} was showing a loss against day one on {calm_days} of {days} days, versus {chop_days} for "
+        f"{choppier} — the more relevant number if an investor would judge the fund on any given statement date."
+    )
+
+    rows = [
+        ("Max drawdown", f"{cvar_summary['max_drawdown']:.1%}", f"{rl_summary['max_drawdown']:.1%}", dd_note),
+        ("Sharpe ratio", f"{cvar_summary['sharpe_ratio']:.2f}", f"{rl_summary['sharpe_ratio']:.2f}", sharpe_note),
+        ("Sortino ratio", f"{cvar_summary['sortino_ratio']:.2f}", f"{rl_summary['sortino_ratio']:.2f}", sortino_note),
+        ("Days below starting value", f"{cvar_below:.1%}", f"{rl_below:.1%}", below_note),
+    ]
+    return pd.DataFrame(rows, columns=["Metric", cvar_label, rl_label, "What it means"])
+
+
 ELEVATED_PERCENTILE = 75.0  # matches the "Elevated" cut used by strongest_drivers
 
 
@@ -1714,6 +1789,7 @@ def build_pages() -> dict[str, str]:
     cvar_paper, rl_paper, cvar_benchmarks = cvar_paper_fund()
     cvar_summary = performance_summary(cvar_paper.ledger["portfolio_value"], cvar_paper.ledger["daily_return"], cvar_paper.ledger["turnover"], cvar_paper.ledger["transaction_costs"])
     rl_summary = performance_summary(rl_paper.ledger["portfolio_value"], rl_paper.ledger["daily_return"], rl_paper.ledger["turnover"], rl_paper.ledger["transaction_costs"])
+    risk_adjusted = risk_adjusted_comparison(cvar_paper.ledger, rl_paper.ledger, cvar_summary, rl_summary)
     cvar_holdings_display = cvar_paper.current_holdings[["asset", "shares", "latest_price", "market_value", "weight", "unrealized_pnl"]].copy()
     cvar_holdings_display.columns = ["Asset", "Shares", "Latest Price", "Market Value", "Weight", "Unrealized P&L"]
     cvar_holdings_display["Shares"] = cvar_holdings_display["Shares"].map(lambda x: f"{x:,.4f}")
@@ -2847,6 +2923,10 @@ def build_pages() -> dict[str, str]:
             "The comparison uses the same starting capital and transaction-cost framework.",
         )
         + table_html(comparison)
+        + "<h3>Risk-adjusted comparison</h3>"
+        + "<p>Ending value alone rewards whichever strategy took more risk. These four measures ask a different "
+        "question: what did each strategy put an investor through along the way, and was the extra movement paid for?</p>"
+        + table_html(risk_adjusted, label="Risk-adjusted comparison of CVaR and RL")
         + "<div class='chart-grid'>"
         + chart_panel(
             "CVaR paper fund and benchmarks",
