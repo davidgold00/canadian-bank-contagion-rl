@@ -1714,6 +1714,78 @@ def stress_path_chart(paths: pd.DataFrame) -> go.Figure:
     return _dark_chart(fig, height=470)
 
 
+def scenario_walkthrough(paths: pd.DataFrame, adjacency: pd.DataFrame) -> str:
+    """Narrate the propagation the chart above already plots, step by step.
+
+    Reads the same paths and adjacency the scenario model produces; it introduces
+    no propagation rule of its own.
+    """
+    banks = [b for b in BANKS if b in paths.columns]
+    opening, closing = paths.iloc[0][banks], paths.iloc[-1][banks]
+    first_bank = opening.idxmax()
+    steps = paths.index.max()
+
+    first = (
+        f"The shock lands first on <strong>{first_bank}</strong> at {opening.max():.1f}/100. That opening hit is the "
+        f"scenario's own assumption, not a model output — the six banks start in a {opening.min():.0f}–{opening.max():.0f} range."
+    )
+
+    step_one = paths.loc[1][banks] - opening
+    absorber = step_one.idxmax()
+    # Column of the row-normalised adjacency = the share of each peer's stress this bank receives.
+    incoming = adjacency[absorber].drop(labels=[absorber], errors="ignore")
+    loudest = incoming.idxmax() if len(incoming) else None
+    second = (
+        f"One step later every bank has risen. <strong>{absorber}</strong> absorbs the most spillover, up "
+        f"{step_one.max():.1f} points to {paths.loc[1][absorber]:.1f}"
+        + (
+            f", with the largest single share of it arriving from {loudest}."
+            if loudest is not None
+            else "."
+        )
+    )
+
+    deltas = paths.diff().iloc[1:][banks]
+    first_move, last_move = deltas.iloc[0].max(), deltas.iloc[-1].max()
+    at_ceiling = bool((closing >= 99.9).any())
+    if at_ceiling:
+        third = (
+            f"By step {steps} at least one bank has reached the 100 ceiling, so the curves flatten because the scale "
+            "runs out, not because the contagion settles."
+        )
+    elif last_move > first_move:
+        third = (
+            f"The spread never settles: the largest single-step move grows from {first_move:.1f} points at step 1 to "
+            f"{last_move:.1f} at step {steps}. The run ends at a fixed {steps}-step horizon, not at convergence — "
+            "read the endpoint as \"where this shock had got to\", not as where it stops."
+        )
+    else:
+        third = (
+            f"Propagation is easing by the end: the largest single-step move falls from {first_move:.1f} points at "
+            f"step 1 to {last_move:.1f} at step {steps}."
+        )
+
+    off_diagonal = adjacency.to_numpy()[~np.eye(len(adjacency), dtype=bool)]
+    spread = float(off_diagonal.max() - off_diagonal.min()) if off_diagonal.size else 0.0
+    fourth = (
+        f"Spillover is shared almost evenly — every bank passes on between {off_diagonal.min():.0%} and "
+        f"{off_diagonal.max():.0%} of its stress to each peer, a spread of only {spread * 100:.0f} points. "
+        f"With the network this uniform, the ranking at the end is driven mostly by which banks the scenario hit "
+        f"hardest to begin with."
+    )
+
+    # The first three sentences change with the preset and severity, so the page
+    # script rewrites them by id. The fourth describes the network itself, which the
+    # controls do not touch, so it stays as rendered.
+    sentences = "".join(
+        f"<p id='scenario-step-{index}'>{text}</p>" for index, text in enumerate([first, second, third], start=1)
+    ) + f"<p>{fourth}</p>"
+    return (
+        "<h3>How the shock travels</h3>"
+        f"<div class='rationale' id='scenario-walkthrough'>{sentences}</div>"
+    )
+
+
 def final_stress_chart(final_stress: pd.Series) -> go.Figure:
     ordered = final_stress.sort_values()
     fig = go.Figure(go.Bar(
@@ -2586,6 +2658,59 @@ def build_pages() -> dict[str, str]:
     return paths;
   };
 
+  const argmax = (values) => values.indexOf(Math.max(...values));
+
+  // Mirrors scenario_walkthrough() in the exporter for the three sentences that
+  // depend on the selected preset and severity.
+  const renderWalkthrough = (paths) => {
+    const banks = scenarioData.banks;
+    const opening = paths[0];
+    const closing = paths[paths.length - 1];
+    const steps = paths.length - 1;
+
+    const firstBank = banks[argmax(opening)];
+    const setText = (id, html) => {
+      const node = document.querySelector(id);
+      if (node) node.innerHTML = html;
+    };
+    setText('#scenario-step-1',
+      `The shock lands first on <strong>${firstBank}</strong> at ${Math.max(...opening).toFixed(1)}/100. `
+      + `That opening hit is the scenario's own assumption, not a model output — the six banks start in a `
+      + `${Math.min(...opening).toFixed(0)}–${Math.max(...opening).toFixed(0)} range.`);
+
+    const stepOne = paths[1].map((value, i) => value - opening[i]);
+    const absorberIndex = argmax(stepOne);
+    let loudest = null;
+    let strongest = -Infinity;
+    banks.forEach((bank, source) => {
+      if (source !== absorberIndex && scenarioData.adjacency[source][absorberIndex] > strongest) {
+        strongest = scenarioData.adjacency[source][absorberIndex];
+        loudest = bank;
+      }
+    });
+    setText('#scenario-step-2',
+      `One step later every bank has risen. <strong>${banks[absorberIndex]}</strong> absorbs the most spillover, up `
+      + `${Math.max(...stepOne).toFixed(1)} points to ${paths[1][absorberIndex].toFixed(1)}`
+      + (loudest ? `, with the largest single share of it arriving from ${loudest}.` : '.'));
+
+    const spread = (from, to) => Math.max(...to.map((value, i) => value - from[i]));
+    const firstMove = spread(paths[0], paths[1]);
+    const lastMove = spread(paths[paths.length - 2], closing);
+    let third;
+    if (closing.some((value) => value >= 99.9)) {
+      third = `By step ${steps} at least one bank has reached the 100 ceiling, so the curves flatten because the `
+        + 'scale runs out, not because the contagion settles.';
+    } else if (lastMove > firstMove) {
+      third = `The spread never settles: the largest single-step move grows from ${firstMove.toFixed(1)} points at `
+        + `step 1 to ${lastMove.toFixed(1)} at step ${steps}. The run ends at a fixed ${steps}-step horizon, not at `
+        + 'convergence — read the endpoint as "where this shock had got to", not as where it stops.';
+    } else {
+      third = `Propagation is easing by the end: the largest single-step move falls from ${firstMove.toFixed(1)} `
+        + `points at step 1 to ${lastMove.toFixed(1)} at step ${steps}.`;
+    }
+    setText('#scenario-step-3', third);
+  };
+
   const render = () => {
     status.textContent = 'Updating scenario…';
     status.setAttribute('aria-busy', 'true');
@@ -2593,6 +2718,7 @@ def build_pages() -> dict[str, str]:
       try {
         const multiplier = Number(severity.value) / 100;
         const paths = calculate(select.value, multiplier);
+        renderWalkthrough(paths);
         const finalValues = paths[paths.length - 1];
         const average = finalValues.reduce((sum, value) => sum + value, 0) / finalValues.length;
         const peak = Math.max(...finalValues);
@@ -2716,6 +2842,7 @@ def build_pages() -> dict[str, str]:
             chart_html(final_stress_chart(final_stress)),
         )
         + "</div></div>"
+        + scenario_walkthrough(paths, scenario_adj.reindex(index=BANKS, columns=BANKS).fillna(0))
         + section_heading(
             "portfolio-impact",
             "Scenario · Portfolio impact",
