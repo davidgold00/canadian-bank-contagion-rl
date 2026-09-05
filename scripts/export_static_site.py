@@ -37,6 +37,7 @@ from src.dashboard.investment_signals import (  # noqa: E402
     compute_market_positioning,
     compute_portfolio_recommendations,
 )
+from src.features.stress_features import _pct_rank  # noqa: E402
 from src.portfolio.cvar_optimizer import efficient_frontier, optimize_cvar_portfolio, optimizer_tables  # noqa: E402
 from src.portfolio.paper_trader import CVaRPaperPortfolioSimulator, PaperPortfolioSimulator  # noqa: E402
 from src.portfolio.performance_metrics import drawdown_series, performance_summary  # noqa: E402
@@ -1148,6 +1149,132 @@ def component_heatmap(components: pd.DataFrame) -> go.Figure:
     return _dark_chart(fig, height=540)
 
 
+# Plain-language labels for the five inputs that actually build contagion_risk_score.
+# Source of truth: src.features.stress_features.make_contagion_risk_score.
+# Each entry is (label, what the input measures, a clause completing
+# "... than on N% of days on record").
+COMPOSITE_COMPONENT_LABELS = {
+    "avg_bank_vol_21d": (
+        "Bank volatility",
+        "How sharply the Big Six share prices have been swinging over the past month.",
+        "the Big Six have been swinging more violently",
+    ),
+    "avg_pairwise_corr_63d": (
+        "Bank correlation",
+        "How closely the six banks have been moving together over the past quarter.",
+        "the six banks have been moving together more tightly",
+    ),
+    "XFN.TO_drawdown_63d": (
+        "Financials drawdown",
+        "How far the Canadian financials ETF sits below its own recent high.",
+        "the financials ETF has been sitting further below its recent high",
+    ),
+    "VIX_level": (
+        "Global volatility",
+        "How nervous global equity markets are, measured by the VIX.",
+        "global equity markets have been more nervous",
+    ),
+    "slope_10y_2y": (
+        "Yield-curve inversion",
+        "How far the 10-year yield sits below the 2-year, which squeezes lending margins.",
+        "the yield curve has been more inverted",
+    ),
+}
+
+COMPOSITE_SCORE_LABEL = "Composite score"
+
+
+def _ordinal(value: float) -> str:
+    n = int(round(value))
+    suffix = "th" if 10 <= n % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{suffix}"
+
+
+def composite_attribution(features: pd.DataFrame) -> pd.DataFrame:
+    """Decompose the published contagion score into the parts that build it.
+
+    This mirrors ``make_contagion_risk_score`` exactly - an equal-weighted mean of
+    expanding percentile ranks - and recomputes nothing else. It is a read of the
+    existing calculation, not a second definition of it.
+    """
+    ranks: dict[str, pd.Series] = {}
+    for col in ["avg_bank_vol_21d", "avg_pairwise_corr_63d", "XFN.TO_drawdown_63d", "VIX_level"]:
+        if col in features:
+            ranks[col] = _pct_rank(features[col].abs() if "drawdown" in col else features[col])
+    if "slope_10y_2y" in features:
+        ranks["slope_10y_2y"] = _pct_rank((-features["slope_10y_2y"]).clip(lower=0))
+    if not ranks:
+        return pd.DataFrame(columns=["Component", "Percentile", "Weight", "Contribution", "Meaning", "Reading"])
+
+    weight = 1.0 / len(ranks)
+    rows = []
+    for col, series in ranks.items():
+        label, meaning, reading = COMPOSITE_COMPONENT_LABELS.get(col, (col, "", "this input has been more elevated"))
+        percentile = float(series.iloc[-1] * 100)
+        rows.append(
+            {
+                "Component": label,
+                "Percentile": percentile,
+                "Weight": weight,
+                "Contribution": percentile * weight,
+                "Meaning": meaning,
+                "Reading": reading,
+            }
+        )
+    table = pd.DataFrame(rows).sort_values("Contribution", ascending=False).reset_index(drop=True)
+
+    # Guard against silent drift: if the scoring formula ever changes, this
+    # attribution stops being a true decomposition and must be updated with it.
+    published = float(features["contagion_risk_score"].dropna().iloc[-1])
+    residual = abs(table["Contribution"].sum() - published)
+    if residual > 0.1:
+        raise RuntimeError(
+            "Composite attribution no longer reconciles to contagion_risk_score "
+            f"(residual {residual:.4f}). make_contagion_risk_score has changed - "
+            "update COMPOSITE_COMPONENT_LABELS and composite_attribution to match."
+        )
+    return table
+
+
+def attribution_chart(attribution: pd.DataFrame, score: float) -> go.Figure:
+    """Horizontal contribution bars, largest driver first, composite as the final bar."""
+    ordered = attribution.sort_values("Contribution", ascending=True)
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=ordered["Contribution"], y=ordered["Component"], orientation="h",
+        text=[f"{x:.1f}" for x in ordered["Contribution"]], textposition="auto",
+        customdata=np.stack([ordered["Percentile"], ordered["Weight"] * 100], axis=-1),
+        hovertemplate=(
+            "<b>%{y}</b><br>Stress percentile: %{customdata[0]:.1f}"
+            "<br>Weight: %{customdata[1]:.0f}%"
+            "<br>Contribution: %{x:.1f} points<extra></extra>"
+        ),
+        marker=dict(
+            color=ordered["Percentile"].tolist(),
+            colorscale=[[0, "#00c853"], [0.5, "#ffb300"], [1.0, "#f44336"]],
+            cmin=0, cmax=100, showscale=False,
+            line=dict(color="#16202d", width=2),
+        ),
+        showlegend=False,
+    ))
+    fig.add_trace(go.Bar(
+        x=[score], y=[COMPOSITE_SCORE_LABEL], orientation="h",
+        text=[f"{score:.1f}"], textposition="auto",
+        hovertemplate=f"<b>{COMPOSITE_SCORE_LABEL}</b><br>%{{x:.1f}} of 100<extra></extra>",
+        marker=dict(color="#1e88e5", line=dict(color="#16202d", width=2)),
+        showlegend=False,
+    ))
+    fig.update_layout(
+        title="Score Attribution — Weighted Contribution to the Composite",
+        xaxis_title="Points contributed to the 0–100 score",
+        barmode="overlay",
+        bargap=0.35,
+    )
+    fig.update_yaxes(categoryorder="array",
+                     categoryarray=[COMPOSITE_SCORE_LABEL] + ordered["Component"].tolist())
+    return _dark_chart(fig, height=430)
+
+
 def stress_paths(
     prices: pd.DataFrame,
     scenario_name="Liquidity Squeeze",
@@ -1314,6 +1441,7 @@ def build_pages() -> dict[str, str]:
     latest_date = latest_valid_date(features)
     drivers = strongest_drivers(features)
     components = component_scores(features)
+    attribution = composite_attribution(features)
     allocation_fig, weights = allocation_chart(bank_table, score)
     regime_html = regime_banner_html(score, regime["label"], regime["summary"], regime["tone"])
     signals = compute_bank_signals(features, prices, macro)
@@ -1328,6 +1456,22 @@ def build_pages() -> dict[str, str]:
 
     driver_display = drivers.copy()
     driver_display["Stress Percentile"] = driver_display["Stress Percentile"].map(lambda x: f"{x:.0%}" if pd.notna(x) else "N/A")
+
+    attribution_display = attribution.copy()
+    attribution_display["Stress percentile"] = attribution_display["Percentile"].map(lambda x: f"{x:.1f}")
+    attribution_display["Weight"] = attribution_display["Weight"].map(lambda x: f"{x:.0%}")
+    attribution_display["Contribution"] = attribution_display["Contribution"].map(lambda x: f"{x:.1f} pts")
+    attribution_display = attribution_display[["Component", "Stress percentile", "Weight", "Contribution", "Meaning"]]
+    if len(attribution):
+        top_driver = attribution.iloc[0]
+        attribution_sentence = (
+            f"<strong>{top_driver['Component']}</strong> is the largest single driver of today's score: at the "
+            f"{_ordinal(top_driver['Percentile'])} percentile of its own history, {top_driver['Reading']} than on about "
+            f"{top_driver['Percentile']:.0f}% of days on record, contributing "
+            f"{top_driver['Contribution']:.1f} of the {score:.1f} total points."
+        )
+    else:
+        attribution_sentence = "Component attribution is unavailable for the current dataset."
 
     weight_table = weights.rename("Weight").reset_index().rename(columns={"index": "Asset"})
     weight_table["Weight"] = weight_table["Weight"].map(lambda x: f"{x:.1%}")
@@ -1946,6 +2090,17 @@ def build_pages() -> dict[str, str]:
                 ("Data updated", latest_date),
             ]
         )
+        + "<h3>Score attribution</h3>"
+        + "<p>The composite score is the equal-weighted average of five percentile ranks. Each input is "
+        "ranked against its own history to date, then contributes one-fifth of its rank to the total. "
+        "The bars below show how many of the "
+        f"{score:.1f} points each input is responsible for.</p>"
+        + chart_panel(
+            "Contribution to the composite score",
+            attribution_sentence,
+            chart_html(attribution_chart(attribution, score)),
+        )
+        + table_html(attribution_display, label="Composite score attribution")
         + "<div class='chart-grid'>"
         + chart_panel(
             "Component scores",
