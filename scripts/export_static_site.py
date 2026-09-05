@@ -38,6 +38,7 @@ from src.dashboard.investment_signals import (  # noqa: E402
     compute_portfolio_recommendations,
 )
 from src.features.stress_features import _pct_rank  # noqa: E402
+from src.portfolio.allocation_policy import FINANCIAL_EXPOSURE_ASSETS  # noqa: E402
 from src.portfolio.cvar_optimizer import efficient_frontier, optimize_cvar_portfolio, optimizer_tables  # noqa: E402
 from src.portfolio.paper_trader import CVaRPaperPortfolioSimulator, PaperPortfolioSimulator  # noqa: E402
 from src.portfolio.performance_metrics import drawdown_series, performance_summary  # noqa: E402
@@ -538,6 +539,31 @@ def page_template(slug: str, title: str, subtitle: str, body: str, latest_date: 
     .driver-list {{ margin: 16px 0 0; padding-left: 1.2rem; }}
     .driver-list li {{ padding: 7px 0; border-bottom: 1px solid rgba(42,58,74,.65); }}
     .driver-list li:last-child {{ border: 0; }}
+    .rationale {{
+      border-left: 3px solid var(--border-accent);
+      background: var(--surface);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      padding: 16px 20px;
+      margin: 12px 0 6px;
+      counter-reset: rationale-step;
+    }}
+    .rationale p {{
+      position: relative;
+      padding-left: 30px;
+      margin: 0 0 12px;
+      color: #c5d1db;
+      font-size: 0.93rem;
+    }}
+    .rationale p:last-child {{ margin-bottom: 0; }}
+    .rationale p::before {{
+      counter-increment: rationale-step;
+      content: counter(rationale-step);
+      position: absolute;
+      left: 0;
+      top: 1px;
+      color: #90caf9;
+      font: 500 0.78rem 'JetBrains Mono', monospace;
+    }}
     .button-row {{ display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }}
     .button {{
       display: inline-flex;
@@ -971,10 +997,20 @@ def performance_drawdown_chart(ledger: pd.DataFrame, benchmarks: pd.DataFrame) -
     return _dark_chart(fig)
 
 
+# Named so the decision-page rationale can quote the same guardrails the optimizer
+# runs under. Values are unchanged from the original inline call.
+CVAR_SNAPSHOT_CONSTRAINTS = PortfolioConstraints(
+    max_single_name_weight=0.20, max_bank_exposure=0.70, min_cash_weight=0.05, max_cash_weight=0.60
+)
+# Matches optimize_cvar_portfolio's own default; passed explicitly so the rationale
+# can state the covariance inflation without duplicating a magic number.
+CVAR_GRAPH_PENALTY_STRENGTH = 0.40
+
+
 def cvar_snapshot() -> tuple:
     prices = load_prices()
     features = load_features()
-    constraints = PortfolioConstraints(max_single_name_weight=0.20, max_bank_exposure=0.70, min_cash_weight=0.05, max_cash_weight=0.60)
+    constraints = CVAR_SNAPSHOT_CONSTRAINTS
     result = optimize_cvar_portfolio(
         prices_history=prices,
         features_history=features,
@@ -984,6 +1020,7 @@ def cvar_snapshot() -> tuple:
         risk_aversion=7.0,
         cvar_penalty=9.0,
         contagion_penalty=0.90,
+        graph_penalty_strength=CVAR_GRAPH_PENALTY_STRENGTH,
     )
     frontier = efficient_frontier(prices, features, confidence_level=0.95, lookback_window=126, constraints=constraints)
     return result, frontier
@@ -1273,6 +1310,130 @@ def attribution_chart(attribution: pd.DataFrame, score: float) -> go.Figure:
     fig.update_yaxes(categoryorder="array",
                      categoryarray=[COMPOSITE_SCORE_LABEL] + ordered["Component"].tolist())
     return _dark_chart(fig, height=430)
+
+
+ELEVATED_PERCENTILE = 75.0  # matches the "Elevated" cut used by strongest_drivers
+
+
+def _join_phrases(phrases: list[str]) -> str:
+    if len(phrases) == 1:
+        return phrases[0]
+    if len(phrases) == 2:
+        return f"{phrases[0]} and {phrases[1]}"
+    return ", ".join(phrases[:-1]) + f", and {phrases[-1]}"
+
+
+def _looser_guidance(features: pd.DataFrame, macro: pd.DataFrame, score: float) -> dict | None:
+    """The guidance one regime band below the current score.
+
+    Probes compute_market_positioning rather than restating its thresholds, so the
+    narrative stays correct if those bands are ever retuned.
+    """
+    current = compute_market_positioning(features, macro, score)["total_bank_budget"]
+    edge = None
+    for probe in range(int(np.floor(score)), -1, -1):
+        if compute_market_positioning(features, macro, float(probe))["total_bank_budget"] != current:
+            edge = probe
+            break
+    if edge is None:
+        return None
+    looser = compute_market_positioning(features, macro, float(edge))
+    # `edge` is the highest probe that still reads differently, so the band starts one above it.
+    return {
+        "threshold": edge + 1,
+        "budget": looser["total_bank_budget"],
+        "cash": looser["cash_guidance"].split(".")[0],
+    }
+
+
+def decision_rationale(
+    features: pd.DataFrame,
+    macro: pd.DataFrame,
+    attribution: pd.DataFrame,
+    cvar_result,
+    constraints: PortfolioConstraints,
+    positioning: dict,
+    score: float,
+) -> str:
+    """Plain-language causal chain from risk drivers to the published recommendation."""
+    elevated = attribution[attribution["Percentile"] >= ELEVATED_PERCENTILE]
+    calm = attribution[attribution["Percentile"] < ELEVATED_PERCENTILE]
+
+    if len(elevated):
+        elevated_text = _join_phrases(
+            [f"{row['Component'].lower()} at its {_ordinal(row['Percentile'])} percentile" for _, row in elevated.iterrows()]
+        )
+        first = (
+            f"{'Three' if len(elevated) == 3 else len(elevated)} of the five inputs to the risk score are running hot: "
+            f"{elevated_text}."
+            if len(elevated) > 1
+            else f"One of the five inputs to the risk score is running hot: {elevated_text}."
+        )
+    else:
+        first = "None of the five inputs to the risk score is above its 75th percentile today."
+
+    if len(calm):
+        calm_text = _join_phrases(
+            [f"{row['Component'].lower()} at the {_ordinal(row['Percentile'])}" for _, row in calm.iterrows()]
+        )
+        second = (
+            f"Averaged against the calmer readings — {calm_text} — that puts the composite contagion score at "
+            f"{score:.1f} out of 100, in the {positioning['regime'].lower()} band."
+        )
+    else:
+        second = f"That puts the composite contagion score at {score:.1f} out of 100, in the {positioning['regime'].lower()} band."
+
+    density = float(cvar_result.diagnostics.get("graph_density", 0.0))
+    avg_corr = float(cvar_result.diagnostics.get("average_correlation", 0.0))
+    systemic_pressure = (
+        0.45 * min(max(score / 100.0, 0.0), 1.0)
+        + 0.30 * min(max(density, 0.0), 1.0)
+        + 0.25 * min(max(avg_corr, 0.0), 1.0)
+    )
+    inflation = CVAR_GRAPH_PENALTY_STRENGTH * systemic_pressure
+    third = (
+        f"That score is not just a label — it is fed straight into the CVaR optimizer, where it inflates the "
+        f"risk the optimizer perceives in every bank position by {inflation:.0%}, so each bank has to earn a higher "
+        f"return to justify its weight. The optimizer also runs under a hard ceiling of "
+        f"{constraints.max_bank_exposure:.0%} on total financial exposure and a floor of "
+        f"{constraints.min_cash_weight:.0%} on cash."
+    )
+
+    financial_assets = [a for a in FINANCIAL_EXPOSURE_ASSETS if a in cvar_result.weights.index]
+    exposure = float(cvar_result.weights.reindex(financial_assets).fillna(0.0).sum())
+    cash = float(cvar_result.weights.get("cash", 0.0))
+    binding = exposure >= constraints.max_bank_exposure - 0.005
+    fourth = (
+        f"Under those inflated risk estimates the optimizer settles at {exposure:.1%} financial exposure and "
+        f"{cash:.1%} cash — "
+        + (
+            f"pinned against the {constraints.max_bank_exposure:.0%} ceiling, so the cap is what is holding exposure down."
+            if binding
+            else f"comfortably inside the {constraints.max_bank_exposure:.0%} ceiling, which means the risk score itself, "
+            "not the cap, is what pulled exposure down."
+        )
+    )
+
+    fifth = (
+        f"The published guidance then tightens further than the optimizer's guardrail, because the score sits in the "
+        f"{positioning['regime'].lower()} band: a {positioning['total_bank_budget']} aggregate bank budget and "
+        f"{positioning['cash_guidance'].split('.')[0]} cash."
+    )
+
+    looser = _looser_guidance(features, macro, score)
+    sixth = (
+        f"That range is set by the band rather than by any single day's optimization, so it holds steady while the score "
+        f"stays at {looser['threshold']} or above; a fall below {looser['threshold']} would widen the budget to "
+        f"{looser['budget']} and cut the cash call to {looser['cash']}."
+        if looser
+        else "That range is set by the regime band rather than by any single day's optimization."
+    )
+
+    sentences = "".join(f"<p>{text}</p>" for text in [first, second, third, fourth, fifth, sixth])
+    return (
+        "<h3>Why this recommendation</h3>"
+        f"<div class='rationale'>{sentences}</div>"
+    )
 
 
 def stress_paths(
@@ -2608,6 +2769,9 @@ def build_pages() -> dict[str, str]:
             "versus potential participation in a bank-sector recovery. Because cash outputs diverge, the regime "
             "policy range is the decision guardrail and model-specific cash weights remain evidence, not automatic trades.",
             regime["tone"],
+        )
+        + decision_rationale(
+            features, macro, attribution, cvar_result, CVAR_SNAPSHOT_CONSTRAINTS, positioning, score
         )
         + section_heading(
             "evidence",

@@ -374,6 +374,31 @@
     .driver-list { margin: 16px 0 0; padding-left: 1.2rem; }
     .driver-list li { padding: 7px 0; border-bottom: 1px solid rgba(42,58,74,.65); }
     .driver-list li:last-child { border: 0; }
+    .rationale {
+      border-left: 3px solid var(--border-accent);
+      background: var(--surface);
+      border-radius: 0 var(--radius) var(--radius) 0;
+      padding: 16px 20px;
+      margin: 12px 0 6px;
+      counter-reset: rationale-step;
+    }
+    .rationale p {
+      position: relative;
+      padding-left: 30px;
+      margin: 0 0 12px;
+      color: #c5d1db;
+      font-size: 0.93rem;
+    }
+    .rationale p:last-child { margin-bottom: 0; }
+    .rationale p::before {
+      counter-increment: rationale-step;
+      content: counter(rationale-step);
+      position: absolute;
+      left: 0;
+      top: 1px;
+      color: #90caf9;
+      font: 500 0.78rem 'JetBrains Mono', monospace;
+    }
     .button-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
     .button {
       display: inline-flex;
