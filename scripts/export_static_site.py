@@ -187,6 +187,93 @@ def apply_glossary(body: str) -> str:
     return out
 
 
+def refresh_panel(latest_date: str) -> str:
+    """Data-refresh control for the overview page.
+
+    The published site is static and has no backend, so the panel keeps itself
+    hidden unless scripts/serve_site.py answers on /api/refresh. That way the same
+    generated HTML works both locally and on Vercel.
+    """
+    return (
+        "<div class='refresh-panel' id='refresh-panel' hidden>"
+        "<div class='refresh-copy'><strong>Data refresh</strong>"
+        f"<span>Market and Bank of Canada history currently runs through {latest_date}. "
+        "Refreshing re-downloads both sources, rebuilds the feature dataset, and regenerates every page.</span></div>"
+        "<button class='button' id='refresh-button' type='button'>Refresh data</button>"
+        "</div>"
+        "<p class='status-line' id='refresh-status' role='status' aria-live='polite'></p>"
+        """
+<script>
+(() => {
+  const panel = document.querySelector('#refresh-panel');
+  const button = document.querySelector('#refresh-button');
+  const status = document.querySelector('#refresh-status');
+  if (!panel || !button || !status) return;
+
+  const ENDPOINT = '/api/refresh';
+  let timer = null;
+
+  const show = (message, tone) => {
+    status.textContent = message;
+    status.dataset.tone = tone || '';
+  };
+
+  const setRunning = (running) => {
+    button.disabled = running;
+    button.textContent = running ? 'Refreshing…' : 'Refresh data';
+  };
+
+  const poll = async () => {
+    try {
+      const state = await (await fetch(ENDPOINT, {cache: 'no-store'})).json();
+      if (state.status === 'running') {
+        show(state.step ? `${state.step}…` : 'Working…');
+        return;
+      }
+      clearInterval(timer);
+      timer = null;
+      setRunning(false);
+      if (state.status === 'error') {
+        show(`Refresh failed: ${state.error} Previous data and pages were restored.`, 'error');
+      } else {
+        show('Refresh complete. Reloading with the new data…', 'ok');
+        setTimeout(() => window.location.reload(), 900);
+      }
+    } catch (error) {
+      clearInterval(timer);
+      timer = null;
+      setRunning(false);
+      show(`Lost contact with the refresh server: ${error.message}`, 'error');
+    }
+  };
+
+  button.addEventListener('click', async () => {
+    setRunning(true);
+    show('Starting refresh…');
+    try {
+      const response = await fetch(ENDPOINT, {method: 'POST'});
+      if (!response.ok && response.status !== 409) throw new Error(`server returned ${response.status}`);
+      timer = setInterval(poll, 1200);
+      poll();
+    } catch (error) {
+      setRunning(false);
+      show(`Could not start the refresh: ${error.message}`, 'error');
+    }
+  });
+
+  // Only reveal the control when the local server is actually there.
+  fetch(ENDPOINT, {cache: 'no-store'})
+    .then((response) => {
+      if (!response.ok) throw new Error('unavailable');
+      panel.hidden = false;
+    })
+    .catch(() => { /* published static site: leave the panel hidden */ });
+})();
+</script>
+"""
+    )
+
+
 def chart_html(fig: go.Figure, include_js=False) -> str:
     return pio.to_html(
         fig,
@@ -677,6 +764,27 @@ def page_template(slug: str, title: str, subtitle: str, body: str, latest_date: 
       font-size: 0.93rem;
     }}
     .rationale p:last-child {{ margin-bottom: 0; }}
+
+    /* ── Data refresh ── */
+    .refresh-panel {{
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 22px;
+      padding: 18px 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }}
+    .refresh-copy {{ max-width: 62ch; }}
+    .refresh-copy strong {{ display: block; margin-bottom: 4px; }}
+    .refresh-copy span {{ color: var(--muted); font-size: 0.88rem; }}
+    #refresh-button[disabled] {{ opacity: 0.6; cursor: progress; }}
+    #refresh-status:not(:empty) {{ margin-top: 10px; }}
+    #refresh-status[data-tone='ok']    {{ color: var(--green); }}
+    #refresh-status[data-tone='error'] {{ color: var(--red); }}
 
     /* ── Glossary tooltips ── */
     .glossary {{
@@ -2514,6 +2622,7 @@ def build_pages() -> dict[str, str]:
             chart_html(driver_chart(features)),
         )
         + "</div>"
+        + refresh_panel(latest_date)
     )
 
     risk_body = (
