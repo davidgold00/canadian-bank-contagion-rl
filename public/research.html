@@ -390,6 +390,53 @@
       font-size: 0.93rem;
     }
     .rationale p:last-child { margin-bottom: 0; }
+
+    /* ── Glossary tooltips ── */
+    .glossary {
+      position: relative;
+      border-bottom: 1px dotted var(--border-accent);
+      cursor: help;
+    }
+    .glossary:focus-visible { outline: 2px solid var(--blue-lt); outline-offset: 2px; }
+    .glossary-def {
+      position: absolute;
+      bottom: calc(100% + 9px);
+      left: 0;
+      z-index: 60;
+      width: max-content;
+      max-width: min(300px, 74vw);
+      padding: 11px 13px;
+      background: var(--card);
+      border: 1px solid var(--border-accent);
+      border-radius: var(--radius);
+      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
+      color: #c5d1db;
+      font-size: 0.83rem;
+      font-weight: 400;
+      font-style: normal;
+      line-height: 1.5;
+      white-space: normal;
+      text-align: left;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.12s ease;
+    }
+    .glossary-def strong {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--blue-lt);
+      font-size: 0.8rem;
+      letter-spacing: 0.02em;
+    }
+    .glossary:hover .glossary-def,
+    .glossary:focus .glossary-def,
+    .glossary:focus-visible .glossary-def {
+      opacity: 1;
+      visibility: visible;
+    }
+    @media (max-width: 600px) {
+      .glossary-def { left: auto; right: 0; }
+    }
     .rationale p::before {
       counter-increment: rationale-step;
       content: counter(rationale-step);
@@ -669,7 +716,7 @@
       <td>A place to enter mortgage arrears, house-price, unemployment, and household-debt assumptions.</td>
     </tr>
   </tbody>
-</table></div><section class='section-heading' id='methodology'><span>Research · Methodology</span><h2>How the analytical system works</h2><p>Technical depth is available here without competing with the primary decision workflow.</p></section><div class='page-links'><a href='#risk-method'><strong>Risk score</strong><span>Point-in-time rolling features and historical percentile ranks.</span></a><a href='#graph-method'><strong>Contagion graph</strong><span>Dynamic interdependence from correlations and exposure proxies.</span></a><a href='#scenario-method'><strong>Scenario propagation</strong><span>Exogenous shocks spread through a normalized adjacency matrix.</span></a><a href='#portfolio-method'><strong>Portfolio models</strong><span>Experimental RL and constrained graph-aware CVaR allocation.</span></a></div><details id='risk-method'><summary>Risk score methodology</summary><div><p>Market, bank, macro, volatility, drawdown, and correlation features use rolling point-in-time windows. Components are normalized to interpretable 0–100 stress scores and combined into the composite risk score.</p></div></details><details id='graph-method'><summary>Network methodology</summary><div><p>The graph represents interdependence using rolling correlations and configurable exposure proxies. Centrality and density inform transmission analysis and covariance inflation.</p></div></details><details id='scenario-method'><summary>Scenario methodology</summary><div><p>Scenarios inject documented exogenous bank shocks and propagate them through the normalized positive-correlation network. Outputs are conditional stress paths, not forecasts.</p></div></details><details id='portfolio-method'><summary>Portfolio methodology</summary><div><p>The CVaR objective balances expected return, expected shortfall, volatility, graph contagion, and turnover under long-only, cash, single-name, and financial-exposure constraints. RL remains an experimental comparator.</p></div></details><section class='section-heading' id='assumptions'><span>Research · Assumptions</span><h2>Material modeling assumptions</h2><p>These assumptions are required to interpret the outputs safely.</p></section><ul class='driver-list'><li>Credit spreads, mortgage stress, capital, and exposure profiles may use public proxies or manual templates.</li><li>Historical return relationships are informative but may not persist during a future crisis.</li><li>Backtests use simplified transaction-cost, liquidity, and execution assumptions.</li><li>Paper simulations use prior-day established holdings to avoid earning returns on future information.</li></ul><section class='section-heading' id='limitations'><span>Research · Limitations</span><h2>Known boundaries of the analysis</h2><p>These limits apply across every page and should be considered before using any result.</p></section><ul class='driver-list'><li>This is an educational research simulator, not personalized financial advice or a regulatory model.</li><li>Public market data cannot observe all balance-sheet, funding, capital, mortgage, CRE, or counterparty channels.</li><li>RL behavior is sensitive to reward design, training history, and regime coverage.</li><li>Scenario propagation simplifies feedback loops and should not be interpreted as a probability forecast.</li><li>Backtests and paper portfolios may overfit and do not represent live performance.</li></ul><section class='section-heading' id='references'><span>Research · References</span><h2>Primary data and internal documentation</h2><p>Source names identify provenance without implying endorsement.</p></section><p>Market data: Yahoo Finance-compatible public series. Macro and rate data: Bank of Canada Valet series. Internal documentation: methodology report, model card, limitations report, configuration files, and dataset README.</p>
+</table></div><section class='section-heading' id='methodology'><span>Research · Methodology</span><h2>How the analytical system works</h2><p>Technical depth is available here without competing with the primary decision workflow.</p></section><div class='page-links'><a href='#risk-method'><strong>Risk score</strong><span>Point-in-time rolling features and historical percentile ranks.</span></a><a href='#graph-method'><strong>Contagion graph</strong><span>Dynamic interdependence from correlations and exposure proxies.</span></a><a href='#scenario-method'><strong>Scenario propagation</strong><span>Exogenous shocks spread through a normalized adjacency matrix.</span></a><a href='#portfolio-method'><strong>Portfolio models</strong><span>Experimental RL and constrained graph-aware <span class='glossary' tabindex='0' role='note' aria-describedby='glossary-cvar-0'>CVaR<span class='glossary-def' id='glossary-cvar-0' role='tooltip'><strong>CVaR</strong>The average loss on the worst days rather than on a typical bad day, so it measures how deep the tail actually goes.</span></span> allocation.</span></a></div><details id='risk-method'><summary>Risk score methodology</summary><div><p>Market, bank, macro, volatility, <span class='glossary' tabindex='0' role='note' aria-describedby='glossary-drawdown-1'>drawdown<span class='glossary-def' id='glossary-drawdown-1' role='tooltip'><strong>drawdown</strong>How far an investment has fallen from its own most recent high, which is what an investor actually experiences as a loss.</span></span>, and correlation features use rolling point-in-time windows. Components are normalized to interpretable 0–100 stress scores and combined into the composite risk score.</p></div></details><details id='graph-method'><summary>Network methodology</summary><div><p>The graph represents interdependence using rolling correlations and configurable exposure proxies. <span class='glossary' tabindex='0' role='note' aria-describedby='glossary-centrality-2'>Centrality<span class='glossary-def' id='glossary-centrality-2' role='tooltip'><strong>centrality</strong>How much of the network runs through one bank — a central bank is the one whose trouble is most likely to reach everyone else.</span></span> and density inform transmission analysis and covariance inflation.</p></div></details><details id='scenario-method'><summary>Scenario methodology</summary><div><p>Scenarios inject documented exogenous bank shocks and propagate them through the normalized positive-correlation network. Outputs are conditional stress paths, not forecasts.</p></div></details><details id='portfolio-method'><summary>Portfolio methodology</summary><div><p>The CVaR objective balances expected return, expected shortfall, volatility, graph contagion, and turnover under long-only, cash, single-name, and financial-exposure constraints. RL remains an experimental comparator.</p></div></details><section class='section-heading' id='assumptions'><span>Research · Assumptions</span><h2>Material modeling assumptions</h2><p>These assumptions are required to interpret the outputs safely.</p></section><ul class='driver-list'><li>Credit spreads, mortgage stress, capital, and exposure profiles may use public proxies or manual templates.</li><li>Historical return relationships are informative but may not persist during a future crisis.</li><li>Backtests use simplified transaction-cost, liquidity, and execution assumptions.</li><li>Paper simulations use prior-day established holdings to avoid earning returns on future information.</li></ul><section class='section-heading' id='limitations'><span>Research · Limitations</span><h2>Known boundaries of the analysis</h2><p>These limits apply across every page and should be considered before using any result.</p></section><ul class='driver-list'><li>This is an educational research simulator, not personalized financial advice or a regulatory model.</li><li>Public market data cannot observe all balance-sheet, funding, capital, mortgage, CRE, or counterparty channels.</li><li>RL behavior is sensitive to reward design, training history, and regime coverage.</li><li>Scenario propagation simplifies feedback loops and should not be interpreted as a probability forecast.</li><li>Backtests and paper portfolios may overfit and do not represent live performance.</li></ul><section class='section-heading' id='references'><span>Research · References</span><h2>Primary data and internal documentation</h2><p>Source names identify provenance without implying endorsement.</p></section><p>Market data: Yahoo Finance-compatible public series. Macro and rate data: Bank of Canada Valet series. Internal documentation: methodology report, model card, limitations report, configuration files, and dataset README.</p>
     <footer>
       <strong>Research-use notice.</strong> Analytical outputs are not personalized financial advice,
       a trading system, or a regulatory bank risk model. Performance views are historical simulations

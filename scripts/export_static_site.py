@@ -1,4 +1,5 @@
 import json
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -66,6 +67,124 @@ SCENARIO_SHOCKS = {
     "Yield Curve Inversion": {"RY.TO": 24, "TD.TO": 24, "BMO.TO": 22, "BNS.TO": 22, "CM.TO": 28, "NA.TO": 20},
     "Global Risk-Off": {"RY.TO": 32, "TD.TO": 32, "BMO.TO": 30, "BNS.TO": 31, "CM.TO": 33, "NA.TO": 29},
 }
+
+
+# ── Glossary ──
+# One plain-English sentence per term, written for a smart non-specialist reader.
+# `pattern` covers the spelling variants that actually appear in the copy.
+GLOSSARY: dict[str, tuple[str, str]] = {
+    "CVaR": (
+        r"CVaR",
+        "The average loss on the worst days rather than on a typical bad day, so it "
+        "measures how deep the tail actually goes.",
+    ),
+    "AUC": (
+        r"AUC",
+        "A 0-to-1 score for how well a model separates stressed days from calm ones, "
+        "where 0.5 is a coin flip and 1.0 is perfect.",
+    ),
+    "centrality": (
+        r"[Cc]entrality",
+        "How much of the network runs through one bank — a central bank is the one "
+        "whose trouble is most likely to reach everyone else.",
+    ),
+    "drawdown": (
+        r"[Dd]rawdowns?",
+        "How far an investment has fallen from its own most recent high, which is what "
+        "an investor actually experiences as a loss.",
+    ),
+    "Sharpe ratio": (
+        r"Sharpe(?:\s+ratio)?",
+        "How much return a strategy earned for each unit of price movement it put you "
+        "through — a way of asking whether the ride was worth it.",
+    ),
+    "Sortino ratio": (
+        r"Sortino(?:\s+ratio)?",
+        "The same idea as the Sharpe ratio, but it counts only the downward moves, on "
+        "the view that investors mind losses rather than gains.",
+    ),
+    "contagion score": (
+        r"[Cc]ontagion(?:\s+risk)?\s+score",
+        "A single 0-to-100 reading of how much stress is in the Canadian banking system "
+        "today, measured against its own history.",
+    ),
+    "financial exposure": (
+        r"[Ff]inancial exposure",
+        "The share of the portfolio held in banks and bank-sector ETFs — the part that "
+        "would be hit directly if banks came under pressure.",
+    ),
+    "risk budget": (
+        r"(?:[Bb]ank-)?risk budget",
+        "The largest share of the portfolio you are willing to hold in banks given "
+        "current conditions.",
+    ),
+    "basis points": (
+        r"\bbps\b|\bbasis points?\b",
+        "One hundredth of a percentage point, so 5 basis points means 0.05%.",
+    ),
+}
+
+# Contexts where a tooltip would break markup or get clipped: script/style bodies,
+# and tables (a positioned tooltip is cut off by the table's scroll container).
+_GLOSSARY_SKIP_TAGS = {"script", "style", "table"}
+_TAG_SPLIT = re.compile(r"(<[^>]+>)")
+_TAG_NAME = re.compile(r"^<\s*(/?)\s*([a-zA-Z0-9]+)")
+
+
+def glossary_term_html(term: str, matched: str, index: int) -> str:
+    """One glossary tooltip. Hover- and keyboard-reachable, announced to screen readers."""
+    definition = GLOSSARY[term][1]
+    tip_id = f"glossary-{re.sub(r'[^a-z]+', '-', term.lower())}-{index}"
+    return (
+        f"<span class='glossary' tabindex='0' role='note' aria-describedby='{tip_id}'>"
+        f"{matched}"
+        f"<span class='glossary-def' id='{tip_id}' role='tooltip'>"
+        f"<strong>{term}</strong>{definition}</span></span>"
+    )
+
+
+def apply_glossary(body: str) -> str:
+    """Wrap the first prose occurrence of each glossary term in a tooltip.
+
+    Runs once over the finished page body so definitions live in a single place
+    instead of being repeated at each call site. Only text nodes outside scripts,
+    styles, tables, and tag attributes are eligible, and only the first hit per
+    term per page is wrapped - enough to define the word where a reader first
+    meets it, without turning the page into a field of dotted underlines.
+    """
+    tokens = _TAG_SPLIT.split(body)
+    placeholders: list[str] = []
+    remaining = dict(GLOSSARY)
+    skip_depth = 0
+
+    for i, token in enumerate(tokens):
+        if i % 2:  # a tag
+            match = _TAG_NAME.match(token)
+            if match and match.group(2).lower() in _GLOSSARY_SKIP_TAGS:
+                if match.group(1):
+                    skip_depth = max(0, skip_depth - 1)
+                elif not token.rstrip().endswith("/>"):
+                    skip_depth += 1
+            continue
+        if skip_depth or not token.strip() or not remaining:
+            continue
+
+        text = token
+        for term in list(remaining):
+            pattern, _ = remaining[term]
+            hit = re.search(pattern, text)
+            if not hit:
+                continue
+            marker = f"\x00{len(placeholders)}\x00"
+            placeholders.append(glossary_term_html(term, hit.group(0), len(placeholders)))
+            text = text[: hit.start()] + marker + text[hit.end():]
+            del remaining[term]
+        tokens[i] = text
+
+    out = "".join(tokens)
+    for index, html in enumerate(placeholders):
+        out = out.replace(f"\x00{index}\x00", html)
+    return out
 
 
 def chart_html(fig: go.Figure, include_js=False) -> str:
@@ -163,6 +282,9 @@ def _dark_chart(fig: go.Figure, height: int = 430) -> go.Figure:
 
 
 def page_template(slug: str, title: str, subtitle: str, body: str, latest_date: str) -> str:
+    # Single wiring point for the glossary: every page passes through here, so terms
+    # are defined once in GLOSSARY rather than annotated per page.
+    body = apply_glossary(body)
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -555,6 +677,53 @@ def page_template(slug: str, title: str, subtitle: str, body: str, latest_date: 
       font-size: 0.93rem;
     }}
     .rationale p:last-child {{ margin-bottom: 0; }}
+
+    /* ── Glossary tooltips ── */
+    .glossary {{
+      position: relative;
+      border-bottom: 1px dotted var(--border-accent);
+      cursor: help;
+    }}
+    .glossary:focus-visible {{ outline: 2px solid var(--blue-lt); outline-offset: 2px; }}
+    .glossary-def {{
+      position: absolute;
+      bottom: calc(100% + 9px);
+      left: 0;
+      z-index: 60;
+      width: max-content;
+      max-width: min(300px, 74vw);
+      padding: 11px 13px;
+      background: var(--card);
+      border: 1px solid var(--border-accent);
+      border-radius: var(--radius);
+      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
+      color: #c5d1db;
+      font-size: 0.83rem;
+      font-weight: 400;
+      font-style: normal;
+      line-height: 1.5;
+      white-space: normal;
+      text-align: left;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.12s ease;
+    }}
+    .glossary-def strong {{
+      display: block;
+      margin-bottom: 4px;
+      color: var(--blue-lt);
+      font-size: 0.8rem;
+      letter-spacing: 0.02em;
+    }}
+    .glossary:hover .glossary-def,
+    .glossary:focus .glossary-def,
+    .glossary:focus-visible .glossary-def {{
+      opacity: 1;
+      visibility: visible;
+    }}
+    @media (max-width: 600px) {{
+      .glossary-def {{ left: auto; right: 0; }}
+    }}
     .rationale p::before {{
       counter-increment: rationale-step;
       content: counter(rationale-step);
@@ -2328,7 +2497,7 @@ def build_pages() -> dict[str, str]:
             ]
         )
         + "<h3>Score attribution</h3>"
-        + "<p>The composite score is the equal-weighted average of five percentile ranks. Each input is "
+        + "<p>The contagion score is the equal-weighted average of five percentile ranks. Each input is "
         "ranked against its own history to date, then contributes one-fifth of its rank to the total. "
         "The bars below show how many of the "
         f"{score:.1f} points each input is responsible for.</p>"
@@ -2924,8 +3093,9 @@ def build_pages() -> dict[str, str]:
         )
         + table_html(comparison)
         + "<h3>Risk-adjusted comparison</h3>"
-        + "<p>Ending value alone rewards whichever strategy took more risk. These four measures ask a different "
-        "question: what did each strategy put an investor through along the way, and was the extra movement paid for?</p>"
+        + "<p>Ending value alone rewards whichever strategy took more risk. Max drawdown, the Sharpe ratio, the "
+        "Sortino ratio, and time spent under water ask a different question: what did each strategy put an "
+        "investor through along the way, and was the extra movement paid for?</p>"
         + table_html(risk_adjusted, label="Risk-adjusted comparison of CVaR and RL")
         + "<div class='chart-grid'>"
         + chart_panel(
