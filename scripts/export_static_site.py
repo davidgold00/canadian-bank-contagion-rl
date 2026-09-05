@@ -1667,6 +1667,13 @@ def risk_adjusted_comparison(
 ELEVATED_PERCENTILE = 75.0  # matches the "Elevated" cut used by strongest_drivers
 
 
+_COUNT_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"]
+
+
+def _count_word(n: int) -> str:
+    return _COUNT_WORDS[n] if 0 <= n < len(_COUNT_WORDS) else str(n)
+
+
 def _join_phrases(phrases: list[str]) -> str:
     if len(phrases) == 1:
         return phrases[0]
@@ -1716,10 +1723,10 @@ def decision_rationale(
             [f"{row['Component'].lower()} at its {_ordinal(row['Percentile'])} percentile" for _, row in elevated.iterrows()]
         )
         first = (
-            f"{'Three' if len(elevated) == 3 else len(elevated)} of the five inputs to the risk score are running hot: "
-            f"{elevated_text}."
+            f"{_count_word(len(elevated)).capitalize()} of the {_count_word(len(attribution))} inputs to the risk "
+            f"score are running hot: {elevated_text}."
             if len(elevated) > 1
-            else f"One of the five inputs to the risk score is running hot: {elevated_text}."
+            else f"One of the {_count_word(len(attribution))} inputs to the risk score is running hot: {elevated_text}."
         )
     else:
         first = "None of the five inputs to the risk score is above its 75th percentile today."
@@ -1754,16 +1761,30 @@ def decision_rationale(
     financial_assets = [a for a in FINANCIAL_EXPOSURE_ASSETS if a in cvar_result.weights.index]
     exposure = float(cvar_result.weights.reindex(financial_assets).fillna(0.0).sum())
     cash = float(cvar_result.weights.get("cash", 0.0))
-    binding = exposure >= constraints.max_bank_exposure - 0.005
+    ceiling_binding = exposure >= constraints.max_bank_exposure - 0.005
+    floor_binding = cash <= constraints.min_cash_weight + 0.005
+    if ceiling_binding:
+        fourth_tail = (
+            f"pinned against the {constraints.max_bank_exposure:.0%} ceiling, so the cap, not the score, is what is "
+            "holding exposure down."
+        )
+    elif floor_binding:
+        # Cash resting on its floor means the optimizer wanted less cash, not more -
+        # saying the score alone drove the answer would misread which limit bit.
+        fourth_tail = (
+            f"well inside the {constraints.max_bank_exposure:.0%} ceiling, but with cash resting exactly on its "
+            f"{constraints.min_cash_weight:.0%} floor. So the score is what pulled bank exposure down, while the "
+            "floor is the only reason the portfolio holds any cash at all — left alone the optimizer would hold less."
+        )
+    else:
+        fourth_tail = (
+            f"comfortably inside the {constraints.max_bank_exposure:.0%} ceiling and above the "
+            f"{constraints.min_cash_weight:.0%} cash floor, so neither limit is binding: the risk score itself is "
+            "what pulled exposure down."
+        )
     fourth = (
         f"Under those inflated risk estimates the optimizer settles at {exposure:.1%} financial exposure and "
-        f"{cash:.1%} cash — "
-        + (
-            f"pinned against the {constraints.max_bank_exposure:.0%} ceiling, so the cap is what is holding exposure down."
-            if binding
-            else f"comfortably inside the {constraints.max_bank_exposure:.0%} ceiling, which means the risk score itself, "
-            "not the cap, is what pulled exposure down."
-        )
+        f"{cash:.1%} cash — {fourth_tail}"
     )
 
     fifth = (
@@ -2043,7 +2064,8 @@ def build_pages() -> dict[str, str]:
     driver_display["Stress Percentile"] = driver_display["Stress Percentile"].map(lambda x: f"{x:.0%}" if pd.notna(x) else "N/A")
 
     attribution_display = attribution.copy()
-    attribution_display["Stress percentile"] = attribution_display["Percentile"].map(lambda x: f"{x:.1f}")
+    # Percentiles read as "95%" everywhere else on the site; match that here.
+    attribution_display["Stress percentile"] = attribution_display["Percentile"].map(lambda x: f"{x:.0f}%")
     attribution_display["Weight"] = attribution_display["Weight"].map(lambda x: f"{x:.0%}")
     attribution_display["Contribution"] = attribution_display["Contribution"].map(lambda x: f"{x:.1f} pts")
     attribution_display = attribution_display[["Component", "Stress percentile", "Weight", "Contribution", "Meaning"]]
@@ -2678,10 +2700,9 @@ def build_pages() -> dict[str, str]:
             ]
         )
         + "<h3>Score attribution</h3>"
-        + "<p>The contagion score is the equal-weighted average of five percentile ranks. Each input is "
-        "ranked against its own history to date, then contributes one-fifth of its rank to the total. "
-        "The bars below show how many of the "
-        f"{score:.1f} points each input is responsible for.</p>"
+        + "<p>The contagion score — the composite bar in the chart below — is the equal-weighted average of five "
+        "percentile ranks. Each input is ranked against its own history to date, then contributes one-fifth of "
+        f"that rank to the total. The bars show how many of the {score:.1f} points each input is responsible for.</p>"
         + chart_panel(
             "Contribution to the composite score",
             attribution_sentence,
