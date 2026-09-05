@@ -554,12 +554,12 @@
     <span class="eyebrow">Canadian systemic-risk research</span>
     <h1>Portfolio decision</h1>
     <p class="subtitle">The definitive risk budget, allocation recommendation, rationale, and rebalance endpoint.</p>
-    <span class="pill">&#9679; Data through 2026-07-27</span>
+    <span class="pill">&#9679; Data through 2026-09-02</span>
     <span class="pill">Yahoo Finance · Bank of Canada</span>
     <span class="pill">CVaR · Graph Network · RL</span>
   </header>
   <main id="main-content" tabindex="-1">
-    <nav class='local-tabs' aria-label='Page sections'><a href='#recommendation'>Recommendation</a><a href='#evidence'>Evidence</a><a href='#rebalance'>Rebalance plan</a><a href='#change-conditions'>Change conditions</a></nav><section class='section-heading' id='recommendation'><span>Decision · Portfolio recommendation</span><h2>Current risk budget and allocation action</h2><p>This is the definitive synthesis of observed risk, model outputs, scenario evidence, and portfolio constraints.</p></section><div class='regime-banner' style='background:rgba(255,179,0,0.08);border-color:#ffb300;'><div class='score' style='color:#ffb300'>59/100</div><div><div class='label' style='color:#ffb300'>Moderate Risk Regime</div><div class='desc'>Some stress channels are active, but the system is not in a broad crisis regime.</div></div></div><div class='grid'><div class='metric blue'><span>Bank-risk budget</span><strong>50–65%</strong></div><div class='metric blue'><span>Cash policy range</span><strong>10–15%</strong></div><div class='metric blue'><span>Largest positive tilt</span><strong>RY.TO +1.7% · HOLD</strong></div><div class='metric blue'><span>Largest reduction</span><strong>TD.TO -10.8% · SELL</strong></div><div class='metric blue'><span>Cash-posture agreement</span><strong>Mixed</strong></div><div class='metric blue'><span>Validation confidence</span><strong>Moderate · AUC 0.97</strong></div><div class='metric blue'><span>Historical CVaR</span><strong>1.4%</strong></div><div class='metric blue'><span>CVaR / fallback cash</span><strong>5.1% / 37.1%</strong></div></div><div class='callout warning' role='note'><p class='callout-title'>Portfolio recommendation</p><p>Avoid highest-stress names. Prefer banks with lower volatility and drawdown. Use a 50–65% aggregate bank budget; 10–15%. Build defensive buffer for potential escalation. The primary trade-off is lower concentration and tail exposure versus potential participation in a bank-sector recovery. Because cash outputs diverge, the regime policy range is the decision guardrail and model-specific cash weights remain evidence, not automatic trades.</p></div><section class='section-heading' id='evidence'><span>Decision · Evidence</span><h2>Separate facts, model outputs, and assumptions</h2><p>The labels below make the provenance of each statement explicit.</p></section><span class='label'>Observed facts</span><div class='table-scroll' role='region' aria-label='Data table: Observed fact, Source'><table border="1" class="dataframe data-table">
+    <nav class='local-tabs' aria-label='Page sections'><a href='#recommendation'>Recommendation</a><a href='#evidence'>Evidence</a><a href='#rebalance'>Rebalance plan</a><a href='#change-conditions'>Change conditions</a></nav><section class='section-heading' id='recommendation'><span>Decision · Portfolio recommendation</span><h2>Current risk budget and allocation action</h2><p>This is the definitive synthesis of observed risk, model outputs, scenario evidence, and portfolio constraints.</p></section><div class='regime-banner' style='background:rgba(244,67,54,0.08);border-color:#f44336;'><div class='score' style='color:#f44336'>70/100</div><div><div class='label' style='color:#f44336'>Elevated Risk Regime</div><div class='desc'>Systemic pressure is elevated; bank stocks may behave more like one crowded trade.</div></div></div><div class='grid'><div class='metric blue'><span>Bank-risk budget</span><strong>35–50%</strong></div><div class='metric blue'><span>Cash policy range</span><strong>20–35%</strong></div><div class='metric blue'><span>Largest positive tilt</span><strong>TD.TO -3.3% · SELL</strong></div><div class='metric blue'><span>Largest reduction</span><strong>CM.TO -11.7% · SELL</strong></div><div class='metric blue'><span>Cash-posture agreement</span><strong>Mixed</strong></div><div class='metric blue'><span>Validation confidence</span><strong>Moderate · AUC 0.97</strong></div><div class='metric blue'><span>Historical CVaR</span><strong>1.4%</strong></div><div class='metric blue'><span>CVaR / fallback cash</span><strong>8.8% / 53.4%</strong></div></div><div class='callout danger' role='note'><p class='callout-title'>Portfolio recommendation</p><p>Underweight banks broadly. XFN beta hedge worthwhile. Focus on lowest-node-stress banks. Use a 35–50% aggregate bank budget; 20–35%. Defensive positioning is justified by elevated tail risk. The primary trade-off is lower concentration and tail exposure versus potential participation in a bank-sector recovery. Because cash outputs diverge, the regime policy range is the decision guardrail and model-specific cash weights remain evidence, not automatic trades.</p></div><section class='section-heading' id='evidence'><span>Decision · Evidence</span><h2>Separate facts, model outputs, and assumptions</h2><p>The labels below make the provenance of each statement explicit.</p></section><span class='label'>Observed facts</span><div class='table-scroll' role='region' aria-label='Data table: Observed fact, Source'><table border="1" class="dataframe data-table">
   <thead>
     <tr style="text-align: right;">
       <th>Observed fact</th>
@@ -568,11 +568,11 @@
   </thead>
   <tbody>
     <tr>
-      <td>Market and macro observation window ends 2026-07-27</td>
+      <td>Market and macro observation window ends 2026-09-02</td>
       <td>Processed point-in-time dataset</td>
     </tr>
     <tr>
-      <td>Latest XFN series value is $96.22</td>
+      <td>Latest XFN series value is $92.84</td>
       <td>Yahoo Finance-compatible market series</td>
     </tr>
     <tr>
@@ -589,20 +589,20 @@
   </thead>
   <tbody>
     <tr>
-      <td>Risk score 59.1/100</td>
+      <td>Risk score 69.7/100</td>
       <td>Composite market, macro, and bank stress model</td>
     </tr>
     <tr>
-      <td>Highest node stress: CM.TO 67.5/100</td>
+      <td>Highest node stress: NA.TO 91.7/100</td>
       <td>Rolling volatility, drawdown, and sector beta</td>
     </tr>
     <tr>
-      <td>Average cross-bank correlation 0.76</td>
+      <td>Average cross-bank correlation 0.79</td>
       <td>63-trading-day return correlation</td>
     </tr>
   </tbody>
 </table></div><span class='label'>Model outputs</span><div class='chart-grid'><figure class='chart-card'><div class='chart-context'><h3>Bank attractiveness score</h3></div><div>                        <script>window.PlotlyConfig = {MathJaxConfig: 'local'};</script>
-        <script charset="utf-8" src="https://cdn.plot.ly/plotly-3.5.0.min.js" integrity="sha256-fHbNLP+GlIXN+efbQec78UkemUz3NJp7UmfGxC1tNxs=" crossorigin="anonymous"></script>                <div id="8ef204f0-54bb-4645-a2d2-f74a2b27d198" class="plotly-graph-div" style="height:430px; width:100%;"></div>            <script>                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("8ef204f0-54bb-4645-a2d2-f74a2b27d198")) {                    Plotly.newPlot(                        "8ef204f0-54bb-4645-a2d2-f74a2b27d198",                        [{"marker":{"cmax":100,"cmin":0,"color":[41.670681462261,43.602898519531706,53.960565057435176,54.53182244938098,58.48394388302944,59.74655077467699],"colorscale":[[0,"#f44336"],[0.5,"#ffb300"],[1.0,"#00c853"]],"showscale":false},"orientation":"h","text":["41.7","43.6","54.0","54.5","58.5","59.7"],"textposition":"auto","x":{"dtype":"f8","bdata":"5Djh49jVREAGGVjHK81FQKauucvz+kpAWq8NwhJES0D4Woff8T1NQEQFzfmO301A"},"y":["TD.TO","BNS.TO","NA.TO","BMO.TO","CM.TO","RY.TO"],"type":"bar"}],                        {"template":{"data":{"histogram2dcontour":[{"type":"histogram2dcontour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"choropleth":[{"type":"choropleth","colorbar":{"outlinewidth":0,"ticks":""}}],"histogram2d":[{"type":"histogram2d","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"heatmap":[{"type":"heatmap","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"contourcarpet":[{"type":"contourcarpet","colorbar":{"outlinewidth":0,"ticks":""}}],"contour":[{"type":"contour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"surface":[{"type":"surface","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"mesh3d":[{"type":"mesh3d","colorbar":{"outlinewidth":0,"ticks":""}}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"parcoords":[{"type":"parcoords","line":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolargl":[{"type":"scatterpolargl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"scattergeo":[{"type":"scattergeo","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolar":[{"type":"scatterpolar","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"scattergl":[{"type":"scattergl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatter3d":[{"type":"scatter3d","line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermap":[{"type":"scattermap","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermapbox":[{"type":"scattermapbox","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterternary":[{"type":"scatterternary","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattercarpet":[{"type":"scattercarpet","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"type":"carpet"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}],"barpolar":[{"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"pie":[{"automargin":true,"type":"pie"}]},"layout":{"autotypenumbers":"strict","colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"hovermode":"closest","hoverlabel":{"align":"left"},"paper_bgcolor":"white","plot_bgcolor":"#E5ECF6","polar":{"bgcolor":"#E5ECF6","angularaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"radialaxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"ternary":{"bgcolor":"#E5ECF6","aaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"baxis":{"gridcolor":"white","linecolor":"white","ticks":""},"caxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]]},"xaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"yaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"scene":{"xaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"yaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"zaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"geo":{"bgcolor":"white","landcolor":"#E5ECF6","subunitcolor":"white","showland":true,"showlakes":true,"lakecolor":"white"},"title":{"x":0.05},"mapbox":{"style":"light"}}},"shapes":[{"line":{"color":"#7a91a6","dash":"dash"},"type":"line","x0":50,"x1":50,"xref":"x","y0":0,"y1":1,"yref":"y domain"}],"title":{"text":"Investment Signal Score by Bank","font":{"size":14,"color":"#e8edf2"}},"xaxis":{"title":{"text":"Composite score","font":{"color":"#7a91a6"}},"tickfont":{"color":"#7a91a6"},"gridcolor":"#2a3a4a","linecolor":"#2a3a4a"},"font":{"family":"'JetBrains Mono', 'SF Mono', monospace","color":"#e8edf2","size":12},"yaxis":{"tickfont":{"color":"#7a91a6"},"title":{"font":{"color":"#7a91a6"}},"gridcolor":"#2a3a4a","linecolor":"#2a3a4a"},"legend":{"font":{"color":"#e8edf2"},"bgcolor":"rgba(0,0,0,0)"},"margin":{"l":30,"r":20,"t":55,"b":35},"paper_bgcolor":"#16202d","plot_bgcolor":"#0f1923","colorway":["#1e88e5","#00c853","#ffb300","#f44336","#00bcd4","#e040fb"],"height":430},                        {"displayModeBar": false, "responsive": true}                    )                };            </script>        </div><figcaption>Cross-sectional model output combining momentum, stress protection, mean reversion, and macro context.</figcaption></figure><figure class='chart-card'><div class='chart-context'><h3>Signal-derived target weights</h3></div><div>                            <div id="46400019-7e94-43e5-bdbb-6e0f8ea59ce8" class="plotly-graph-div" style="height:430px; width:100%;"></div>            <script>                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("46400019-7e94-43e5-bdbb-6e0f8ea59ce8")) {                    Plotly.newPlot(                        "46400019-7e94-43e5-bdbb-6e0f8ea59ce8",                        [{"marker":{"color":["#1e88e5","#1e88e5","#1e88e5","#1e88e5","#1e88e5","#1e88e5"]},"orientation":"h","text":["5.8%","8.3%","10.8%","13.3%","15.8%","18.3%"],"textposition":"auto","x":{"dtype":"f8","bdata":"3t3d3d3drT9WVVVVVVW1P7y7u7u7u7s\u002fERERERERwT9ERERERETEP3h3d3d3d8c\u002f"},"y":["TD.TO","BNS.TO","NA.TO","BMO.TO","CM.TO","RY.TO"],"type":"bar"}],                        {"template":{"data":{"histogram2dcontour":[{"type":"histogram2dcontour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"choropleth":[{"type":"choropleth","colorbar":{"outlinewidth":0,"ticks":""}}],"histogram2d":[{"type":"histogram2d","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"heatmap":[{"type":"heatmap","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"contourcarpet":[{"type":"contourcarpet","colorbar":{"outlinewidth":0,"ticks":""}}],"contour":[{"type":"contour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"surface":[{"type":"surface","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"mesh3d":[{"type":"mesh3d","colorbar":{"outlinewidth":0,"ticks":""}}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"parcoords":[{"type":"parcoords","line":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolargl":[{"type":"scatterpolargl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"scattergeo":[{"type":"scattergeo","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolar":[{"type":"scatterpolar","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"scattergl":[{"type":"scattergl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatter3d":[{"type":"scatter3d","line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermap":[{"type":"scattermap","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermapbox":[{"type":"scattermapbox","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterternary":[{"type":"scatterternary","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattercarpet":[{"type":"scattercarpet","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"type":"carpet"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}],"barpolar":[{"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"pie":[{"automargin":true,"type":"pie"}]},"layout":{"autotypenumbers":"strict","colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"hovermode":"closest","hoverlabel":{"align":"left"},"paper_bgcolor":"white","plot_bgcolor":"#E5ECF6","polar":{"bgcolor":"#E5ECF6","angularaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"radialaxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"ternary":{"bgcolor":"#E5ECF6","aaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"baxis":{"gridcolor":"white","linecolor":"white","ticks":""},"caxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]]},"xaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"yaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"scene":{"xaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"yaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"zaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"geo":{"bgcolor":"white","landcolor":"#E5ECF6","subunitcolor":"white","showland":true,"showlakes":true,"lakecolor":"white"},"title":{"x":0.05},"mapbox":{"style":"light"}}},"shapes":[{"line":{"color":"#7a91a6","dash":"dash"},"type":"line","x0":0.16666666666666666,"x1":0.16666666666666666,"xref":"x","y0":0,"y1":1,"yref":"y domain"}],"xaxis":{"title":{"text":"Weight","font":{"color":"#7a91a6"}},"tickformat":".0%","tickfont":{"color":"#7a91a6"},"gridcolor":"#2a3a4a","linecolor":"#2a3a4a"},"title":{"text":"Signal-Derived Target Weights","font":{"size":14,"color":"#e8edf2"}},"font":{"family":"'JetBrains Mono', 'SF Mono', monospace","color":"#e8edf2","size":12},"yaxis":{"tickfont":{"color":"#7a91a6"},"title":{"font":{"color":"#7a91a6"}},"gridcolor":"#2a3a4a","linecolor":"#2a3a4a"},"legend":{"font":{"color":"#e8edf2"},"bgcolor":"rgba(0,0,0,0)"},"margin":{"l":30,"r":20,"t":55,"b":35},"paper_bgcolor":"#16202d","plot_bgcolor":"#0f1923","colorway":["#1e88e5","#00c853","#ffb300","#f44336","#00bcd4","#e040fb"],"height":430},                        {"displayModeBar": false, "responsive": true}                    )                };            </script>        </div><figcaption>Model target weights relative to the equal-weight reference; these are outputs, not executed trades.</figcaption></figure></div><h3>Cash-posture synthesis</h3><div class='table-scroll' role='region' aria-label='Data table: Evidence layer, Cash posture, Interpretation'><table border="1" class="dataframe data-table">
+        <script charset="utf-8" src="https://cdn.plot.ly/plotly-3.5.0.min.js" integrity="sha256-fHbNLP+GlIXN+efbQec78UkemUz3NJp7UmfGxC1tNxs=" crossorigin="anonymous"></script>                <div id="3ce2ac4b-577a-4e18-aaf9-07d9cf0d2e39" class="plotly-graph-div" style="height:430px; width:100%;"></div>            <script>                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("3ce2ac4b-577a-4e18-aaf9-07d9cf0d2e39")) {                    Plotly.newPlot(                        "3ce2ac4b-577a-4e18-aaf9-07d9cf0d2e39",                        [{"marker":{"cmax":100,"cmin":0,"color":[40.50986264922443,41.6696874959494,43.115175366407996,45.37467726341653,50.057594337514054,52.18202500580324],"colorscale":[[0,"#f44336"],[0.5,"#ffb300"],[1.0,"#00c853"]],"showscale":false},"orientation":"h","text":["40.5","41.7","43.1","45.4","50.1","52.2"],"textposition":"auto","x":{"dtype":"f8","bdata":"eO\u002flLUNBREBH0uJRuNVEQHoDABG+jkVA4nawbPWvRkBhB1JAXwdJQFR9a5hMF0pA"},"y":["CM.TO","NA.TO","BNS.TO","BMO.TO","RY.TO","TD.TO"],"type":"bar"}],                        {"template":{"data":{"histogram2dcontour":[{"type":"histogram2dcontour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"choropleth":[{"type":"choropleth","colorbar":{"outlinewidth":0,"ticks":""}}],"histogram2d":[{"type":"histogram2d","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"heatmap":[{"type":"heatmap","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"contourcarpet":[{"type":"contourcarpet","colorbar":{"outlinewidth":0,"ticks":""}}],"contour":[{"type":"contour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"surface":[{"type":"surface","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"mesh3d":[{"type":"mesh3d","colorbar":{"outlinewidth":0,"ticks":""}}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"parcoords":[{"type":"parcoords","line":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolargl":[{"type":"scatterpolargl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"scattergeo":[{"type":"scattergeo","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolar":[{"type":"scatterpolar","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"scattergl":[{"type":"scattergl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatter3d":[{"type":"scatter3d","line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermap":[{"type":"scattermap","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermapbox":[{"type":"scattermapbox","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterternary":[{"type":"scatterternary","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattercarpet":[{"type":"scattercarpet","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"type":"carpet"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}],"barpolar":[{"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"pie":[{"automargin":true,"type":"pie"}]},"layout":{"autotypenumbers":"strict","colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"hovermode":"closest","hoverlabel":{"align":"left"},"paper_bgcolor":"white","plot_bgcolor":"#E5ECF6","polar":{"bgcolor":"#E5ECF6","angularaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"radialaxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"ternary":{"bgcolor":"#E5ECF6","aaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"baxis":{"gridcolor":"white","linecolor":"white","ticks":""},"caxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]]},"xaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"yaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"scene":{"xaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"yaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"zaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"geo":{"bgcolor":"white","landcolor":"#E5ECF6","subunitcolor":"white","showland":true,"showlakes":true,"lakecolor":"white"},"title":{"x":0.05},"mapbox":{"style":"light"}}},"shapes":[{"line":{"color":"#7a91a6","dash":"dash"},"type":"line","x0":50,"x1":50,"xref":"x","y0":0,"y1":1,"yref":"y domain"}],"title":{"text":"Investment Signal Score by Bank","font":{"size":14,"color":"#e8edf2"}},"xaxis":{"title":{"text":"Composite score","font":{"color":"#7a91a6"}},"tickfont":{"color":"#7a91a6"},"gridcolor":"#2a3a4a","linecolor":"#2a3a4a"},"font":{"family":"'JetBrains Mono', 'SF Mono', monospace","color":"#e8edf2","size":12},"yaxis":{"tickfont":{"color":"#7a91a6"},"title":{"font":{"color":"#7a91a6"}},"gridcolor":"#2a3a4a","linecolor":"#2a3a4a"},"legend":{"font":{"color":"#e8edf2"},"bgcolor":"rgba(0,0,0,0)"},"margin":{"l":30,"r":20,"t":55,"b":35},"paper_bgcolor":"#16202d","plot_bgcolor":"#0f1923","colorway":["#1e88e5","#00c853","#ffb300","#f44336","#00bcd4","#e040fb"],"height":430},                        {"displayModeBar": false, "responsive": true}                    )                };            </script>        </div><figcaption>Cross-sectional model output combining momentum, stress protection, mean reversion, and macro context.</figcaption></figure><figure class='chart-card'><div class='chart-context'><h3>Signal-derived target weights</h3></div><div>                            <div id="364bf196-6ca7-4f0c-a7e7-32d94878511a" class="plotly-graph-div" style="height:430px; width:100%;"></div>            <script>                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("364bf196-6ca7-4f0c-a7e7-32d94878511a")) {                    Plotly.newPlot(                        "364bf196-6ca7-4f0c-a7e7-32d94878511a",                        [{"marker":{"color":["#1e88e5","#1e88e5","#1e88e5","#1e88e5","#1e88e5","#1e88e5"]},"orientation":"h","text":["5.0%","6.7%","8.3%","10.0%","11.7%","13.3%"],"textposition":"auto","x":{"dtype":"f8","bdata":"mJmZmZmZqT8QERERERGxP1VVVVVVVbU\u002fmZmZmZmZuT\u002fe3d3d3d29PxEREREREcE\u002f"},"y":["CM.TO","NA.TO","BNS.TO","BMO.TO","RY.TO","TD.TO"],"type":"bar"}],                        {"template":{"data":{"histogram2dcontour":[{"type":"histogram2dcontour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"choropleth":[{"type":"choropleth","colorbar":{"outlinewidth":0,"ticks":""}}],"histogram2d":[{"type":"histogram2d","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"heatmap":[{"type":"heatmap","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"contourcarpet":[{"type":"contourcarpet","colorbar":{"outlinewidth":0,"ticks":""}}],"contour":[{"type":"contour","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"surface":[{"type":"surface","colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]}],"mesh3d":[{"type":"mesh3d","colorbar":{"outlinewidth":0,"ticks":""}}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"parcoords":[{"type":"parcoords","line":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolargl":[{"type":"scatterpolargl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"scattergeo":[{"type":"scattergeo","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterpolar":[{"type":"scatterpolar","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"scattergl":[{"type":"scattergl","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatter3d":[{"type":"scatter3d","line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermap":[{"type":"scattermap","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattermapbox":[{"type":"scattermapbox","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scatterternary":[{"type":"scatterternary","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"scattercarpet":[{"type":"scattercarpet","marker":{"colorbar":{"outlinewidth":0,"ticks":""}}}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"white","linecolor":"white","minorgridcolor":"white","startlinecolor":"#2a3f5f"},"type":"carpet"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}],"barpolar":[{"marker":{"line":{"color":"#E5ECF6","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"pie":[{"automargin":true,"type":"pie"}]},"layout":{"autotypenumbers":"strict","colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"hovermode":"closest","hoverlabel":{"align":"left"},"paper_bgcolor":"white","plot_bgcolor":"#E5ECF6","polar":{"bgcolor":"#E5ECF6","angularaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"radialaxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"ternary":{"bgcolor":"#E5ECF6","aaxis":{"gridcolor":"white","linecolor":"white","ticks":""},"baxis":{"gridcolor":"white","linecolor":"white","ticks":""},"caxis":{"gridcolor":"white","linecolor":"white","ticks":""}},"coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]]},"xaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"yaxis":{"gridcolor":"white","linecolor":"white","ticks":"","title":{"standoff":15},"zerolinecolor":"white","automargin":true,"zerolinewidth":2},"scene":{"xaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"yaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2},"zaxis":{"backgroundcolor":"#E5ECF6","gridcolor":"white","linecolor":"white","showbackground":true,"ticks":"","zerolinecolor":"white","gridwidth":2}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"geo":{"bgcolor":"white","landcolor":"#E5ECF6","subunitcolor":"white","showland":true,"showlakes":true,"lakecolor":"white"},"title":{"x":0.05},"mapbox":{"style":"light"}}},"shapes":[{"line":{"color":"#7a91a6","dash":"dash"},"type":"line","x0":0.16666666666666666,"x1":0.16666666666666666,"xref":"x","y0":0,"y1":1,"yref":"y domain"}],"xaxis":{"title":{"text":"Weight","font":{"color":"#7a91a6"}},"tickformat":".0%","tickfont":{"color":"#7a91a6"},"gridcolor":"#2a3a4a","linecolor":"#2a3a4a"},"title":{"text":"Signal-Derived Target Weights","font":{"size":14,"color":"#e8edf2"}},"font":{"family":"'JetBrains Mono', 'SF Mono', monospace","color":"#e8edf2","size":12},"yaxis":{"tickfont":{"color":"#7a91a6"},"title":{"font":{"color":"#7a91a6"}},"gridcolor":"#2a3a4a","linecolor":"#2a3a4a"},"legend":{"font":{"color":"#e8edf2"},"bgcolor":"rgba(0,0,0,0)"},"margin":{"l":30,"r":20,"t":55,"b":35},"paper_bgcolor":"#16202d","plot_bgcolor":"#0f1923","colorway":["#1e88e5","#00c853","#ffb300","#f44336","#00bcd4","#e040fb"],"height":430},                        {"displayModeBar": false, "responsive": true}                    )                };            </script>        </div><figcaption>Model target weights relative to the equal-weight reference; these are outputs, not executed trades.</figcaption></figure></div><h3>Cash-posture synthesis</h3><div class='table-scroll' role='region' aria-label='Data table: Evidence layer, Cash posture, Interpretation'><table border="1" class="dataframe data-table">
   <thead>
     <tr style="text-align: right;">
       <th>Evidence layer</th>
@@ -613,22 +613,22 @@
   <tbody>
     <tr>
       <td>Regime policy guidance</td>
-      <td>10–15%</td>
+      <td>20–35%</td>
       <td>Primary decision guardrail tied to the current risk band</td>
     </tr>
     <tr>
       <td>Transparent fallback output</td>
-      <td>37.1%</td>
+      <td>53.4%</td>
       <td>Heuristic response to score and node stress</td>
     </tr>
     <tr>
       <td>CVaR model output</td>
-      <td>5.1%</td>
+      <td>8.8%</td>
       <td>Constrained optimizer result under current return and covariance inputs</td>
     </tr>
     <tr>
       <td>Decision synthesis</td>
-      <td>10–15%</td>
+      <td>20–35%</td>
       <td>Use the regime range pending review because cash-posture evidence is mixed</td>
     </tr>
   </tbody>
@@ -676,40 +676,31 @@
   </thead>
   <tbody>
     <tr>
-      <td>RY.TO</td>
-      <td>16.7%</td>
-      <td>18.3%</td>
-      <td>+1.7%</td>
-      <td>HOLD</td>
-      <td>Low</td>
-      <td>Within tolerance — no rebalance required.</td>
-    </tr>
-    <tr>
-      <td>CM.TO</td>
-      <td>16.7%</td>
-      <td>15.8%</td>
-      <td>-0.8%</td>
-      <td>HOLD</td>
-      <td>Low</td>
-      <td>Within tolerance — no rebalance required.</td>
-    </tr>
-    <tr>
-      <td>BMO.TO</td>
+      <td>TD.TO</td>
       <td>16.7%</td>
       <td>13.3%</td>
       <td>-3.3%</td>
       <td>SELL</td>
       <td>Medium</td>
-      <td>Mixed signals: Macro Tailwind at 65/100 with node stress 53/100. No compelling edge to add or reduce.</td>
+      <td>Mixed signals: Momentum at 95/100 with node stress 78/100. No compelling edge to add or reduce.</td>
     </tr>
     <tr>
-      <td>NA.TO</td>
+      <td>RY.TO</td>
       <td>16.7%</td>
-      <td>10.8%</td>
-      <td>-5.8%</td>
+      <td>11.7%</td>
+      <td>-5.0%</td>
       <td>SELL</td>
       <td>Medium</td>
-      <td>Mixed signals: Momentum at 72/100 with node stress 67/100. No compelling edge to add or reduce.</td>
+      <td>Mixed signals: Stress protection at 21/100 with node stress 79/100. No compelling edge to add or reduce.</td>
+    </tr>
+    <tr>
+      <td>BMO.TO</td>
+      <td>16.7%</td>
+      <td>10.0%</td>
+      <td>-6.7%</td>
+      <td>SELL</td>
+      <td>High</td>
+      <td>Mixed signals: Stress protection at 21/100 with node stress 79/100. No compelling edge to add or reduce.</td>
     </tr>
     <tr>
       <td>BNS.TO</td>
@@ -718,16 +709,25 @@
       <td>-8.3%</td>
       <td>SELL</td>
       <td>High</td>
-      <td>Mixed signals: Momentum at 30/100 with node stress 64/100. No compelling edge to add or reduce.</td>
+      <td>Mixed signals: Momentum at 78/100 with node stress 76/100. No compelling edge to add or reduce.</td>
     </tr>
     <tr>
-      <td>TD.TO</td>
+      <td>NA.TO</td>
       <td>16.7%</td>
-      <td>5.8%</td>
-      <td>-10.8%</td>
+      <td>6.7%</td>
+      <td>-10.0%</td>
       <td>SELL</td>
       <td>High</td>
-      <td>Mixed signals: Momentum at 12/100 with node stress 62/100. No compelling edge to add or reduce.</td>
+      <td>Mixed signals: Stress protection at 8/100 with node stress 92/100. No compelling edge to add or reduce.</td>
+    </tr>
+    <tr>
+      <td>CM.TO</td>
+      <td>16.7%</td>
+      <td>5.0%</td>
+      <td>-11.7%</td>
+      <td>SELL</td>
+      <td>High</td>
+      <td>Mixed signals: Stress protection at 13/100 with node stress 87/100. No compelling edge to add or reduce.</td>
     </tr>
   </tbody>
 </table></div><details><summary>Bank-level reasons and confidence</summary><div><div class='table-scroll' role='region' aria-label='Data table: Bank, Name, Signal'><table border="1" class="dataframe data-table">
@@ -748,82 +748,82 @@
   </thead>
   <tbody>
     <tr>
+      <td>TD.TO</td>
+      <td>Toronto-Dominion Bank</td>
+      <td>HOLD</td>
+      <td>★☆☆☆☆</td>
+      <td>52.2/100</td>
+      <td>78.0/100</td>
+      <td>-0.6%</td>
+      <td>13.3%</td>
+      <td>-3.3%</td>
+      <td>Mixed signals: Momentum at 95/100 with node stress 78/100. No compelling edge to add or reduce.</td>
+      <td>large Canadian and US retail footprint; sensitive to North American credit cycles</td>
+    </tr>
+    <tr>
       <td>RY.TO</td>
       <td>Royal Bank of Canada</td>
       <td>HOLD</td>
-      <td>★★☆☆☆</td>
-      <td>59.7/100</td>
-      <td>47.4/100</td>
-      <td>+3.4%</td>
-      <td>18.3%</td>
-      <td>+1.7%</td>
-      <td>Mixed signals: Momentum at 68/100 with node stress 47/100. No compelling edge to add or reduce.</td>
+      <td>★☆☆☆☆</td>
+      <td>50.1/100</td>
+      <td>79.1/100</td>
+      <td>-2.7%</td>
+      <td>11.7%</td>
+      <td>-5.0%</td>
+      <td>Mixed signals: Stress protection at 21/100 with node stress 79/100. No compelling edge to add or reduce.</td>
       <td>largest diversified Canadian bank; often a proxy for system-wide confidence</td>
-    </tr>
-    <tr>
-      <td>CM.TO</td>
-      <td>CIBC</td>
-      <td>HOLD</td>
-      <td>★★☆☆☆</td>
-      <td>58.5/100</td>
-      <td>67.5/100</td>
-      <td>+4.2%</td>
-      <td>15.8%</td>
-      <td>-0.8%</td>
-      <td>Mixed signals: Momentum at 100/100 with node stress 68/100. No compelling edge to add or reduce.</td>
-      <td>domestic consumer and mortgage sensitivity tends to matter in housing stress</td>
     </tr>
     <tr>
       <td>BMO.TO</td>
       <td>Bank of Montreal</td>
       <td>HOLD</td>
       <td>★☆☆☆☆</td>
-      <td>54.5/100</td>
-      <td>53.1/100</td>
-      <td>+1.4%</td>
-      <td>13.3%</td>
-      <td>-3.3%</td>
-      <td>Mixed signals: Macro Tailwind at 65/100 with node stress 53/100. No compelling edge to add or reduce.</td>
+      <td>45.4/100</td>
+      <td>79.0/100</td>
+      <td>-6.1%</td>
+      <td>10.0%</td>
+      <td>-6.7%</td>
+      <td>Mixed signals: Stress protection at 21/100 with node stress 79/100. No compelling edge to add or reduce.</td>
       <td>Canada/US bank with capital-markets and commercial-credit exposure</td>
-    </tr>
-    <tr>
-      <td>NA.TO</td>
-      <td>National Bank</td>
-      <td>HOLD</td>
-      <td>★☆☆☆☆</td>
-      <td>54.0/100</td>
-      <td>66.5/100</td>
-      <td>+3.5%</td>
-      <td>10.8%</td>
-      <td>-5.8%</td>
-      <td>Mixed signals: Momentum at 72/100 with node stress 67/100. No compelling edge to add or reduce.</td>
-      <td>Quebec-heavy franchise; smaller but can show regional sentiment shifts</td>
     </tr>
     <tr>
       <td>BNS.TO</td>
       <td>Scotiabank</td>
       <td>HOLD</td>
       <td>★☆☆☆☆</td>
-      <td>43.6/100</td>
-      <td>63.6/100</td>
-      <td>+1.1%</td>
+      <td>43.1/100</td>
+      <td>76.5/100</td>
+      <td>+4.5%</td>
       <td>8.3%</td>
       <td>-8.3%</td>
-      <td>Mixed signals: Momentum at 30/100 with node stress 64/100. No compelling edge to add or reduce.</td>
+      <td>Mixed signals: Momentum at 78/100 with node stress 76/100. No compelling edge to add or reduce.</td>
       <td>more international exposure than peers; useful for global risk read-through</td>
     </tr>
     <tr>
-      <td>TD.TO</td>
-      <td>Toronto-Dominion Bank</td>
+      <td>NA.TO</td>
+      <td>National Bank</td>
       <td>HOLD</td>
       <td>★★☆☆☆</td>
       <td>41.7/100</td>
-      <td>61.7/100</td>
-      <td>-0.0%</td>
-      <td>5.8%</td>
-      <td>-10.8%</td>
-      <td>Mixed signals: Momentum at 12/100 with node stress 62/100. No compelling edge to add or reduce.</td>
-      <td>large Canadian and US retail footprint; sensitive to North American credit cycles</td>
+      <td>91.7/100</td>
+      <td>-6.1%</td>
+      <td>6.7%</td>
+      <td>-10.0%</td>
+      <td>Mixed signals: Stress protection at 8/100 with node stress 92/100. No compelling edge to add or reduce.</td>
+      <td>Quebec-heavy franchise; smaller but can show regional sentiment shifts</td>
+    </tr>
+    <tr>
+      <td>CM.TO</td>
+      <td>CIBC</td>
+      <td>HOLD</td>
+      <td>★★☆☆☆</td>
+      <td>40.5/100</td>
+      <td>87.3/100</td>
+      <td>-4.1%</td>
+      <td>5.0%</td>
+      <td>-11.7%</td>
+      <td>Mixed signals: Stress protection at 13/100 with node stress 87/100. No compelling edge to add or reduce.</td>
+      <td>domestic consumer and mortgage sensitivity tends to matter in housing stress</td>
     </tr>
   </tbody>
 </table></div></div></details><section class='section-heading' id='change-conditions'><span>Decision · Monitoring</span><h2>What would change the recommendation</h2><p>These triggers keep the decision conditional and auditable instead of presenting a static answer as certainty.</p></section><div class='table-scroll' role='region' aria-label='Data table: Condition, Decision change'><table border="1" class="dataframe data-table">
