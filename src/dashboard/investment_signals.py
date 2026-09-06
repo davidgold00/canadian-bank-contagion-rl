@@ -470,13 +470,13 @@ def compute_market_positioning(
     elif regime_score < 80:
         total_bank_budget = "35–50%"
         cash_guidance = "20–35%. Defensive positioning is justified by elevated tail risk."
-        sector_bias = "Underweight banks broadly. XFN beta hedge worthwhile. Focus on lowest-node-stress banks."
+        sector_bias = "Underweight banks broadly. Long XFN retains financial-sector exposure; reducing existing XFN lowers that exposure. Focus on lowest-node-stress banks."
         opportunity = "Sector ETF (XFN) as partial replacement reduces idiosyncratic concentration while keeping sector exposure."
     else:
         total_bank_budget = "20–35%"
         cash_guidance = "35–50%+. Multiple stress channels are active simultaneously."
-        sector_bias = "Minimize bank concentration. Consider structured protection or put spreads on XFN."
-        opportunity = "Tail risk hedges have positive expected value at current stress levels."
+        sector_bias = "Minimize bank concentration. Consider reducing existing financial-sector exposure within a long-only mandate."
+        opportunity = "The benefit of a more defensive allocation remains mandate-dependent and unvalidated."
 
     key_risks = []
     if pd.notna(avg_corr) and avg_corr > 0.75:
