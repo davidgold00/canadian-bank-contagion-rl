@@ -18,10 +18,9 @@ from src.dashboard.insight_utils import (
     load_features,
     load_prices,
 )
-from src.dashboard.ui_components import analyst_header, apply_dashboard_style, insight_card
+from src.dashboard.ui_components import PALETTE, PLOTLY_TEMPLATE, analyst_header, apply_dashboard_style, decision_callout, decision_memo, insight_card, page_intro
 
 
-st.set_page_config(page_title="Systemic Bank Network", layout="wide")
 apply_dashboard_style()
 
 prices = load_prices()
@@ -121,8 +120,9 @@ def network_fig(graph: nx.Graph, stress: pd.DataFrame) -> go.Figure:
     fig.update_layout(
         height=620,
         showlegend=False,
-        plot_bgcolor="white",
-        paper_bgcolor="white",
+        plot_bgcolor=PALETTE["bg"],
+        paper_bgcolor=PALETTE["surface"],
+        font=dict(color=PALETTE["ink"]),
         xaxis=dict(visible=False),
         yaxis=dict(visible=False),
         margin=dict(l=20, r=20, t=20, b=20),
@@ -159,12 +159,16 @@ analyst_header(
     source_text="Edges from rolling return relationships",
 )
 
-st.markdown(
-    """
-    A bank can be individually healthy and still matter systemically if it is tightly connected
-    to the rest of the sector. This page turns bank returns into a network so the contagion
-    question becomes visible: where could stress travel next?
-    """
+page_intro(
+    why=(
+        "When the Big Six banks move together, owning several of them provides much less protection than it appears. "
+        "This network map shows how tightly the banks are linked — a dense, red network means a selloff in one bank "
+        "is very likely to pull the others down too."
+    ),
+    how=(
+        "Each circle (node) is a bank. Larger nodes are more central to the network. Red colour means higher market stress. "
+        "Lines between banks mean they move together. Use the controls below to change the lookback period and minimum link strength."
+    ),
 )
 
 if bank_prices.empty:
@@ -196,34 +200,77 @@ m2.metric("Network Density", f"{density:.2f}")
 m3.metric("Largest Eigenvalue", f"{largest_eigen:.2f}", help="Higher values mean one common bank factor dominates returns.")
 m4.metric("Most Central Bank", central_bank)
 
+decision_memo(
+    "Network Decision Memo",
+    [
+        {
+            "Observation": f"Network density {density:.2f}",
+            "Decision Implication": (
+                "Sector concentration is the primary risk; multiple bank holdings can behave like one position."
+                if density > 0.70
+                else "Some name diversification remains useful, but central nodes still deserve tighter limits."
+                if density > 0.35
+                else "Name diversification is credible at the selected threshold."
+            ),
+            "Monitoring Trigger": "Tighten exposure limits when density and average correlation rise together.",
+        },
+        {
+            "Observation": f"Largest eigenvalue {largest_eigen:.2f}",
+            "Decision Implication": "A larger common factor means bank equity risk is being priced as one macro trade.",
+            "Monitoring Trigger": "Escalate if eigenvalue rises while the financials ETF is in drawdown.",
+        },
+        {
+            "Observation": f"Most central bank: {central_bank}",
+            "Decision Implication": "Stress-test this name even if it is not currently the weakest performer.",
+            "Monitoring Trigger": "If centrality combines with node stress above 60, prioritize it in hedging and exposure reviews.",
+        },
+    ],
+    tone="danger" if density > 0.70 else "warning" if density > 0.35 else "success",
+)
+
 left, right = st.columns([0.64, 0.36])
 with left:
-    st.plotly_chart(network_fig(graph, stress), use_container_width=True)
+    st.plotly_chart(network_fig(graph, stress), width="stretch")
 with right:
     if density > 0.70:
         insight_card(
-            "Crowded Sector Signal",
-            "Most banks are linked at the selected threshold. In this regime, owning several bank stocks may not provide much diversification.",
+            "High Contagion Risk — Banks Moving as One",
+            "Most banks are tightly linked right now. Holding several bank stocks provides much less diversification than usual. "
+            "A problem at one bank is very likely to drag the others down.",
             status="danger",
+        )
+        decision_callout(
+            plain_english="Dense networks mean the whole sector behaves like a single concentrated trade, not six separate companies.",
+            action="Reduce total bank sector exposure or tighten position sizes. Don't rely on diversification across bank names.",
+            tone="danger",
         )
     elif density > 0.35:
         insight_card(
-            "Partial Contagion Signal",
-            "Several links are active. Watch whether the network becomes denser as volatility rises.",
+            "Partial Contagion — Some Concentration Risk",
+            "Several banks are moving together, but not all. Diversification still works to a degree, but monitor whether the network tightens further.",
             status="warning",
+        )
+        decision_callout(
+            plain_english="Some banks are clustered; a stress event could spread but is not guaranteed to hit all names equally.",
+            action="Avoid adding new concentration in the most-linked banks. Consider trimming the highest-stress node.",
+            tone="warning",
         )
     else:
         insight_card(
-            "Contained Network Signal",
-            "The network is less dense at this threshold. Bank-specific diversification is more credible right now.",
+            "Contained Network — Diversification is Working",
+            "Banks are currently behaving more independently at this threshold. Holding a spread of bank names is more effective at reducing risk.",
             status="success",
         )
+        decision_callout(
+            plain_english="Banks are responding to their own news more than a shared macro signal. The network is not a primary risk right now.",
+            action="Bank-level diversification is credible. Focus on fundamentals and individual bank stress scores.",
+            tone="success",
+        )
     st.markdown(
-        f"""
-        **Plain-English takeaway:** average correlation is **{avg_corr:.2f}** and the largest eigenvalue is
-        **{largest_eigen:.2f}**. When both climb, the sector behaves less like six separate businesses
-        and more like one macro-financial trade.
-        """
+        f"**Network summary:** Average bank correlation is **{avg_corr:.2f}** and the largest eigenvalue is "
+        f"**{largest_eigen:.2f}**. When the correlation is above 0.80 and the eigenvalue is rising, the sector "
+        "is behaving like one concentrated trade rather than six separate businesses.",
+        unsafe_allow_html=False,
     )
 
 tab1, tab2, tab3, tab4 = st.tabs(["Contagion Channels", "Systemic Ranking", "Correlation Matrix", "Business Use"])
@@ -233,7 +280,7 @@ with tab1:
     show = edges.copy()
     show["Correlation"] = show["Correlation"].map(lambda x: f"{x:.2f}")
     show["Strength"] = show["Strength"].map(lambda x: f"{x:.2f}")
-    st.dataframe(show, use_container_width=True, hide_index=True)
+    st.dataframe(show, width="stretch", hide_index=True)
     top = edges.iloc[0]
     st.warning(
         f"The strongest current channel is {top['Bank Pair']} with correlation {top['Correlation']:.2f}. "
@@ -256,29 +303,80 @@ with tab2:
         axis=1,
     )
     show = ranking[
-        ["Bank", "Name", "Node Stress", "Network Centrality", "Action Readout", "Systemic Interpretation"]
+        ["Bank", "Name", "Node Stress", "Network Centrality", "Risk response", "Systemic Interpretation"]
     ].copy()
     show["Node Stress"] = show["Node Stress"].map(lambda x: f"{x:.1f}/100")
     show["Network Centrality"] = show["Network Centrality"].map(lambda x: f"{x:.2f}")
-    st.dataframe(show, use_container_width=True, hide_index=True)
+    st.dataframe(show, width="stretch", hide_index=True)
+
+    c_left, c_right = st.columns(2)
+    with c_left:
+        centrality_rank = ranking.sort_values("Network Centrality", ascending=True)
+        fig = go.Figure(go.Bar(
+            x=centrality_rank["Network Centrality"],
+            y=centrality_rank["Bank"],
+            orientation="h",
+            text=[f"{x:.2f}" for x in centrality_rank["Network Centrality"]],
+            textposition="auto",
+            marker_color=PALETTE["blue"],
+        ))
+        fig.update_layout(
+            title="Systemic Centrality — Which Bank Is Most Connected?",
+            xaxis_title="Relative centrality (higher = more connected to peers)",
+            **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
+            height=390,
+        )
+        st.plotly_chart(fig, width="stretch")
+    with c_right:
+        stress_rank = ranking.sort_values("Node Stress", ascending=True)
+        fig = go.Figure(go.Bar(
+            x=stress_rank["Node Stress"],
+            y=stress_rank["Bank"],
+            orientation="h",
+            text=[f"{x:.1f}" for x in stress_rank["Node Stress"]],
+            textposition="auto",
+            marker=dict(
+                color=stress_rank["Node Stress"],
+                colorscale=[[0, PALETTE["green"]], [0.5, PALETTE["amber"]], [1.0, PALETTE["red"]]],
+                cmin=0, cmax=100, showscale=False,
+            ),
+        ))
+        fig.update_layout(
+            title="Node Stress — Which Bank Is Under Most Pressure?",
+            xaxis_title="Stress score: 0 = low stress, 100 = maximum stress",
+            **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
+            height=390,
+        )
+        st.plotly_chart(fig, width="stretch")
 
 with tab3:
     st.subheader("Correlation Matrix")
-    fig = go.Figure(
-        go.Heatmap(
-            z=adj.values,
-            x=adj.columns,
-            y=adj.index,
-            zmin=-1,
-            zmax=1,
-            colorscale="RdBu",
-            text=np.round(adj.values, 2),
-            texttemplate="%{text}",
-            colorbar=dict(title="Correlation"),
-        )
+    st.markdown(
+        "Each cell shows how closely two banks' daily returns move together. "
+        "A value near **1.0** (red) means they almost always move in the same direction. "
+        "Near **0** means they move independently. Near **−1** (blue) means they move opposite each other."
     )
-    fig.update_layout(height=560, margin=dict(l=20, r=20, t=40, b=20))
-    st.plotly_chart(fig, use_container_width=True)
+    fig = go.Figure(go.Heatmap(
+        z=adj.values,
+        x=adj.columns,
+        y=adj.index,
+        zmin=-1,
+        zmax=1,
+        colorscale="RdBu",
+        text=np.round(adj.values, 2),
+        texttemplate="%{text}",
+        colorbar=dict(title="Correlation", tickfont=dict(color=PALETTE["muted"])),
+    ))
+    fig.update_layout(
+        **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
+        height=560,
+    )
+    st.plotly_chart(fig, width="stretch")
+    decision_callout(
+        plain_english="A matrix full of high positive correlations (dark red) means all banks are being driven by the same factors — making diversification across banks less effective.",
+        action="When most pairs exceed 0.75, treat the whole bank allocation as one concentrated position and size accordingly.",
+        tone="info",
+    )
 
 with tab4:
     st.subheader("How to Use the Network")

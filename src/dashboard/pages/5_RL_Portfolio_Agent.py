@@ -9,10 +9,9 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from src.dashboard.insight_utils import latest_valid_date, risk_regime
-from src.dashboard.ui_components import analyst_header, apply_dashboard_style, insight_card
+from src.dashboard.ui_components import PALETTE, PLOTLY_TEMPLATE, analyst_header, apply_dashboard_style, decision_callout, decision_memo, insight_card, page_intro
 
 
-st.set_page_config(page_title="RL Portfolio Agent", layout="wide")
 apply_dashboard_style()
 
 BANKS = ["RY.TO", "TD.TO", "BMO.TO", "BNS.TO", "CM.TO", "NA.TO"]
@@ -179,34 +178,37 @@ def metrics_table(results: dict[str, tuple[pd.Series, pd.Series, pd.Series]]) ->
 
 
 def plot_equity(results: dict[str, tuple[pd.Series, pd.Series, pd.Series]]) -> go.Figure:
+    colors = [PALETTE["blue"], PALETTE["green"], PALETTE["amber"], PALETTE["teal"]]
     fig = go.Figure()
-
-    for name, (equity, _, _) in results.items():
-        fig.add_trace(go.Scatter(x=equity.index, y=equity, mode="lines", name=name))
-
+    for i, (name, (equity, _, _)) in enumerate(results.items()):
+        fig.add_trace(go.Scatter(
+            x=equity.index, y=equity, mode="lines", name=name,
+            line=dict(color=colors[i % len(colors)], width=2),
+        ))
     fig.update_layout(
-        title="Strategy Equity Curves",
-        yaxis_title="Growth of $1",
+        title="Strategy Equity Curves — Growth of $1 Invested",
+        yaxis_title="Portfolio value (starting at $1.00)",
+        **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=500,
-        margin=dict(l=20, r=20, t=50, b=20),
     )
-
     return fig
 
 
 def plot_drawdowns(results: dict[str, tuple[pd.Series, pd.Series, pd.Series]]) -> go.Figure:
+    colors = [PALETTE["blue"], PALETTE["green"], PALETTE["amber"], PALETTE["teal"]]
     fig = go.Figure()
-
-    for name, (equity, _, _) in results.items():
-        fig.add_trace(go.Scatter(x=equity.index, y=drawdown(equity), mode="lines", name=name))
-
+    for i, (name, (equity, _, _)) in enumerate(results.items()):
+        fig.add_trace(go.Scatter(
+            x=equity.index, y=drawdown(equity), mode="lines", name=name,
+            line=dict(color=colors[i % len(colors)], width=2),
+        ))
     fig.update_layout(
-        title="Drawdowns",
-        yaxis_title="Drawdown",
+        title="Drawdowns — How Much Lost From Peak at Each Point in Time",
+        yaxis_title="Drawdown from peak (0% = at peak, −20% = 20% below peak)",
+        yaxis_tickformat=".0%",
+        **PLOTLY_TEMPLATE["layout"].to_plotly_json(),
         height=430,
-        margin=dict(l=20, r=20, t=50, b=20),
     )
-
     return fig
 
 
@@ -223,14 +225,31 @@ analyst_header(
     source_text="Interpretable RL-style policy plus benchmark backtests",
 )
 
-st.markdown(
-    """
-    This is the action layer of the project. The policy observes the contagion score,
-    bank-level stress, correlations, drawdowns, and recent returns, then moves between
-    bank stocks, XFN, XIU, and cash. The point is not to chase every rally; it is to avoid
-    being overexposed when the banks start behaving like one stressed trade.
-    """
+page_intro(
+    why=(
+        "The RL-style policy answers a practical question: given today's risk signals, "
+        "how should a portfolio split its exposure between individual bank stocks, the XFN financial ETF, "
+        "and defensive cash? The goal is to reduce bank exposure during stress — and capture it during recovery."
+    ),
+    how=(
+        "Use the sidebar controls to select a policy mode and compare strategies. "
+        "The key output is the <b>equity curve</b> (how much $1 grows over time) and "
+        "the <b>drawdown chart</b> (how much you lose from your peak). "
+        "A good policy grows the equity curve while keeping drawdowns shallow."
+    ),
 )
+
+ppo_path = repo_root() / "artifacts" / "rl" / "ppo_model.zip"
+if ppo_path.exists():
+    st.success(
+        "Saved PPO artifact found. This page explains the allocation-policy logic and benchmark behavior; "
+        "the Performance Tracker attempts to use the PPO artifact for the daily paper portfolio and falls back "
+        "to the transparent stress-aware policy if inference is unavailable."
+    )
+else:
+    st.info(
+        "No saved PPO artifact was found. Allocations shown here use the transparent stress-aware fallback policy."
+    )
 
 st.sidebar.header("RL Backtest Controls")
 transaction_cost_bps = st.sidebar.slider("Transaction cost, bps", 0.0, 25.0, 5.0, step=1.0)
@@ -257,11 +276,49 @@ metrics = metrics_table(results)
 c1, c2, c3, c4 = st.columns(4)
 best = metrics.iloc[0]
 rl_metrics = metrics.loc[metrics["Strategy"] == "RL-style defensive"].iloc[0]
+equal_metrics = metrics.loc[metrics["Strategy"] == "Equal-weight Big Six"].iloc[0]
 
 c1.metric("Best Sharpe Strategy", best["Strategy"])
-c2.metric("RL Sharpe", f"{rl_metrics['Sharpe']:.2f}")
-c3.metric("RL Max Drawdown", f"{rl_metrics['Max Drawdown']:.1%}")
+c2.metric("RL Sharpe", f"{rl_metrics['Sharpe']:.2f}", help="Sharpe ratio: return per unit of risk. Higher is better.")
+c3.metric("RL Max Drawdown", f"{rl_metrics['Max Drawdown']:.1%}", help="Largest peak-to-trough loss. Less negative is better.")
 c4.metric("RL Cumulative Return", f"{rl_metrics['Cumulative Return']:.1%}")
+
+rl_beats_equal = rl_metrics["Max Drawdown"] > metrics.loc[metrics["Strategy"] == "Equal-weight Big Six", "Max Drawdown"].values[0]
+decision_callout(
+    plain_english=(
+        f"The defensive RL-style policy achieved a Sharpe of <b>{rl_metrics['Sharpe']:.2f}</b> "
+        f"with a max drawdown of <b>{rl_metrics['Max Drawdown']:.1%}</b>. "
+        "A higher Sharpe means better return per unit of risk taken. A smaller (less negative) drawdown means less pain during market downturns."
+    ),
+    action=(
+        "Compare the RL policy to Equal-weight: if the Sharpe is higher and the drawdown is shallower, "
+        "the risk-aware policy is adding value. If not, the current period may not have had enough stress events "
+        "to differentiate the strategies — consider a longer backtest window."
+    ),
+    tone="success" if rl_beats_equal else "warning",
+)
+
+decision_memo(
+    "Allocation Policy Decision Memo",
+    [
+        {
+            "Observation": f"RL Sharpe {rl_metrics['Sharpe']:.2f} vs equal-weight {equal_metrics['Sharpe']:.2f}",
+            "Decision Implication": "Use the defensive policy only if it improves risk-adjusted return or materially lowers drawdown.",
+            "Monitoring Trigger": "Demote the policy if it trails equal-weight on both Sharpe and drawdown.",
+        },
+        {
+            "Observation": f"RL max drawdown {rl_metrics['Max Drawdown']:.1%}",
+            "Decision Implication": "Drawdown is the user-pain metric; it determines whether a strategy is usable through stress.",
+            "Monitoring Trigger": "Reduce exposure rules if drawdown widens faster than benchmarks during high-risk periods.",
+        },
+        {
+            "Observation": f"Transaction cost setting {transaction_cost_bps:.0f} bps",
+            "Decision Implication": "A policy that wins before costs but overtrades is not operationally useful.",
+            "Monitoring Trigger": "Stress test higher costs before accepting turnover-heavy allocations.",
+        },
+    ],
+    tone="success" if rl_beats_equal else "warning",
+)
 
 tab1, tab2, tab3, tab4, tab5 = st.tabs(
     [
@@ -283,15 +340,15 @@ with tab1:
         """
     )
 
-    st.plotly_chart(plot_equity(results), use_container_width=True)
-    st.plotly_chart(plot_drawdowns(results), use_container_width=True)
+    st.plotly_chart(plot_equity(results), width="stretch")
+    st.plotly_chart(plot_drawdowns(results), width="stretch")
 
     display_metrics = metrics.copy()
     for col in ["Cumulative Return", "Annualized Return", "Annualized Volatility", "Max Drawdown", "Average Daily Turnover"]:
         display_metrics[col] = display_metrics[col].map(lambda x: f"{x:.2%}")
     display_metrics["Sharpe"] = display_metrics["Sharpe"].map(lambda x: f"{x:.2f}")
 
-    st.dataframe(display_metrics, use_container_width=True, hide_index=True)
+    st.dataframe(display_metrics, width="stretch", hide_index=True)
 
     if rl_metrics["Max Drawdown"] < metrics["Max Drawdown"].median():
         insight_card(
@@ -326,7 +383,7 @@ with tab2:
         height=430,
         margin=dict(l=20, r=20, t=50, b=20),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     current_regime = risk_regime(latest_risk)
     if latest_risk >= 70:
@@ -340,7 +397,7 @@ with tab2:
 
     allocation = latest_weights.rename("Weight").reset_index().rename(columns={"index": "Asset"})
     allocation["Weight"] = allocation["Weight"].map(lambda x: f"{x:.1%}")
-    st.dataframe(allocation, use_container_width=True, hide_index=True)
+    st.dataframe(allocation, width="stretch", hide_index=True)
 
 with tab3:
     st.subheader("How Allocations Change Over Time")
@@ -357,7 +414,7 @@ with tab3:
         height=520,
         margin=dict(l=20, r=20, t=50, b=20),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     st.markdown(
         """
@@ -398,7 +455,7 @@ with tab4:
         if col != "Strategy":
             display[col] = display[col].map(lambda x: f"{x:.2%}")
 
-    st.dataframe(display, use_container_width=True, hide_index=True)
+    st.dataframe(display, width="stretch", hide_index=True)
 
     rl_cash = strategies["RL-style defensive"]["cash"]
     fig = go.Figure()
@@ -411,7 +468,7 @@ with tab4:
         height=460,
         margin=dict(l=20, r=20, t=50, b=20),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 with tab5:
     st.subheader("What the RL Agent Is Supposed to Learn")
@@ -464,8 +521,8 @@ with tab5:
 
     st.warning(
         """
-        The current dashboard includes an interpretable RL-style policy visualization. After training
-        a saved PPO model, this page can be extended to load the actual model's predicted actions
-        beside this transparent benchmark policy.
+        This page is a research allocation-policy and explainability page, not an automated
+        trading system. For the actual simulated allocation plan, including daily trades,
+        holdings, transaction costs, and benchmarks, use the Performance Tracker page.
         """
     )

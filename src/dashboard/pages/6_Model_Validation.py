@@ -21,10 +21,9 @@ from sklearn.preprocessing import StandardScaler
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from src.dashboard.insight_utils import latest_valid_date
-from src.dashboard.ui_components import analyst_header, apply_dashboard_style, insight_card
+from src.dashboard.ui_components import analyst_header, apply_dashboard_style, business_value_panel, decision_callout, decision_memo, insight_card, page_intro
 
 
-st.set_page_config(page_title="Model Validation", layout="wide")
 apply_dashboard_style()
 
 
@@ -114,6 +113,9 @@ def fit_models(X_train, X_test, y_train, y_test):
         pred = (prob >= 0.50).astype(int)
         fpr, tpr, _ = roc_curve(y_test, prob)
         auc_score = auc(fpr, tpr)
+        top_decile_cutoff = np.quantile(prob, 0.90) if len(prob) else 1.0
+        top_decile_mask = prob >= top_decile_cutoff
+        precision_top_decile = float(y_test[top_decile_mask].mean()) if top_decile_mask.any() else 0.0
 
         rows.append(
             {
@@ -122,11 +124,47 @@ def fit_models(X_train, X_test, y_train, y_test):
                 "Accuracy": accuracy_score(y_test, pred),
                 "Precision": precision_score(y_test, pred, zero_division=0),
                 "Recall": recall_score(y_test, pred, zero_division=0),
+                "Precision@Top Decile": precision_top_decile,
                 "Positive Rate": pred.mean(),
             }
         )
 
     return fitted, pd.DataFrame(rows).sort_values("AUC", ascending=False)
+
+
+def calibration_table(model, X_test, y_test, bins: int = 5) -> pd.DataFrame:
+    prob = pd.Series(model.predict_proba(X_test)[:, 1], index=y_test.index, name="Predicted Probability")
+    buckets = pd.qcut(prob.rank(method="first"), q=bins, labels=False, duplicates="drop")
+    out = (
+        pd.DataFrame({"Predicted Probability": prob, "Actual Stress Rate": y_test.astype(float), "Bucket": buckets})
+        .groupby("Bucket", as_index=False)
+        .agg({"Predicted Probability": "mean", "Actual Stress Rate": "mean"})
+    )
+    out["Bucket"] = out["Bucket"].map(lambda x: f"Bucket {int(x) + 1}")
+    return out
+
+
+def plot_calibration(calibration: pd.DataFrame):
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=calibration["Predicted Probability"],
+            y=calibration["Actual Stress Rate"],
+            mode="markers+lines",
+            name="Observed",
+        )
+    )
+    fig.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode="lines", name="Perfect calibration", line=dict(dash="dash")))
+    fig.update_layout(
+        title="Calibration: Predicted Stress Probability vs Actual Stress Rate",
+        xaxis_title="Average predicted probability",
+        yaxis_title="Actual stress event rate",
+        xaxis_tickformat=".0%",
+        yaxis_tickformat=".0%",
+        height=430,
+        margin=dict(l=20, r=20, t=50, b=20),
+    )
+    return fig
 
 
 def plot_roc(fitted, X_test, y_test):
@@ -225,12 +263,31 @@ analyst_header(
     source_text="Chronological train/test split",
 )
 
-st.markdown(
-    """
-    This page is the credibility check. A useful financial ML model should be judged on future
-    data, not a shuffled sample that leaks regimes. The model predicts whether the system will
-    enter a high-stress state over the selected horizon.
-    """
+page_intro(
+    why=(
+        "Any model can appear accurate on data it has already seen. This page is the credibility check: "
+        "we train on the first 70% of history, then test on the remaining 30% the model has never seen. "
+        "If the model predicts stress events well on that unseen data, the signals on other pages are more trustworthy."
+    ),
+    how=(
+        "The key number is <b>AUC</b> (Area Under the ROC Curve). AUC above 0.60 means the model has meaningful predictive power. "
+        "AUC near 0.50 means it performs no better than random guessing. "
+        "Use the sidebar to change the prediction horizon and the stress-event threshold."
+    ),
+)
+
+business_value_panel(
+    title="Why Validation Matters to a Business",
+    intro=(
+        "A model is only useful if it works on data it did not train on. This page tells a business whether the dashboard's "
+        "stress signals deserve decision weight or should remain research-only."
+    ),
+    points=[
+        ("Credibility Gate", "Separates genuine signal from a model that only memorized history.", "Trust"),
+        ("Risk of False Comfort", "Shows when the model misses stress events that matter to risk managers.", "Control"),
+        ("Feature Transparency", "Reveals which market and macro variables are actually driving predictions.", "Explainability"),
+        ("Governance Evidence", "Provides validation metrics a model review process can challenge or approve.", "Review"),
+    ],
 )
 
 st.sidebar.header("Validation Controls")
@@ -249,12 +306,41 @@ c2.metric("Best AUC", f"{metrics.iloc[0]['AUC']:.2f}")
 c3.metric("Train Rows", f"{len(X_train):,}")
 c4.metric("Test Stress Rate", f"{y_test.mean():.1%}", help="Share of test rows labeled as future stress events.")
 
+best_auc = float(metrics.iloc[0]["AUC"])
+decision_memo(
+    "Validation Decision Memo",
+    [
+        {
+            "Observation": f"Best AUC {best_auc:.2f}",
+            "Decision Implication": (
+                "Model outputs are credible enough to inform tactical risk posture."
+                if best_auc >= 0.65
+                else "Model outputs should remain a supporting input, not the final decision."
+                if best_auc >= 0.55
+                else "Do not rely on the model layer for allocation decisions without redesign."
+            ),
+            "Monitoring Trigger": "Require revalidation after feature changes, target changes, or major market-regime shifts.",
+        },
+        {
+            "Observation": f"Test stress rate {y_test.mean():.1%}",
+            "Decision Implication": "Base rate controls how many alerts are plausible; rare stress labels make precision more valuable than accuracy.",
+            "Monitoring Trigger": "Use precision@top-decile when alert capacity is limited.",
+        },
+        {
+            "Observation": f"Prediction horizon {horizon} trading days",
+            "Decision Implication": "Short horizons support trading controls; longer horizons support risk-budget planning.",
+            "Monitoring Trigger": "Match the horizon to the rebalance cadence before using model probabilities.",
+        },
+    ],
+    tone="success" if best_auc >= 0.65 else "warning" if best_auc >= 0.55 else "danger",
+)
+
 tab1, tab2, tab3, tab4, tab5 = st.tabs(
     [
         "Model Metrics",
         "ROC / Discrimination",
         "Feature Importance",
-        "Confusion Matrix",
+        "Confusion / Calibration",
         "Validation Methodology",
     ]
 )
@@ -269,18 +355,29 @@ with tab1:
     )
 
     display = metrics.copy()
-    for col in ["AUC", "Accuracy", "Precision", "Recall", "Positive Rate"]:
+    for col in ["AUC", "Accuracy", "Precision", "Recall", "Precision@Top Decile", "Positive Rate"]:
         display[col] = display[col].map(lambda x: f"{x:.3f}")
 
-    st.dataframe(display, use_container_width=True, hide_index=True)
+    st.dataframe(display, width="stretch", hide_index=True)
 
-    if metrics.iloc[0]["AUC"] >= 0.65:
-        insight_card("Model Readout", "The best model shows useful stress-discrimination ability.", status="success")
-    elif metrics.iloc[0]["AUC"] >= 0.55:
+    best_auc = metrics.iloc[0]["AUC"]
+    if best_auc >= 0.65:
+        insight_card("Model Readout", "The best model shows useful stress-discrimination ability on out-of-sample data.", status="success")
+        decision_callout(
+            plain_english=f"AUC of {best_auc:.2f} means the model can correctly rank a future stress day above a calm day about {best_auc:.0%} of the time. This is meaningful predictive power.",
+            action="The signals on other pages (contagion score, regime calls, investment signals) have statistical backing. Use them with appropriate confidence.",
+            tone="success",
+        )
+    elif best_auc >= 0.55:
         insight_card(
             "Model Readout",
             "The model shows modest signal. It may be useful as one input, not as a standalone predictor.",
             status="warning",
+        )
+        decision_callout(
+            plain_english=f"AUC of {best_auc:.2f} is above random (0.50) but not highly reliable. The model has some predictive power but will miss many events and give some false alarms.",
+            action="Treat model signals as one input alongside macro context and market data — not as a definitive call. Consider re-training with more data or features.",
+            tone="warning",
         )
     else:
         insight_card(
@@ -298,7 +395,7 @@ with tab2:
         """
     )
 
-    st.plotly_chart(plot_roc(fitted, X_test, y_test), use_container_width=True)
+    st.plotly_chart(plot_roc(fitted, X_test, y_test), width="stretch")
 
 with tab3:
     st.subheader("What the Model Uses")
@@ -314,11 +411,11 @@ with tab3:
     importance = feature_importance(fitted[chosen], feature_cols)
     importance["Plain-English Meaning"] = importance["Feature"].map(feature_meaning)
 
-    st.plotly_chart(plot_feature_importance(importance), use_container_width=True)
-    st.dataframe(importance, use_container_width=True, hide_index=True)
+    st.plotly_chart(plot_feature_importance(importance), width="stretch")
+    st.dataframe(importance, width="stretch", hide_index=True)
 
 with tab4:
-    st.subheader("Confusion Matrix")
+    st.subheader("Confusion Matrix and Calibration")
     st.markdown(
         """
         This matrix shows classification behavior at a 50% probability threshold.
@@ -331,7 +428,7 @@ with tab4:
     )
 
     cm_df = confusion_table(best_model, X_test, y_test)
-    st.dataframe(cm_df, use_container_width=True)
+    st.dataframe(cm_df, width="stretch")
     false_negatives = int(cm_df.loc["Actual stress", "Predicted calm"]) if "Actual stress" in cm_df.index else 0
     false_positives = int(cm_df.loc["Actual calm", "Predicted stress"]) if "Actual calm" in cm_df.index else 0
     insight_card(
@@ -352,7 +449,14 @@ with tab4:
         )
     )
     fig.update_layout(height=400, margin=dict(l=20, r=20, t=40, b=20))
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
+
+    calibration = calibration_table(best_model, X_test, y_test)
+    st.plotly_chart(plot_calibration(calibration), width="stretch")
+    calibration_display = calibration.copy()
+    for col in ["Predicted Probability", "Actual Stress Rate"]:
+        calibration_display[col] = calibration_display[col].map(lambda x: f"{x:.1%}")
+    st.dataframe(calibration_display, width="stretch", hide_index=True)
 
 with tab5:
     st.subheader("Validation Methodology")

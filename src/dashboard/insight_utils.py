@@ -197,13 +197,24 @@ def risk_regime(score: float) -> dict:
         }
     if score < 80:
         return {
-            "label": "High",
+            "label": "Elevated",
             "tone": "danger",
             "summary": "Systemic pressure is elevated; bank stocks may behave more like one crowded trade.",
             "actions": [
                 "Cut overweight bank exposure or require a stronger return hurdle.",
                 "Prefer lower-stress banks and more liquid instruments.",
                 "Run housing, liquidity, and global risk-off scenarios.",
+            ],
+        }
+    if score < 90:
+        return {
+            "label": "High",
+            "tone": "danger",
+            "summary": "Broad stress channels are active and a defensive portfolio posture should dominate.",
+            "actions": [
+                "Materially reduce unhedged bank concentration.",
+                "Raise liquidity and test explicit tail-risk protection.",
+                "Escalate monitoring of funding, credit-spread, and housing indicators.",
             ],
         }
     return {
@@ -254,7 +265,7 @@ def bank_stress_snapshot(features: pd.DataFrame) -> pd.DataFrame:
                 "63D Drawdown": dd,
                 "Beta to XFN": beta,
                 "Node Stress": node_stress,
-                "Action Readout": readout,
+                "Risk response": readout,
                 "Economic Lens": BANK_CONTEXT[bank],
             }
         )
