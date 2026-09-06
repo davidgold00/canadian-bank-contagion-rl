@@ -2,6 +2,9 @@ import json
 import re
 import shutil
 import sys
+from datetime import datetime, timezone
+from html import escape
+from urllib.parse import quote
 from pathlib import Path
 
 import networkx as nx
@@ -44,6 +47,14 @@ from src.portfolio.cvar_optimizer import efficient_frontier, optimize_cvar_portf
 from src.portfolio.paper_trader import CVaRPaperPortfolioSimulator, PaperPortfolioSimulator  # noqa: E402
 from src.portfolio.performance_metrics import drawdown_series, performance_summary  # noqa: E402
 from src.portfolio.portfolio_constraints import PortfolioConstraints  # noqa: E402
+from src.dashboard.reporting import (ACTION_TOLERANCE, portfolio_comparison, rebalance_display,
+    reported_summary, return_reconciliation, constraint_status, exposure_diagnostics,
+    scenario_leaders, classifier_dataset, sha256)
+from src.dashboard.reporting_content import (ETF_COVERAGE, GRAPH_METHOD, SCENARIO_METHOD,
+    METRIC_METHOD, PORTFOLIO_METHOD, EXECUTION_METHOD, validation_disclosure, tradeoff_text,
+    run_disclosure, provenance_disclosure, policy_bands, optimizer_explanation)
+
+BUILD_TIME = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -85,8 +96,7 @@ GLOSSARY: dict[str, tuple[str, str]] = {
     ),
     "centrality": (
         r"[Cc]entrality",
-        "How much of the network runs through one bank — a central bank is the one "
-        "whose trouble is most likely to reach everyone else.",
+        "Computed connectivity in a specified graph, not institution size or proof of causal transmission. The Risk and optimizer graphs use different measures.",
     ),
     "drawdown": (
         r"[Dd]rawdowns?",
@@ -110,8 +120,7 @@ GLOSSARY: dict[str, tuple[str, str]] = {
     ),
     "financial exposure": (
         r"[Ff]inancial exposure",
-        "The share of the portfolio held in banks and bank-sector ETFs — the part that "
-        "would be hit directly if banks came under pressure.",
+        "Here the modeled proxy is direct Big Six weights plus XFN. It excludes bank/financial holdings inside XIU and is not full economic look-through exposure.",
     ),
     "risk budget": (
         r"(?:[Bb]ank-)?risk budget",
@@ -197,7 +206,7 @@ def refresh_panel(latest_date: str) -> str:
     return (
         "<div class='refresh-panel' id='refresh-panel' hidden>"
         "<div class='refresh-copy'><strong>Data refresh</strong>"
-        f"<span>Market and Bank of Canada history currently runs through {latest_date}. "
+        f"<span>Processed feature history currently runs through {latest_date}; source observation dates differ (see Research). "
         "Refreshing re-downloads both sources, rebuilds the feature dataset, and regenerates every page.</span></div>"
         "<button class='button' id='refresh-button' type='button'>Refresh data</button>"
         "</div>"
@@ -1021,7 +1030,7 @@ def page_template(slug: str, title: str, subtitle: str, body: str, latest_date: 
     <span class="eyebrow">Canadian systemic-risk research</span>
     <h1>{title}</h1>
     <p class="subtitle">{subtitle}</p>
-    <span class="pill">&#9679; Data through {latest_date}</span>
+    <span class="pill">&#9679; Features through {latest_date} · cached snapshot</span>
     <span class="pill">Yahoo Finance · Bank of Canada</span>
     <span class="pill">CVaR · Graph Network · RL</span>
   </header>
@@ -1085,19 +1094,7 @@ def score_chart(features: pd.DataFrame) -> go.Figure:
 
 
 def driver_chart(features: pd.DataFrame) -> go.Figure:
-    drivers = strongest_drivers(features).head(8).sort_values("Stress Percentile")
-    fig = go.Figure(go.Bar(
-        x=drivers["Stress Percentile"], y=drivers["Driver"], orientation="h",
-        text=[f"{x:.0%}" for x in drivers["Stress Percentile"]], textposition="auto",
-        marker=dict(
-            color=drivers["Stress Percentile"].tolist(),
-            colorscale=[[0, "#00c853"], [0.5, "#ffb300"], [1.0, "#f44336"]],
-            cmin=0, cmax=1, showscale=False,
-        ),
-    ))
-    fig.update_layout(title="Current Risk Driver Percentiles", xaxis_tickformat=".0%")
-    return _dark_chart(fig)
-
+    return attribution_chart(composite_attribution(features), latest(features, "contagion_risk_score", 50))
 
 def bank_chart(bank_table: pd.DataFrame) -> go.Figure:
     ordered = bank_table.sort_values("Node Stress")
@@ -1159,7 +1156,7 @@ def allocation_chart(bank_table: pd.DataFrame, score: float) -> tuple[go.Figure,
             cmin=0, cmax=weights.max(), showscale=False,
         ),
     ))
-    fig.update_layout(title=f"Risk-Aware Allocation | Score {score:.1f}/100", yaxis_title="Weight", yaxis_tickformat=".0%")
+    fig.update_layout(title=f"Standalone Heuristic | Score {score:.1f}/100", yaxis_title="Weight", yaxis_tickformat=".0%")
     return _dark_chart(fig), weights
 
 
@@ -1324,7 +1321,7 @@ def cvar_frontier_chart(frontier: pd.DataFrame) -> go.Figure:
                     line=dict(width=1, color="#2a3a4a")),
         line=dict(color="#1e88e5", width=1.5),
     ))
-    fig.update_layout(title="CVaR Efficient Frontier", xaxis_title="Historical CVaR",
+    fig.update_layout(title="Candidate Portfolio Trade-offs", xaxis_title="Historical CVaR",
                       yaxis_title="Expected annual return", xaxis_tickformat=".1%", yaxis_tickformat=".1%")
     return _dark_chart(fig)
 
@@ -1368,6 +1365,8 @@ def cvar_paper_fund() -> tuple:
         rebalance_threshold=0.01,
         start_date=start_date,
     )
+    if not cvar.ledger.index.equals(rl.ledger.index):
+        raise ValueError("CVaR and PPO comparison periods differ; comparison is unverified.")
     benchmarks = cvar.benchmarks.copy()
     benchmarks["RL research baseline"] = rl.ledger["portfolio_value"].reindex(benchmarks.index).ffill()
     return cvar, rl, benchmarks
@@ -1424,14 +1423,17 @@ def component_scores(features: pd.DataFrame) -> pd.DataFrame:
         "Financials drawdown": ("XFN.TO_drawdown_63d", -1),
         "Global volatility": ("VIX_level", 1),
         "Volatility spike": ("VIX_chg_5d", 1),
-        "Yield curve pressure": ("slope_10y_2y", -1),
+        "Yield-curve inversion": ("slope_10y_2y", -1),
         "Oil shock": ("CL=F_ret_21d", -1),
         "CAD pressure": ("CADUSD=X_ret_21d", -1),
     }
     out = pd.DataFrame(index=features.index)
     for label, (col, sign) in candidates.items():
         if col in features:
-            out[label] = 100 * (sign * features[col]).rank(pct=True)
+            series = sign * features[col]
+            if col == "slope_10y_2y":
+                series = series.clip(lower=0)
+            out[label] = 100 * _pct_rank(series)
     out["Composite score"] = features["contagion_risk_score"]
     return out.ffill().fillna(50).clip(0, 100)
 
@@ -1644,15 +1646,14 @@ def risk_adjusted_comparison(
     sortino_note = (
         f"Sortino ignores upside swings and counts only losing days, and {sortino_leader} leads here too "
         f"({max(cvar_summary['sortino_ratio'], rl_summary['sortino_ratio']):.2f} against "
-        f"{min(cvar_summary['sortino_ratio'], rl_summary['sortino_ratio']):.2f}), so its volatility leaned "
-        "toward gains rather than losses."
+        f"{min(cvar_summary['sortino_ratio'], rl_summary['sortino_ratio']):.2f}). This ratio does not establish the shape of the return distribution."
     )
 
     calmer, choppier = (cvar_label, rl_label) if cvar_below <= rl_below else (rl_label, cvar_label)
     calm_days, chop_days = (cvar_below_days, rl_below_days) if cvar_below <= rl_below else (rl_below_days, cvar_below_days)
     below_note = (
         f"{calmer} was showing a loss against day one on {calm_days} of {days} days, versus {chop_days} for "
-        f"{choppier} — the more relevant number if an investor would judge the fund on any given statement date."
+        f"{choppier}. This compares with the first post-cost NAV, not time below a previous peak; neither measure is universally more relevant."
     )
 
     rows = [
@@ -1705,109 +1706,9 @@ def _looser_guidance(features: pd.DataFrame, macro: pd.DataFrame, score: float) 
     }
 
 
-def decision_rationale(
-    features: pd.DataFrame,
-    macro: pd.DataFrame,
-    attribution: pd.DataFrame,
-    cvar_result,
-    constraints: PortfolioConstraints,
-    positioning: dict,
-    score: float,
-) -> str:
-    """Plain-language causal chain from risk drivers to the published recommendation."""
-    elevated = attribution[attribution["Percentile"] >= ELEVATED_PERCENTILE]
-    calm = attribution[attribution["Percentile"] < ELEVATED_PERCENTILE]
-
-    if len(elevated):
-        elevated_text = _join_phrases(
-            [f"{row['Component'].lower()} at its {_ordinal(row['Percentile'])} percentile" for _, row in elevated.iterrows()]
-        )
-        first = (
-            f"{_count_word(len(elevated)).capitalize()} of the {_count_word(len(attribution))} inputs to the risk "
-            f"score are running hot: {elevated_text}."
-            if len(elevated) > 1
-            else f"One of the {_count_word(len(attribution))} inputs to the risk score is running hot: {elevated_text}."
-        )
-    else:
-        first = "None of the five inputs to the risk score is above its 75th percentile today."
-
-    if len(calm):
-        calm_text = _join_phrases(
-            [f"{row['Component'].lower()} at the {_ordinal(row['Percentile'])}" for _, row in calm.iterrows()]
-        )
-        second = (
-            f"Averaged against the calmer readings — {calm_text} — that puts the composite contagion score at "
-            f"{score:.1f} out of 100, in the {positioning['regime'].lower()} band."
-        )
-    else:
-        second = f"That puts the composite contagion score at {score:.1f} out of 100, in the {positioning['regime'].lower()} band."
-
-    density = float(cvar_result.diagnostics.get("graph_density", 0.0))
-    avg_corr = float(cvar_result.diagnostics.get("average_correlation", 0.0))
-    systemic_pressure = (
-        0.45 * min(max(score / 100.0, 0.0), 1.0)
-        + 0.30 * min(max(density, 0.0), 1.0)
-        + 0.25 * min(max(avg_corr, 0.0), 1.0)
-    )
-    inflation = CVAR_GRAPH_PENALTY_STRENGTH * systemic_pressure
-    third = (
-        f"That score is not just a label — it is fed straight into the CVaR optimizer, where it inflates the "
-        f"risk the optimizer perceives in every bank position by {inflation:.0%}, so each bank has to earn a higher "
-        f"return to justify its weight. The optimizer also runs under a hard ceiling of "
-        f"{constraints.max_bank_exposure:.0%} on total financial exposure and a floor of "
-        f"{constraints.min_cash_weight:.0%} on cash."
-    )
-
-    financial_assets = [a for a in FINANCIAL_EXPOSURE_ASSETS if a in cvar_result.weights.index]
-    exposure = float(cvar_result.weights.reindex(financial_assets).fillna(0.0).sum())
-    cash = float(cvar_result.weights.get("cash", 0.0))
-    ceiling_binding = exposure >= constraints.max_bank_exposure - 0.005
-    floor_binding = cash <= constraints.min_cash_weight + 0.005
-    if ceiling_binding:
-        fourth_tail = (
-            f"pinned against the {constraints.max_bank_exposure:.0%} ceiling, so the cap, not the score, is what is "
-            "holding exposure down."
-        )
-    elif floor_binding:
-        # Cash resting on its floor means the optimizer wanted less cash, not more -
-        # saying the score alone drove the answer would misread which limit bit.
-        fourth_tail = (
-            f"well inside the {constraints.max_bank_exposure:.0%} ceiling, but with cash resting exactly on its "
-            f"{constraints.min_cash_weight:.0%} floor. So the score is what pulled bank exposure down, while the "
-            "floor is the only reason the portfolio holds any cash at all — left alone the optimizer would hold less."
-        )
-    else:
-        fourth_tail = (
-            f"comfortably inside the {constraints.max_bank_exposure:.0%} ceiling and above the "
-            f"{constraints.min_cash_weight:.0%} cash floor, so neither limit is binding: the risk score itself is "
-            "what pulled exposure down."
-        )
-    fourth = (
-        f"Under those inflated risk estimates the optimizer settles at {exposure:.1%} financial exposure and "
-        f"{cash:.1%} cash — {fourth_tail}"
-    )
-
-    fifth = (
-        f"The published guidance then tightens further than the optimizer's guardrail, because the score sits in the "
-        f"{positioning['regime'].lower()} band: a {positioning['total_bank_budget']} aggregate bank budget and "
-        f"{positioning['cash_guidance'].split('.')[0]} cash."
-    )
-
-    looser = _looser_guidance(features, macro, score)
-    sixth = (
-        f"That range is set by the band rather than by any single day's optimization, so it holds steady while the score "
-        f"stays at {looser['threshold']} or above; a fall below {looser['threshold']} would widen the budget to "
-        f"{looser['budget']} and cut the cash call to {looser['cash']}."
-        if looser
-        else "That range is set by the regime band rather than by any single day's optimization."
-    )
-
-    sentences = "".join(f"<p>{text}</p>" for text in [first, second, third, fourth, fifth, sixth])
-    return (
-        "<h3>Why this recommendation</h3>"
-        f"<div class='rationale'>{sentences}</div>"
-    )
-
+def decision_rationale(features, macro, attribution, cvar_result, constraints, positioning, score) -> str:
+    inputs = "; ".join(f"{r['Component']}: {r['Contribution']:.1f} points" for _, r in attribution.iterrows())
+    return "<h3>Why this model target</h3><div class='rationale'><p>" + inputs + f"; total {score:.1f}/100.</p>" + optimizer_explanation(cvar_result, constraints, score, CVAR_GRAPH_PENALTY_STRENGTH) + "<p>Editorial guidance comes from the regime lookup below. Higher bands can change it again; there is no hysteresis. These configured ranges are not optimized allocations or crisis probabilities.</p></div>"
 
 def stress_paths(
     prices: pd.DataFrame,
@@ -1829,7 +1730,7 @@ def stress_paths(
     return paths, paths.iloc[-1]
 
 
-def stress_path_chart(paths: pd.DataFrame) -> go.Figure:
+def stress_path_chart(paths: pd.DataFrame, scenario_name: str = "Liquidity Squeeze", severity: float = 1.0) -> go.Figure:
     fig = go.Figure()
     colors = ["#1e88e5", "#00c853", "#ffb300", "#f44336", "#00bcd4", "#e040fb"]
     for i, bank in enumerate(BANKS):
@@ -1837,83 +1738,24 @@ def stress_path_chart(paths: pd.DataFrame) -> go.Figure:
             fig.add_trace(go.Scatter(x=paths.index, y=paths[bank], mode="lines+markers", name=bank,
                                      line=dict(color=colors[i % len(colors)], width=2.5),
                                      marker=dict(size=7)))
-    fig.add_hline(y=70, line_dash="dash", line_color="#f44336", opacity=0.5, annotation_text="Severe")
+    fig.add_hline(y=70, line_dash="dash", line_color="#f44336", opacity=0.5, annotation_text="Scenario severe ≥70")
     fig.add_hline(y=40, line_dash="dot", line_color="#ffb300", opacity=0.5, annotation_text="Moderate")
-    fig.update_layout(title="Liquidity Squeeze: Contagion Propagation", xaxis_title="Propagation step", yaxis_title="Stress score (0–100)")
+    fig.update_layout(title=f"{scenario_name} ({severity:.0%}): Contagion Propagation", xaxis_title="Propagation step", yaxis_title="Stress score (0–100)")
     return _dark_chart(fig, height=470)
 
 
 def scenario_walkthrough(paths: pd.DataFrame, adjacency: pd.DataFrame) -> str:
-    """Narrate the propagation the chart above already plots, step by step.
-
-    Reads the same paths and adjacency the scenario model produces; it introduces
-    no propagation rule of its own.
-    """
-    banks = [b for b in BANKS if b in paths.columns]
-    opening, closing = paths.iloc[0][banks], paths.iloc[-1][banks]
-    first_bank = opening.idxmax()
-    steps = paths.index.max()
-
-    first = (
-        f"The shock lands first on <strong>{first_bank}</strong> at {opening.max():.1f}/100. That opening hit is the "
-        f"scenario's own assumption, not a model output — the six banks start in a {opening.min():.0f}–{opening.max():.0f} range."
-    )
-
-    step_one = paths.loc[1][banks] - opening
-    absorber = step_one.idxmax()
-    # Column of the row-normalised adjacency = the share of each peer's stress this bank receives.
-    incoming = adjacency[absorber].drop(labels=[absorber], errors="ignore")
-    loudest = incoming.idxmax() if len(incoming) else None
-    second = (
-        f"One step later every bank has risen. <strong>{absorber}</strong> absorbs the most spillover, up "
-        f"{step_one.max():.1f} points to {paths.loc[1][absorber]:.1f}"
-        + (
-            f", with the largest single share of it arriving from {loudest}."
-            if loudest is not None
-            else "."
-        )
-    )
-
-    deltas = paths.diff().iloc[1:][banks]
-    first_move, last_move = deltas.iloc[0].max(), deltas.iloc[-1].max()
-    at_ceiling = bool((closing >= 99.9).any())
-    if at_ceiling:
-        third = (
-            f"By step {steps} at least one bank has reached the 100 ceiling, so the curves flatten because the scale "
-            "runs out, not because the contagion settles."
-        )
-    elif last_move > first_move:
-        third = (
-            f"The spread never settles: the largest single-step move grows from {first_move:.1f} points at step 1 to "
-            f"{last_move:.1f} at step {steps}. The run ends at a fixed {steps}-step horizon, not at convergence — "
-            "read the endpoint as \"where this shock had got to\", not as where it stops."
-        )
-    else:
-        third = (
-            f"Propagation is easing by the end: the largest single-step move falls from {first_move:.1f} points at "
-            f"step 1 to {last_move:.1f} at step {steps}."
-        )
-
-    off_diagonal = adjacency.to_numpy()[~np.eye(len(adjacency), dtype=bool)]
-    spread = float(off_diagonal.max() - off_diagonal.min()) if off_diagonal.size else 0.0
-    fourth = (
-        f"Spillover is shared almost evenly — every bank passes on between {off_diagonal.min():.0%} and "
-        f"{off_diagonal.max():.0%} of its stress to each peer, a spread of only {spread * 100:.0f} points. "
-        f"With the network this uniform, the ranking at the end is driven mostly by which banks the scenario hit "
-        f"hardest to begin with."
-    )
-
-    # The first three sentences change with the preset and severity, so the page
-    # script rewrites them by id. The fourth describes the network itself, which the
-    # controls do not touch, so it stays as rendered.
-    sentences = "".join(
-        f"<p id='scenario-step-{index}'>{text}</p>" for index, text in enumerate([first, second, third], start=1)
-    ) + f"<p>{fourth}</p>"
-    return (
-        "<h3>How the shock travels</h3>"
-        f"<div class='rationale' id='scenario-walkthrough'>{sentences}</div>"
-    )
-
+    opening, closing = paths.iloc[0], paths.iloc[-1]
+    leaders = scenario_leaders(opening)['displayed']
+    moves = paths.iloc[1] - opening
+    off = adjacency.to_numpy()[~np.eye(len(adjacency), dtype=bool)]
+    sentences = [
+        f"Initial highest assumed stress: {', '.join(leaders)} at {opening.max():.1f}/100. Initial range {opening.min():.1f}–{opening.max():.1f}. Presets are assumptions, not calibrated forecasts.",
+        f"Step-one net changes range from {moves.min():+.1f} to {moves.max():+.1f} points. These include both persistence and incoming spillover, not spillover alone.",
+        f"Five abstract steps are displayed, not a real-world time horizon. {'Saturation at 100 can flatten paths.' if (closing >= 100-1e-9).any() else 'This finite horizon does not establish convergence.'}",
+    ]
+    return "<h3>How the shock travels</h3><div class='rationale' id='scenario-walkthrough'>" + "".join(
+        f"<p id='scenario-step-{i}'>{text}</p>" for i,text in enumerate(sentences,1)) + f"<p>Off-diagonal outgoing shares range {off.min():.1%}–{off.max():.1%}. Both initial shocks and network structure affect terminal rankings; this range alone does not establish which dominates.</p></div>"
 
 def final_stress_chart(final_stress: pd.Series) -> go.Figure:
     ordered = final_stress.sort_values()
@@ -1946,7 +1788,7 @@ def network_chart(prices: pd.DataFrame, bank_table: pd.DataFrame) -> go.Figure:
         x0, y0 = pos[source]; x1, y1 = pos[target]
         edge_x += [x0, x1, None]; edge_y += [y0, y1, None]
     node_x, node_y, labels, node_colors, sizes, hover = [], [], [], [], [], []
-    degree = nx.degree_centrality(graph)
+    degree = {bank: graph.degree(bank, weight="weight") / max(len(BANKS)-1, 1) for bank in BANKS}
     max_degree = max(degree.values()) if degree else 1
     for bank in BANKS:
         x, y = pos[bank]
@@ -1979,10 +1821,7 @@ def network_chart(prices: pd.DataFrame, bank_table: pd.DataFrame) -> go.Figure:
 
 
 def model_metrics(features: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
-    y = (features["contagion_risk_score"].shift(-5) >= features["contagion_risk_score"].shift(-5).quantile(0.80)).astype(int)
-    feature_cols = [c for c in features.columns if c != "contagion_risk_score" and pd.api.types.is_numeric_dtype(features[c])]
-    dataset = pd.concat([features[feature_cols].replace([np.inf, -np.inf], np.nan), y.rename("target")], axis=1).dropna()
-    split = int(len(dataset) * 0.70)
+    dataset, feature_cols, split, _ = classifier_dataset(features)
     X_train, X_test = dataset[feature_cols].iloc[:split], dataset[feature_cols].iloc[split:]
     y_train, y_test = dataset["target"].astype(int).iloc[:split], dataset["target"].astype(int).iloc[split:]
     models = {
@@ -2059,6 +1898,7 @@ def build_pages() -> dict[str, str]:
         bank_display[col] = bank_display[col].map(lambda x: pct(x) if pd.notna(x) else "N/A")
     bank_display["Beta to XFN"] = bank_display["Beta to XFN"].map(lambda x: f"{x:.2f}" if pd.notna(x) else "N/A")
     bank_display["Node Stress"] = bank_display["Node Stress"].map(lambda x: f"{x:.1f}/100")
+    bank_display["Risk response"] = bank_display["Risk response"].replace({"Reduce/hedge first": "Higher-stress research flag; not a trade"})
 
     driver_display = drivers.copy()
     driver_display["Stress Percentile"] = driver_display["Stress Percentile"].map(lambda x: f"{x:.0%}" if pd.notna(x) else "N/A")
@@ -2092,8 +1932,6 @@ def build_pages() -> dict[str, str]:
             "Composite Score",
             "Node Stress",
             "21D Return",
-            "Target Weight",
-            "Weight Delta",
             "Rationale",
             "Economic Context",
         ]
@@ -2102,8 +1940,7 @@ def build_pages() -> dict[str, str]:
     for col in ["Composite Score", "Node Stress"]:
         signals_display[col] = signals_display[col].map(lambda x: f"{x:.1f}/100")
     signals_display["21D Return"] = signals_display["21D Return"].map(lambda x: f"{x:+.1%}" if pd.notna(x) else "N/A")
-    for col in ["Target Weight", "Weight Delta"]:
-        signals_display[col] = signals_display[col].map(lambda x: f"{x:+.1%}" if "Delta" in col else f"{x:.1%}")
+    signals_display = signals_display.rename(columns={"Signal": "Independent security signal", "Conviction": "Heuristic conviction (not a probability)"})
 
     recs_display = recs.copy()
     for col in ["Current Weight", "Target Weight", "Delta"]:
@@ -2129,12 +1966,7 @@ def build_pages() -> dict[str, str]:
         metrics_display[col] = metrics_display[col].map(lambda x: f"{x:.3f}")
 
     paper_ledger, paper_trades, paper_holdings, paper_weights, paper_benchmarks, paper_policy_source = paper_portfolio()
-    paper_summary = performance_summary(
-        paper_ledger["portfolio_value"],
-        paper_ledger["daily_return"],
-        paper_ledger["turnover"],
-        paper_ledger["transaction_costs"],
-    )
+    paper_summary = reported_summary(paper_ledger)
     paper_latest = paper_ledger.iloc[-1]
     paper_holdings_display = paper_holdings[["asset", "shares", "latest_price", "market_value", "weight", "unrealized_pnl"]].copy()
     paper_holdings_display.columns = ["Asset", "Shares", "Latest Price", "Market Value", "Weight", "Unrealized P&L"]
@@ -2145,8 +1977,11 @@ def build_pages() -> dict[str, str]:
     paper_trades_display = paper_trades.sort_values("date", ascending=False).head(20).copy()
     if not paper_trades_display.empty:
         paper_trades_display["date"] = pd.to_datetime(paper_trades_display["date"]).dt.date
-        paper_trades_display = paper_trades_display[["date", "asset", "action", "shares", "price", "notional", "transaction_cost", "reason"]]
-        paper_trades_display.columns = ["Date", "Asset", "Action", "Shares", "Price", "Notional", "Transaction Cost", "Reason"]
+        paper_trades_display = paper_trades_display[["date", "asset", "action", "shares", "price", "notional", "transaction_cost", "pre_trade_weight", "target_weight", "reason"]]
+        paper_trades_display.columns = ["Date", "Asset", "Action", "Shares", "Price", "Notional", "Transaction Cost", "Pre-trade Weight", "Run Target Weight", "Reason"]
+        paper_trades_display["Reason"] = "Observed paper rebalance toward policy target. Original reason is a contextual template, not a PPO causal trace."
+        for col in ["Pre-trade Weight", "Run Target Weight"]:
+            paper_trades_display[col] = paper_trades_display[col].map(lambda x: f"{x:.2%}")
         paper_trades_display["Shares"] = paper_trades_display["Shares"].map(lambda x: f"{x:,.4f}")
         for col in ["Price", "Notional", "Transaction Cost"]:
             paper_trades_display[col] = paper_trades_display[col].map(lambda x: f"${x:,.2f}")
@@ -2154,12 +1989,19 @@ def build_pages() -> dict[str, str]:
     cvar_result, cvar_frontier = cvar_snapshot()
     cvar_weights, cvar_penalties, cvar_diagnostics = optimizer_tables(cvar_result)
     cvar_weights_display = cvar_weights.copy()
-    for col in ["Weight", "Expected Return Contribution", "Volatility Contribution", "CVaR Contribution", "Contagion Contribution"]:
+    for col in ["Weight", "Expected Return Contribution", "Volatility Contribution", "CVaR Contribution", "Contagion Contribution", "Expected Return"]:
         if col in cvar_weights_display:
             cvar_weights_display[col] = cvar_weights_display[col].map(lambda x: f"{x:.1%}" if pd.notna(x) else "N/A")
+    for col in ["Centrality", "Node Stress"]:
+        if col in cvar_weights_display:
+            cvar_weights_display[col] = cvar_weights_display[col].map(lambda x: f"{x:.3f}")
+    for col in ["Eigenvector Centrality", "Centrality-Adjusted Penalty"]:
+        if col in cvar_penalties:
+            cvar_penalties[col] = cvar_penalties[col].map(lambda x: f"{x:.3f}")
+    cvar_penalties["Node Stress"] = cvar_penalties["Node Stress"].map(lambda x: f"{x:.1f}/100")
     cvar_paper, rl_paper, cvar_benchmarks = cvar_paper_fund()
-    cvar_summary = performance_summary(cvar_paper.ledger["portfolio_value"], cvar_paper.ledger["daily_return"], cvar_paper.ledger["turnover"], cvar_paper.ledger["transaction_costs"])
-    rl_summary = performance_summary(rl_paper.ledger["portfolio_value"], rl_paper.ledger["daily_return"], rl_paper.ledger["turnover"], rl_paper.ledger["transaction_costs"])
+    cvar_summary = reported_summary(cvar_paper.ledger)
+    rl_summary = reported_summary(rl_paper.ledger)
     risk_adjusted = risk_adjusted_comparison(cvar_paper.ledger, rl_paper.ledger, cvar_summary, rl_summary)
     cvar_holdings_display = cvar_paper.current_holdings[["asset", "shares", "latest_price", "market_value", "weight", "unrealized_pnl"]].copy()
     cvar_holdings_display.columns = ["Asset", "Shares", "Latest Price", "Market Value", "Weight", "Unrealized P&L"]
@@ -2170,8 +2012,11 @@ def build_pages() -> dict[str, str]:
     cvar_trades_display = cvar_paper.trades.sort_values("date", ascending=False).head(20).copy()
     if not cvar_trades_display.empty:
         cvar_trades_display["date"] = pd.to_datetime(cvar_trades_display["date"]).dt.date
-        cvar_trades_display = cvar_trades_display[["date", "asset", "action", "shares", "price", "notional", "transaction_cost", "reason"]]
-        cvar_trades_display.columns = ["Date", "Asset", "Action", "Shares", "Price", "Notional", "Transaction Cost", "Reason"]
+        cvar_trades_display = cvar_trades_display[["date", "asset", "action", "shares", "price", "notional", "transaction_cost", "pre_trade_weight", "target_weight", "reason"]]
+        cvar_trades_display.columns = ["Date", "Asset", "Action", "Shares", "Price", "Notional", "Transaction Cost", "Pre-trade Weight", "Run Target Weight", "Reason"]
+        cvar_trades_display["Reason"] = "Observed paper rebalance toward optimizer target. Original reason is a contextual template, not a solver causal trace."
+        for col in ["Pre-trade Weight", "Run Target Weight"]:
+            cvar_trades_display[col] = cvar_trades_display[col].map(lambda x: f"{x:.2%}")
         cvar_trades_display["Shares"] = cvar_trades_display["Shares"].map(lambda x: f"{x:,.4f}")
         for col in ["Price", "Notional", "Transaction Cost"]:
             cvar_trades_display[col] = cvar_trades_display[col].map(lambda x: f"${x:,.2f}")
@@ -2572,13 +2417,22 @@ def build_pages() -> dict[str, str]:
     )
     pages["data-catalog"] = page_template("data-catalog", "Data Catalog", "Every CSV explained, profiled, and connected to analytical context.", data_body, latest_date)
 
+    recs = portfolio_comparison(cvar_paper.weights.iloc[-1], cvar_result.weights)
+    recs_display = rebalance_display(recs)
+    decision_constraints = constraint_status(cvar_result.weights, CVAR_SNAPSHOT_CONSTRAINTS)
+    run_html = run_disclosure(cvar_paper, rl_paper, paper_ledger, paper_weights, paper_policy_source, cvar_result, weights, latest_date, table_html)
+    validation_html = validation_disclosure(features, metrics, table_html)
+    provenance_html = provenance_disclosure(ROOT, features, prices, macro, BUILD_TIME, table_html)
+    bands = policy_bands(features, macro)
+    tradeoff_html = card("Observed risk / return trade-off", tradeoff_text(cvar_summary, rl_summary))
+    exposure_html = table_html(exposure_diagnostics({"CVaR common period": cvar_paper.ledger, "PPO common period": rl_paper.ledger}), label="Exposure variability diagnostics")
     # Consolidate the analytical substance into seven decision-oriented routes.
     # Legacy route redirects are defined in vercel.json.
     top_driver_items = "".join(
-        f"<li><strong>{row['Driver']}</strong> — {row['Stress Percentile']:.0%} historical stress percentile</li>"
-        for _, row in drivers.head(3).iterrows()
+        f"<li><strong>{row['Component']}</strong> — {row['Contribution']:.1f} of {score:.1f} score points</li>"
+        for _, row in attribution.head(3).iterrows()
     )
-    model_confidence = "Moderate" if metrics.iloc[0]["AUC"] >= 0.65 else "Limited"
+    model_confidence = "Single classifier hold-out; portfolio confidence uncalibrated"
     fallback_cash = float(weights.get("cash", 0))
     cvar_cash = float(cvar_result.weights.get("cash", 0))
     model_agreement = "Aligned" if abs(fallback_cash - cvar_cash) <= 0.10 else "Mixed"
@@ -2591,8 +2445,8 @@ def build_pages() -> dict[str, str]:
         f"{regime['label']} risk regime</h2>"
         f"<div class='hero-score'>{score:.1f}<small>/ 100 risk score</small></div>"
         f"<p>{regime['summary']}</p>"
-        f"<p><strong>Portfolio recommendation:</strong> use a {positioning['total_bank_budget']} bank-risk budget "
-        f"with {positioning['cash_guidance'].split('.')[0].lower()}.</p>"
+        f"<p><strong>Editorial policy guidance:</strong> use a {positioning['total_bank_budget']} bank-risk budget "
+        f"with {positioning['cash_guidance'].split('.')[0].lower()} cash as editorial guidance.</p><p>CVaR model target; policy reconciliation pending. No policy-compliant allocation has been implemented.</p>"
         "<div class='button-row'><a class='button' href='/decision'>Review portfolio decision</a>"
         "<a class='button secondary' href='/risk'>Inspect risk evidence</a></div></section>"
         "<aside class='evidence-panel' aria-labelledby='drivers-title'>"
@@ -2601,16 +2455,16 @@ def build_pages() -> dict[str, str]:
         f"<ol class='driver-list'>{top_driver_items}</ol></aside></div>"
         + metric_grid(
             [
-                ("Portfolio recommendation", positioning["total_bank_budget"] + " bank budget"),
+                ("Editorial bank-risk budget", positioning["total_bank_budget"]),
                 ("Cash guidance", positioning["cash_guidance"].split(".")[0]),
-                ("Model confidence", f"{model_confidence} · AUC {metrics.iloc[0]['AUC']:.2f}"),
+                ("Validation scope", "Supervised stress classifier only"),
                 ("Data updated", latest_date),
             ]
         )
         + card(
             "Portfolio recommendation",
-            f"{positioning['sector_bias']} {positioning['cash_guidance']} "
-            f"Cash posture is {model_agreement.lower()} across the transparent fallback and CVaR model outputs.",
+            f"Editorial guidance: {positioning['sector_bias']} Cash: {positioning['cash_guidance']} "
+            f"Cash posture is {model_agreement.lower()} across the standalone heuristic and CVaR model outputs; this is not calibrated confidence.",
             regime["tone"],
         )
         + section_heading(
@@ -2624,7 +2478,7 @@ def build_pages() -> dict[str, str]:
         "<a href='/risk'><span>02</span><strong>Contagion assessment</strong><small>Network pathways and composite score</small></a>"
         "<a href='/scenarios'><span>03</span><strong>Stress scenarios</strong><small>Shock transmission and portfolio impact</small></a>"
         "<a href='/models'><span>04</span><strong>Portfolio response</strong><small>RL and CVaR model outputs</small></a>"
-        "<a href='/decision'><span>05</span><strong>Final decision</strong><small>Risk budget and rebalance actions</small></a>"
+        "<a href='/decision'><span>05</span><strong>Portfolio review</strong><small>Risk budget and rebalance actions</small></a>"
         "</div>"
         + section_heading(
             "market-evidence",
@@ -2639,8 +2493,8 @@ def build_pages() -> dict[str, str]:
             chart_html(score_chart(features), True),
         )
         + chart_panel(
-            "Current driver percentiles",
-            "Each driver is ranked against its own history; higher values indicate more unusual stress.",
+            "Composite contributions",
+            "Actual adverse-direction inputs to the five-component score; oil and CAD are excluded.",
             chart_html(driver_chart(features)),
         )
         + "</div>"
@@ -2667,7 +2521,7 @@ def build_pages() -> dict[str, str]:
         + "<div class='chart-grid'>"
         + chart_panel(
             "Canadian bank contagion network",
-            "Larger institutions are more central transmission points; warmer colors indicate greater current node stress.",
+            "Larger nodes have greater average weighted connectivity, not larger balance sheets. Edges show observed co-movement, not identified causal transmission.",
             chart_html(network_chart(prices, bank_table), True),
         )
         + chart_panel(
@@ -2678,7 +2532,8 @@ def build_pages() -> dict[str, str]:
         + "</div>"
         + "<h3>Centrality and material propagation pathways</h3>"
         + "<p>Material links use an absolute 63-day correlation threshold of 0.35. Weighted centrality is "
-        "the average absolute strength of those links across the five possible peers.</p>"
+        "the average absolute strength of those links across the five possible peers. Node size uses this same weighted measure. Degree alone cannot distinguish banks when each has five material links.</p>"
+        + GRAPH_METHOD
         + table_html(network_evidence)
         + "<details><summary>Strongest pairwise pathways and bank context</summary><div>"
         + table_html(pathway_evidence)
@@ -2712,12 +2567,12 @@ def build_pages() -> dict[str, str]:
         + "<div class='chart-grid'>"
         + chart_panel(
             "Component scores",
-            "Current component values on the same 0–100 stress scale; higher values are more adverse.",
+            "Expanding adverse-direction ranks. Oil, CAD and VIX changes are supplementary context, excluded from the five-component composite. Inversion ranks max(−(10Y−2Y), 0).",
             chart_html(component_bar_chart(components)),
         )
         + chart_panel(
             "Six-month stress breadth",
-            "Historical component scores over approximately 126 trading days, separating current state from change over time.",
+            "Expanding ranks through each observation date, shown over 126 trading days; no later observations are used for these display ranks.",
             chart_html(component_heatmap(components)),
         )
         + "</div>"
@@ -2770,76 +2625,10 @@ def build_pages() -> dict[str, str]:
   const severity = document.querySelector('#scenario-severity');
   const severityOutput = document.querySelector('#scenario-severity-output');
   const status = document.querySelector('#scenario-status');
-  const clip = (value) => Math.max(0, Math.min(100, value));
-
-  const calculate = (name, multiplier) => {
-    let current = scenarioData.banks.map((bank) => clip(scenarioData.shocks[name][bank] * multiplier));
-    const paths = [current.slice()];
-    for (let step = 1; step <= 5; step += 1) {
-      current = current.map((value, target) => {
-        const propagated = current.reduce(
-          (total, sourceValue, source) => total + scenarioData.adjacency[source][target] * sourceValue,
-          0,
-        );
-        return clip(0.70 * value + 0.45 * propagated);
-      });
-      paths.push(current.slice());
-    }
-    return paths;
-  };
-
-  const argmax = (values) => values.indexOf(Math.max(...values));
-
-  // Mirrors scenario_walkthrough() in the exporter for the three sentences that
-  // depend on the selected preset and severity.
-  const renderWalkthrough = (paths) => {
-    const banks = scenarioData.banks;
-    const opening = paths[0];
-    const closing = paths[paths.length - 1];
-    const steps = paths.length - 1;
-
-    const firstBank = banks[argmax(opening)];
-    const setText = (id, html) => {
-      const node = document.querySelector(id);
-      if (node) node.innerHTML = html;
-    };
-    setText('#scenario-step-1',
-      `The shock lands first on <strong>${firstBank}</strong> at ${Math.max(...opening).toFixed(1)}/100. `
-      + `That opening hit is the scenario's own assumption, not a model output — the six banks start in a `
-      + `${Math.min(...opening).toFixed(0)}–${Math.max(...opening).toFixed(0)} range.`);
-
-    const stepOne = paths[1].map((value, i) => value - opening[i]);
-    const absorberIndex = argmax(stepOne);
-    let loudest = null;
-    let strongest = -Infinity;
-    banks.forEach((bank, source) => {
-      if (source !== absorberIndex && scenarioData.adjacency[source][absorberIndex] > strongest) {
-        strongest = scenarioData.adjacency[source][absorberIndex];
-        loudest = bank;
-      }
-    });
-    setText('#scenario-step-2',
-      `One step later every bank has risen. <strong>${banks[absorberIndex]}</strong> absorbs the most spillover, up `
-      + `${Math.max(...stepOne).toFixed(1)} points to ${paths[1][absorberIndex].toFixed(1)}`
-      + (loudest ? `, with the largest single share of it arriving from ${loudest}.` : '.'));
-
-    const spread = (from, to) => Math.max(...to.map((value, i) => value - from[i]));
-    const firstMove = spread(paths[0], paths[1]);
-    const lastMove = spread(paths[paths.length - 2], closing);
-    let third;
-    if (closing.some((value) => value >= 99.9)) {
-      third = `By step ${steps} at least one bank has reached the 100 ceiling, so the curves flatten because the `
-        + 'scale runs out, not because the contagion settles.';
-    } else if (lastMove > firstMove) {
-      third = `The spread never settles: the largest single-step move grows from ${firstMove.toFixed(1)} points at `
-        + `step 1 to ${lastMove.toFixed(1)} at step ${steps}. The run ends at a fixed ${steps}-step horizon, not at `
-        + 'convergence — read the endpoint as "where this shock had got to", not as where it stops.';
-    } else {
-      third = `Propagation is easing by the end: the largest single-step move falls from ${firstMove.toFixed(1)} `
-        + `points at step 1 to ${lastMove.toFixed(1)} at step ${steps}.`;
-    }
-    setText('#scenario-step-3', third);
-  };
+  const calculate = (name, multiplier) => NorthernScenario.calculate(scenarioData, name, multiplier);
+  const renderWalkthrough = (summary) => summary.walkthrough.forEach((text, i) => {
+    document.querySelector(`#scenario-step-${i+1}`).textContent = text;
+  });
 
   const render = () => {
     status.textContent = 'Updating scenario…';
@@ -2848,7 +2637,8 @@ def build_pages() -> dict[str, str]:
       try {
         const multiplier = Number(severity.value) / 100;
         const paths = calculate(select.value, multiplier);
-        renderWalkthrough(paths);
+        const summary = NorthernScenario.summarize(scenarioData, paths, select.value, Number(severity.value));
+        renderWalkthrough(summary);
         const finalValues = paths[paths.length - 1];
         const average = finalValues.reduce((sum, value) => sum + value, 0) / finalValues.length;
         const peak = Math.max(...finalValues);
@@ -2860,9 +2650,8 @@ def build_pages() -> dict[str, str]:
           `${Math.min(...initial).toFixed(0)}–${Math.max(...initial).toFixed(0)} / 100`;
         document.querySelector('#scenario-average').textContent = `${average.toFixed(1)}/100`;
         document.querySelector('#scenario-peak').textContent = `${peak.toFixed(1)}/100`;
-        document.querySelector('#scenario-bank').textContent = scenarioData.banks[peakIndex];
-        document.querySelector('#scenario-response-text').textContent =
-          `Prioritize due diligence or reduction in ${scenarioData.banks[peakIndex]}, preserve liquidity, and reconcile the response with the governed bank-risk budget.`;
+        document.querySelector('#scenario-bank').textContent = summary.bankLabel;
+        document.querySelector('#scenario-response-text').textContent = summary.response;
 
         const pathPlot = document.querySelector('#scenario-path-panel .js-plotly-plot');
         const finalPlot = document.querySelector('#scenario-final-panel .js-plotly-plot');
@@ -2872,7 +2661,7 @@ def build_pages() -> dict[str, str]:
           x: [0, 1, 2, 3, 4, 5],
           y: paths.map((row) => row[index]),
         }));
-        Plotly.react(pathPlot, pathTraces, pathPlot.layout, {displayModeBar: false, responsive: true});
+        Plotly.react(pathPlot, pathTraces, {...pathPlot.layout, title: {...pathPlot.layout.title, text: summary.title}}, {displayModeBar: false, responsive: true});
         const ranking = scenarioData.banks
           .map((bank, index) => ({bank, value: finalValues[index]}))
           .sort((a, b) => a.value - b.value);
@@ -2883,12 +2672,12 @@ def build_pages() -> dict[str, str]:
           text: ranking.map((item) => `${item.value.toFixed(1)}`),
           marker: {...finalPlot.data[0].marker, color: ranking.map((item) => item.value)},
         };
-        Plotly.react(finalPlot, [finalTrace], finalPlot.layout, {displayModeBar: false, responsive: true});
+        Plotly.react(finalPlot, [finalTrace], {...finalPlot.layout, title: {...finalPlot.layout.title, text: summary.finalTitle}}, {displayModeBar: false, responsive: true});
 
         const total = finalValues.reduce((sum, value) => sum + value, 0);
         document.querySelectorAll('.scenario-impact-table tbody tr').forEach((row, index) => {
           row.cells[1].textContent = `${finalValues[index].toFixed(1)}/100`;
-          row.cells[2].textContent = `${(100 * finalValues[index] / total).toFixed(1)}%`;
+          row.cells[2].textContent = total ? `${(100 * finalValues[index] / total).toFixed(1)}%` : "Unavailable (zero total)";
         });
         status.textContent = `Updated ${select.options[select.selectedIndex].text} at ${severity.value}% severity.`;
       } catch (error) {
@@ -2903,15 +2692,17 @@ def build_pages() -> dict[str, str]:
   severity.addEventListener('input', render);
   form.addEventListener('reset', () => setTimeout(render, 0));
   form.addEventListener('submit', (event) => event.preventDefault());
+  render();
 })();
 </script>
 """.replace("__SCENARIO_DATA__", scenario_payload)
+    scenario_script = "<script>" + (ROOT / "src/dashboard/scenario_reporting.js").read_text() + "</script>" + scenario_script
     scenario_body = (
         local_tabs(
             [
                 ("assumptions", "Assumptions"),
                 ("transmission", "Transmission"),
-                ("portfolio-impact", "Portfolio impact"),
+                ("portfolio-impact", "Bank stress attribution"),
                 ("risk-response", "Risk response"),
             ]
         )
@@ -2941,7 +2732,7 @@ def build_pages() -> dict[str, str]:
             [
                 ("Selected scenario", "<span id='scenario-name'>Liquidity squeeze</span>"),
                 ("Propagation steps", "5"),
-                ("Starting shocks", "<span id='scenario-start-range'>34–40 / 100</span>"),
+                ("Starting shocks", f"<span id='scenario-start-range'>{paths.iloc[0].min():.0f}–{paths.iloc[0].max():.0f} / 100</span>"),
                 ("Network basis", "126-day positive correlation"),
             ]
         )
@@ -2975,7 +2766,7 @@ def build_pages() -> dict[str, str]:
         + scenario_walkthrough(paths, scenario_adj.reindex(index=BANKS, columns=BANKS).fillna(0))
         + section_heading(
             "portfolio-impact",
-            "Scenario · Portfolio impact",
+            "Scenario · Equal-weight bank stress attribution",
             "How aggregate terminal stress is distributed",
             "Stress share is an attribution aid under equal bank weights, not a forecast portfolio loss.",
         )
@@ -2984,22 +2775,24 @@ def build_pages() -> dict[str, str]:
                 ("Average final stress", f"<span id='scenario-average'>{final_stress.mean():.1f}/100</span>"),
                 ("Peak final stress", f"<span id='scenario-peak'>{final_stress.max():.1f}/100</span>"),
                 ("Most stressed bank", f"<span id='scenario-bank'>{final_stress.idxmax()}</span>"),
-                ("Portfolio basis", "Equal bank weights"),
+                ("Attribution basis", "Equal bank weights"),
             ]
         )
         + stress_impact_html
         + section_heading(
             "risk-response",
-            "Scenario · Portfolio recommendation",
+            "Scenario · Interpretation",
             "Translate the scenario into a controlled response",
-            "Use scenario evidence to prioritize reductions, then reconcile the response with the CVaR risk budget and mandate constraints.",
+            "The scenario is a sensitivity exercise. Its selection does not rerun the optimizer or generate scenario-conditioned trades.",
         )
         + f"<div class='callout {stress_tone}' role='note'><p class='callout-title'>Resulting risk response</p>"
-        f"<p id='scenario-response-text'>Prioritize due diligence or reduction in {final_stress.idxmax()}, "
-        f"preserve liquidity, and compare any proposed bank exposure with the current "
-        f"{positioning['total_bank_budget']} bank-risk budget.</p></div>"
-        + "<div class='button-row'><a class='button' href='/decision'>Review decision under this scenario</a>"
-        "<a class='button secondary' href='/models#cvar-strategy'>Inspect portfolio model response</a></div>"
+        f"<p id='scenario-response-text'>Highest terminal stress: {', '.join(scenario_leaders(final_stress)['displayed'])}. "
+        "Scenario selection does not rerun the optimizer or determine a portfolio trade.</p></div>"
+        + "<div class='button-row'><a class='button' href='/decision'>Review current portfolio decision</a>"
+        "<a class='button secondary' href='/models#cvar-strategy'>Inspect current portfolio model</a></div>"
+        + "<details><summary>Exact scenario assumptions and propagation method</summary><div>" + SCENARIO_METHOD
+        + table_html(pd.DataFrame(SCENARIO_SHOCKS).rename_axis("Bank").reset_index(), label="Preset initial shock vectors (stress points)")
+        + "</div></details>"
         + scenario_script
     )
 
@@ -3017,13 +2810,13 @@ def build_pages() -> dict[str, str]:
             },
             {
                 "Dimension": "Constraints",
-                "RL strategy": "Environment action bounds and fallback policy limits",
+                "RL strategy": "PPO action bounds and post-inference long-only / direct-bank / proxy caps",
                 "CVaR strategy": "Long-only, cash band, name cap, financial-exposure cap",
             },
             {
                 "Dimension": "Expected behavior",
-                "RL strategy": "Adaptive and potentially nonlinear",
-                "CVaR strategy": "Stable, auditable, and explicitly risk-budgeted",
+                "RL strategy": "Nonlinear architecture; tactical response must be established from observed behavior",
+                "CVaR strategy": "Explicit target governance; observed turnover is reported below",
             },
             {
                 "Dimension": "Drawdown characteristics",
@@ -3047,7 +2840,7 @@ def build_pages() -> dict[str, str]:
             },
             {
                 "Dimension": "Current recommendation",
-                "RL strategy": f"Transparent fallback shows {fallback_cash:.1%} cash",
+                "RL strategy": "See separate current heuristic above; not PPO inference",
                 "CVaR strategy": f"Constrained optimizer shows {cvar_cash:.1%} cash",
             },
             {
@@ -3070,11 +2863,11 @@ def build_pages() -> dict[str, str]:
             "rl-strategy",
             "Models · Experimental",
             "RL strategy",
-            "A nonlinear research baseline that maps systemic-risk state to defensive portfolio weights.",
+            "Current deterministic reference output and separately identified historical PPO evaluations.",
         )
         + metric_grid(
             [
-                ("Displayed policy", "Transparent fallback"),
+                ("Displayed policy", "Deterministic heuristic"),
                 ("Current cash weight", f"{fallback_cash:.1%}"),
                 ("Risk regime", regime["label"]),
                 ("Risk score", f"{score:.1f}/100"),
@@ -3082,12 +2875,14 @@ def build_pages() -> dict[str, str]:
         )
         + card(
             "Model output",
-            "Cash rises as systemic risk increases, while bank exposure tilts away from higher-stress names. "
-            "When a trained PPO policy is unavailable, the simulator uses the transparent stress-aware fallback.",
+            "This standalone exporter heuristic uses the Big Six, XFN and cash; XIU is absent. "
+            "It never attempts PPO inference, so this chart is not evidence of a PPO runtime failure. "
+            "Its cash rule is clip((score−35)/65, 5%, 75%); XFN is clip((60−score)/100, 0%, 25%); "
+            "the remaining weight is split proportional to max(100−node stress, 1). It is distinct from the simulator fallback implementation.",
         )
         + "<div class='chart-grid'>"
         + chart_panel(
-            "Current RL/fallback allocation",
+            "Standalone heuristic allocation",
             "Current asset weights generated from the risk score and bank node stress.",
             chart_html(allocation_fig, True),
         )
@@ -3107,7 +2902,7 @@ def build_pages() -> dict[str, str]:
         )
         + metric_grid(
             [
-                ("Expected return", f"{cvar_result.diagnostics['expected_return']:.1%}"),
+                ("Estimated annual return", f"{cvar_result.diagnostics['expected_return']:.1%}"),
                 ("Annualized volatility", f"{cvar_result.diagnostics['annualized_volatility']:.1%}"),
                 ("Historical CVaR", f"{cvar_result.diagnostics['historical_cvar']:.1%}"),
                 ("Cash weight", f"{cvar_cash:.1%}"),
@@ -3116,12 +2911,12 @@ def build_pages() -> dict[str, str]:
         + "<div class='chart-grid'>"
         + chart_panel(
             "CVaR allocation",
-            "Constrained current weights, including explicit cash and sector exposure.",
+            f"Current snapshot target as of {latest_date}; solver {cvar_result.diagnostics['status']}. CVaR model target; policy reconciliation pending. Model-constraint checks do not establish editorial-policy compliance.",
             chart_html(cvar_weight_chart(cvar_result.weights)),
         )
         + chart_panel(
-            "Risk-return frontier",
-            "Feasible portfolios across return and expected-shortfall trade-offs under the same constraints.",
+            "Candidate portfolio trade-offs",
+            "Sequential solves at risk-aversion values 1, 2, 4, 6, 8, 10, 14, 18; each preceding solution is the next turnover reference. Other penalties use defaults (CVaR 8, contagion 0.8). The current target uses 7, 9 and 0.9, so it is not in this candidate set. This is not an established efficient frontier.",
             chart_html(cvar_frontier_chart(cvar_frontier)),
         )
         + chart_panel(
@@ -3137,6 +2932,9 @@ def build_pages() -> dict[str, str]:
         + "</div><details><summary>Risk budget, constraints, and centrality penalties</summary><div>"
         + table_html(cvar_weights_display)
         + table_html(cvar_penalties)
+        + optimizer_explanation(cvar_result, CVAR_SNAPSHOT_CONSTRAINTS, score, CVAR_GRAPH_PENALTY_STRENGTH)
+        + table_html(decision_constraints, label="Current CVaR target constraint status")
+        + ETF_COVERAGE + METRIC_METHOD + PORTFOLIO_METHOD
         + "</div></details>"
         + section_heading(
             "comparison",
@@ -3144,7 +2942,12 @@ def build_pages() -> dict[str, str]:
             "RL and CVaR answer different governance needs",
             "Observed simulated results are shown alongside qualitative differences. Neither model is presented as universally superior.",
         )
+        + tradeoff_html
+        + f"<p><strong>Common-period comparison:</strong> {cvar_paper.ledger.index[0].date()}–{cvar_paper.ledger.index[-1].date()}; CVaR source {cvar_paper.policy_source}, PPO source {rl_paper.policy_source}. Both use the nine-asset paper universe; the standalone heuristic above has eight assets.</p>"
         + table_html(model_comparison)
+        + exposure_html
+        + card("Observed policy behavior", f"Common-period PPO financial-proxy exposure ranges {rl_paper.ledger.bank_exposure.min():.1%}–{rl_paper.ledger.bank_exposure.max():.1%}; cash {rl_paper.ledger.cash_weight.min():.1%}–{rl_paper.ledger.cash_weight.max():.1%}. This does not demonstrate strong tactical response at the aggregate level. It does not establish that individual weights are static. CVaR average daily turnover is {cvar_summary['average_daily_turnover']:.2%}, versus PPO {rl_summary['average_daily_turnover']:.2%}; governance is distinct from trading stability.")
+        + "<details><summary>Mandates, policy inputs and evaluation limits</summary><div>" + PORTFOLIO_METHOD + "</div></details>"
         + "<div class='chart-grid'>"
         + chart_panel(
             "Simulated strategy value",
@@ -3160,14 +2963,14 @@ def build_pages() -> dict[str, str]:
         + section_heading(
             "validation",
             "Models · Validation",
-            "Out-of-sample evidence and confidence",
-            "A chronological hold-out test measures whether the supervised layer ranks future high-stress periods better than chance.",
+            "Supervised future-stress classifier evaluation",
+            "A single chronological classifier hold-out is shown with source-verified label and split limitations. It does not validate portfolio quality.",
         )
         + metric_grid(
             [
                 ("Best model", metrics.iloc[0]["Model"]),
                 ("Best AUC", f"{metrics.iloc[0]['AUC']:.2f}"),
-                ("Confidence", model_confidence),
+                ("Validation scope", "Classifier ranking only"),
                 ("Split", "70% train / 30% test"),
             ]
         )
@@ -3179,27 +2982,28 @@ def build_pages() -> dict[str, str]:
         )
         + chart_panel(
             "Current feature context",
-            "Risk-driver percentiles provide an interpretable bridge from the validation target to current conditions.",
+            "Current composite contributions are descriptive context; they do not validate portfolio decisions.",
             chart_html(driver_chart(features)),
         )
         + "</div>"
         + table_html(metrics_display)
-        + "<div class='button-row'><a class='button' href='/decision'>Apply validated evidence to the decision</a></div>"
+        + validation_html
+        + "<div class='button-row'><a class='button' href='/decision'>Review current portfolio decision</a></div>"
     )
+
+    models_body += "<details><summary>Portfolio identities, capital and run evidence</summary><div>" + run_html + "</div></details>"
 
     latest_xfn_price = float(prices["XFN.TO"].dropna().iloc[-1]) if "XFN.TO" in prices and prices["XFN.TO"].notna().any() else np.nan
     latest_policy_rate = latest(macro, "policy_rate", np.nan)
     largest_increase = recs.loc[recs["Delta"].idxmax()]
     largest_reduction = recs.loc[recs["Delta"].idxmin()]
-    increase_summary = (
-        f"{largest_increase['Bank']} {largest_increase['Delta']:+.1%} · {largest_increase['Action']}"
-    )
-    reduction_summary = (
-        f"{largest_reduction['Bank']} {largest_reduction['Delta']:+.1%} · {largest_reduction['Action']}"
-    )
+    increase_summary = (f"{largest_increase['Bank']} {largest_increase['Delta']*100:+.2f} pp · {largest_increase['Action']}"
+                        if largest_increase['Delta'] > ACTION_TOLERANCE else "No positive tilts")
+    reduction_summary = (f"{largest_reduction['Bank']} {largest_reduction['Delta']*100:+.2f} pp · {largest_reduction['Action']}"
+                         if largest_reduction['Delta'] < -ACTION_TOLERANCE else "No reductions")
     facts_table = pd.DataFrame(
         [
-            {"Observed fact": f"Market and macro observation window ends {latest_date}", "Source": "Processed point-in-time dataset"},
+            {"Observed fact": f"Features through {latest_date}; raw macro observations through {latest_valid_date(macro)}", "Source": "Cached processed dataset; lineage and gaps in Research"},
             {"Observed fact": f"Latest XFN series value is ${latest_xfn_price:,.2f}" if pd.notna(latest_xfn_price) else "Latest XFN series value is unavailable", "Source": "Yahoo Finance-compatible market series"},
             {"Observed fact": f"Latest policy rate is {latest_policy_rate:.2f}%" if pd.notna(latest_policy_rate) else "Latest policy rate is unavailable", "Source": "Bank of Canada-compatible macro series"},
         ]
@@ -3213,29 +3017,15 @@ def build_pages() -> dict[str, str]:
     )
     cash_posture = pd.DataFrame(
         [
-            {"Evidence layer": "Regime policy guidance", "Cash posture": positioning["cash_guidance"].split(".")[0], "Interpretation": "Primary decision guardrail tied to the current risk band"},
-            {"Evidence layer": "Transparent fallback output", "Cash posture": f"{fallback_cash:.1%}", "Interpretation": "Heuristic response to score and node stress"},
+            {"Evidence layer": "Regime policy guidance", "Cash posture": positioning["cash_guidance"].split(".")[0], "Interpretation": "Editorial guidance only; not implemented as optimizer constraints"},
+            {"Evidence layer": "Standalone deterministic heuristic", "Cash posture": f"{fallback_cash:.1%}", "Interpretation": "Heuristic response to score and node stress"},
             {"Evidence layer": "CVaR model output", "Cash posture": f"{cvar_cash:.1%}", "Interpretation": "Constrained optimizer result under current return and covariance inputs"},
-            {"Evidence layer": "Decision synthesis", "Cash posture": positioning["cash_guidance"].split(".")[0], "Interpretation": f"Use the regime range pending review because cash-posture evidence is {model_agreement.lower()}"},
+            {"Evidence layer": "Actual CVaR paper holdings", "Cash posture": f"{cvar_paper.weights.iloc[-1]['cash']:.1%}", "Interpretation": f"Holdings dated {cvar_paper.ledger.index[-1].date()}; last solve {pd.Timestamp(cvar_paper.ledger.iloc[-1]['allocation_observation_date']).date()}"},
+            {"Evidence layer": "Decision status", "Cash posture": "Policy reconciliation pending", "Interpretation": "No existing implemented policy-compliant allocation; neither heuristic nor policy range is a substitute target"},
         ]
     )
-    decision_constraints = pd.DataFrame(
-        [
-            {"Constraint": "Maximum Big Six single-name weight", "Limit": "20.0%", "Purpose": "Control institution-specific concentration"},
-            {"Constraint": "Maximum total Canadian financial exposure", "Limit": "70.0%", "Purpose": "Cap Big Six plus XFN systemic exposure"},
-            {"Constraint": "Cash range", "Limit": "5.0%–60.0%", "Purpose": "Preserve liquidity without allowing an unconstrained all-cash result"},
-            {"Constraint": "Long-only and fully invested", "Limit": "No shorts; weights sum to 100%", "Purpose": "Keep the paper mandate auditable"},
-        ]
-    )
-    change_conditions = pd.DataFrame(
-        [
-            {"Condition": "Risk score crosses a regime boundary", "Decision change": "Reset total bank-risk and cash budgets"},
-            {"Condition": "Node-stress leadership changes materially", "Decision change": "Re-rank reduction and due-diligence priorities"},
-            {"Condition": "Scenario stress concentration moves to another bank", "Decision change": "Reallocate hedge or trim priority"},
-            {"Condition": "Fallback and CVaR cash posture diverge further", "Decision change": "Lower confidence and require model review"},
-            {"Condition": "Mandate, cost, or liquidity constraint binds", "Decision change": "Defer or resize the proposed rebalance"},
-        ]
-    )
+    decision_constraints = constraint_status(cvar_result.weights, CVAR_SNAPSHOT_CONSTRAINTS)
+    change_conditions = bands
     decision_body = (
         local_tabs(
             [
@@ -3249,7 +3039,7 @@ def build_pages() -> dict[str, str]:
             "recommendation",
             "Decision · Portfolio recommendation",
             "Current risk budget and allocation action",
-            "This is the definitive synthesis of observed risk, model outputs, scenario evidence, and portfolio constraints.",
+            "CVaR model target; policy reconciliation pending. Comparison uses actual paper holdings and the current snapshot target, which has a distinct configuration.",
         )
         + regime_html
         + metric_grid(
@@ -3258,18 +3048,18 @@ def build_pages() -> dict[str, str]:
                 ("Cash policy range", positioning["cash_guidance"].split(".")[0]),
                 ("Largest positive tilt", increase_summary),
                 ("Largest reduction", reduction_summary),
-                ("Cash-posture agreement", model_agreement),
-                ("Validation confidence", f"{model_confidence} · AUC {metrics.iloc[0]['AUC']:.2f}"),
+                ("Heuristic / CVaR cash comparison", model_agreement),
+                ("Decision validation", "No calibrated confidence mapping"),
                 ("Historical CVaR", f"{cvar_result.diagnostics['historical_cvar']:.1%}"),
-                ("CVaR / fallback cash", f"{cvar_cash:.1%} / {fallback_cash:.1%}"),
+                ("CVaR / heuristic cash", f"{cvar_cash:.1%} / {fallback_cash:.1%}"),
             ]
         )
         + card(
             "Portfolio recommendation",
-            f"{positioning['sector_bias']} Use a {positioning['total_bank_budget']} aggregate bank budget; "
-            f"{positioning['cash_guidance']} The primary trade-off is lower concentration and tail exposure "
-            "versus potential participation in a bank-sector recovery. Because cash outputs diverge, the regime "
-            "policy range is the decision guardrail and model-specific cash weights remain evidence, not automatic trades.",
+            f"CVaR model target; policy reconciliation pending. Model constraints are checked separately below. "
+            f"Editorial guidance is {positioning['total_bank_budget']} bank-risk budget with {positioning['cash_guidance'].split('.')[0]} cash. "
+            f"The observed target has {cvar_result.weights.reindex(FINANCIAL_EXPOSURE_ASSETS).fillna(0).sum():.1%} modeled financial-proxy exposure and {cvar_cash:.1%} cash. "
+            "No implemented allocation reconciles these policy ranges. This is not an approved final allocation; no new weights have been fabricated.",
             regime["tone"],
         )
         + decision_rationale(
@@ -3293,15 +3083,17 @@ def build_pages() -> dict[str, str]:
             chart_html(investment_score_chart(signals), True),
         )
         + chart_panel(
-            "Signal-derived target weights",
-            "Model target weights relative to the equal-weight reference; these are outputs, not executed trades.",
-            chart_html(investment_weight_chart(signals)),
+            "Current CVaR snapshot target",
+            f"Source: cvar_snapshot; as of {latest_date}. All banks, XFN, XIU and cash included. Independent attractiveness scores do not supply these weights.",
+            chart_html(cvar_weight_chart(cvar_result.weights)),
         )
         + "</div>"
+        + "<p>Both current and target vectors total 100%; one-decimal rounding tolerance is 0.05 percentage points per asset. The exact vectors are downloadable below.</p>"
         + "<h3>Cash-posture synthesis</h3>"
         + table_html(cash_posture)
-        + "<h3>Binding portfolio constraints</h3>"
+        + "<h3>Portfolio constraints</h3><p>Status refers to the current snapshot target; active/slack tolerance 0.0001 percentage points. Bounds are applied to target weights, not continuously to daily holdings.</p>"
         + table_html(decision_constraints)
+        + ETF_COVERAGE
         + "<details><summary>Assumptions and limitations</summary><div>"
         "<p><span class='label'>Assumptions</span> Public-market proxies, rolling historical relationships, "
         "simplified costs and liquidity, and the documented scenario propagation rules.</p>"
@@ -3312,10 +3104,10 @@ def build_pages() -> dict[str, str]:
             "rebalance",
             "Decision · Actions",
             "Prioritized rebalance plan",
-            "Review target changes against costs, liquidity, mandate limits, and the stated confidence before acting.",
+            "Sorted by absolute weight delta, largest first; ties alphabetically. BUY/SELL require more than 0.10 percentage points, otherwise HOLD. The simulator separately suppresses trades below 1% of pre-trade NAV. Cash shows a balance change, not a security order.",
         )
         + table_html(recs_display)
-        + "<details><summary>Bank-level reasons and confidence</summary><div>"
+        + "<details><summary>Independent bank signals and portfolio actions</summary><div><p>These security signals are independent research scores, not CVaR instructions. A HOLD signal can coexist with a portfolio trim because portfolio construction sets weights. Hypothetical equal-bank target weights are excluded.</p>"
         + table_html(signals_display)
         + "</div></details>"
         + section_heading(
@@ -3325,6 +3117,9 @@ def build_pages() -> dict[str, str]:
             "These triggers keep the decision conditional and auditable instead of presenting a static answer as certainty.",
         )
         + table_html(change_conditions)
+        + "<p>Policy ranges and equal component weights are configured design choices, not validated optimal allocations or calibrated crisis probabilities. Correlated inputs contain overlapping information.</p>"
+        + tradeoff_html
+        + "<details><summary>Portfolio identities, dates and capital reconciliation</summary><div>" + run_html + PORTFOLIO_METHOD + "</div></details>"
     )
 
     performance_body = (
@@ -3348,7 +3143,9 @@ def build_pages() -> dict[str, str]:
             "RL and CVaR strategy performance",
             "The comparison uses the same starting capital and transaction-cost framework.",
         )
+        + f"<p><strong>Common-period runs:</strong> {cvar_paper.ledger.index[0].date()}–{cvar_paper.ledger.index[-1].date()}, {len(cvar_paper.ledger)} observations. CVaR source: {cvar_paper.policy_source}; PPO source: {rl_paper.policy_source}. Extended PPO detail below is a separate period.</p>"
         + table_html(comparison)
+        + tradeoff_html
         + "<h3>Risk-adjusted comparison</h3>"
         + "<p>Ending value alone rewards whichever strategy took more risk. Max drawdown, the Sharpe ratio, the "
         "Sortino ratio, and time spent under water ask a different question: what did each strategy put an "
@@ -3362,7 +3159,7 @@ def build_pages() -> dict[str, str]:
         )
         + chart_panel(
             "Strategy exposure",
-            "Bank exposure and cash posture for CVaR and the RL research baseline.",
+            "Modeled financial-exposure proxy (direct Big Six + XFN, excluding XIU look-through) and cash for the common-period runs.",
             chart_html(exposure_chart(cvar_paper.ledger, rl_paper.ledger)),
         )
         + "</div>"
@@ -3370,7 +3167,7 @@ def build_pages() -> dict[str, str]:
             "paper-portfolio",
             "Performance · Paper portfolio",
             "Current CVaR paper fund",
-            "Fake-money holdings and transactions generated using information available at each rebalance date.",
+            "Actual simulated holdings from the common-period CVaR paper run, not the separate current snapshot target. Same-close information and execution assumptions are documented below.",
         )
         + metric_grid(
             [
@@ -3385,6 +3182,8 @@ def build_pages() -> dict[str, str]:
             ]
         )
         + table_html(cvar_holdings_display, label="CVaR paper fund holdings")
+        + ETF_COVERAGE
+        + f"<p>Holdings date {cvar_paper.ledger.index[-1].date()}; last solve {pd.Timestamp(cvar_paper.ledger.iloc[-1]['allocation_observation_date']).date()}. Targets are constrained at solves; intervening holdings can drift.</p>"
         + section_heading(
             "benchmarks",
             "Performance · Context",
@@ -3403,6 +3202,14 @@ def build_pages() -> dict[str, str]:
             chart_html(performance_allocation_chart(cvar_paper.weights)),
         )
         + "</div>"
+        + table_html(pd.DataFrame([{"Benchmark": name,
+              "Ending value": f"${performance_summary(values)['ending_value']:,.2f}",
+              "Return / initial capital": f"{performance_summary(values)['cumulative_return']:.2%}",
+              "Max drawdown": f"{performance_summary(values)['max_drawdown']:.2%}",
+              "Sharpe": f"{performance_summary(values)['sharpe_ratio']:.2f}",
+              "Sortino": f"{performance_summary(values)['sortino_ratio']:.2f}"}
+              for name, values in cvar_paper.benchmarks.items()]), label="Common-period benchmark metrics")
+        + "<p>Benchmarks use the same common period: equal-weight Big Six is daily rebalanced without costs; XFN and XIU are buy-and-hold without costs; cash earns zero. A matched static allocation with comparable cash, proxy bounds and costs has not been evaluated.</p>"
         + section_heading(
             "risk-activity",
             "Performance · Activity",
@@ -3417,7 +3224,10 @@ def build_pages() -> dict[str, str]:
         + "<details><summary>Recent simulated transactions</summary><div>"
         + table_html(cvar_trades_display, label="CVaR paper fund recent transactions")
         + "</div></details>"
-        + "<details><summary>RL paper portfolio detail</summary><div>"
+        + exposure_html
+        + "<details><summary>Run identities, metrics and execution conventions</summary><div>" + run_html + METRIC_METHOD + PORTFOLIO_METHOD + EXECUTION_METHOD + "</div></details>"
+        + "<details><summary>PPO extended-period paper portfolio detail</summary><div>"
+        + f"<p><strong>Separate extended run:</strong> {paper_ledger.index[0].date()}–{paper_ledger.index[-1].date()}, {len(paper_ledger)} observations. Same saved artifact, earlier initial purchase and independent holdings path; not the headline common-period PPO series.</p>"
         + metric_grid(
             [
                 ("Policy source", paper_policy_source),
@@ -3456,7 +3266,10 @@ def build_pages() -> dict[str, str]:
                 ("Latest dataset", latest_date),
             ]
         )
+        + provenance_html
+        + "<details><summary>Full file inventory (includes unused files)</summary><div>"
         + table_html(inventory[["CSV", "Rows", "Columns", "Date Range", "Role", "Explanation"]])
+        + "</div></details>"
         + section_heading(
             "methodology",
             "Research · Methodology",
@@ -3471,20 +3284,24 @@ def build_pages() -> dict[str, str]:
         "</div>"
         "<details id='risk-method'><summary>Risk score methodology</summary><div><p>"
         "Market, bank, macro, volatility, drawdown, and correlation features use rolling point-in-time windows. "
-        "Components are normalized to interpretable 0–100 stress scores and combined into the composite risk score."
+        "Five expanding ranks (bank volatility, correlation, absolute XFN drawdown, VIX level and clipped yield inversion) are equally averaged. Equal weights and regime bands are configured choices, not optimal allocations or crisis probabilities. Inputs overlap statistically. Oil, CAD and node stress do not enter this composite."
         "</p></div></details>"
         "<details id='graph-method'><summary>Network methodology</summary><div><p>"
-        "The graph represents interdependence using rolling correlations and configurable exposure proxies. "
-        "Centrality and density inform transmission analysis and covariance inflation."
+        "The displayed graphs use return correlations, not the unused exposure templates.</p>"
+        + GRAPH_METHOD + "<p>See the Risk page for the current weighted-connectivity table."
         "</p></div></details>"
         "<details id='scenario-method'><summary>Scenario methodology</summary><div><p>"
-        "Scenarios inject documented exogenous bank shocks and propagate them through the normalized positive-correlation network. "
-        "Outputs are conditional stress paths, not forecasts."
+        "Scenarios inject assumed exogenous bank shocks.</p>"
+        + SCENARIO_METHOD + "<p>The Scenarios page lists all preset vectors."
         "</p></div></details>"
         "<details id='portfolio-method'><summary>Portfolio methodology</summary><div><p>"
         "The CVaR objective balances expected return, expected shortfall, volatility, graph contagion, and turnover under "
-        "long-only, cash, single-name, and financial-exposure constraints. RL remains an experimental comparator."
+        "long-only, cash, single-name, and financial-exposure constraints. RL remains an experimental comparator.</p>"
+        + PORTFOLIO_METHOD + ETF_COVERAGE + "<p>Policy reconciliation remains pending."
         "</p></div></details>"
+        + "<details id='validation-method'><summary>Supervised validation protocol and limitations</summary><div>" + validation_html + "</div></details>"
+        + "<details id='metric-method'><summary>Metric formulas, units and execution</summary><div>" + METRIC_METHOD + EXECUTION_METHOD + "</div></details>"
+        + "<details><summary>Portfolio identities and precise run evidence</summary><div>" + run_html + "</div></details>"
         + section_heading(
             "assumptions",
             "Research · Assumptions",
@@ -3492,10 +3309,10 @@ def build_pages() -> dict[str, str]:
             "These assumptions are required to interpret the outputs safely.",
         )
         + "<ul class='driver-list'>"
-        "<li>Credit spreads, mortgage stress, capital, and exposure profiles may use public proxies or manual templates.</li>"
+        "<li>Housing, CDS and ETF templates are unused by these displayed score, correlation graph and portfolio calculations; they are not current measured exposures.</li>"
         "<li>Historical return relationships are informative but may not persist during a future crisis.</li>"
         "<li>Backtests use simplified transaction-cost, liquidity, and execution assumptions.</li>"
-        "<li>Paper simulations use prior-day established holdings to avoid earning returns on future information.</li>"
+        "<li>Paper ledgers mark prior holdings at today’s close before trading at that close; same-close features inform new targets. This ordering does not validate upstream feature provenance or the separate PPO training environment.</li>"
         "</ul>"
         + section_heading(
             "limitations",
@@ -3538,7 +3355,7 @@ def build_pages() -> dict[str, str]:
         "scenarios": page_template(
             "scenarios",
             "Scenario analysis",
-            "Assumptions, bank transmission, network propagation, portfolio impact, and resulting risk response.",
+            "Assumed shocks, correlation-based propagation and equal-weight bank stress attribution.",
             scenario_body,
             latest_date,
         ),
@@ -3552,7 +3369,7 @@ def build_pages() -> dict[str, str]:
         "decision": page_template(
             "decision",
             "Portfolio decision",
-            "The definitive risk budget, allocation recommendation, rationale, and rebalance endpoint.",
+            "Actual paper holdings, current model target, independent research signals and unresolved policy guidance.",
             decision_body,
             latest_date,
         ),

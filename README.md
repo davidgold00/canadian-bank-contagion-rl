@@ -50,13 +50,13 @@ When bank equities become volatile and highly correlated, the signal is not only
 
 The public product follows one analytical journey:
 
-> Market conditions → systemic contagion risk → scenario analysis → portfolio response → validated investment decision
+> Market conditions → systemic-risk evidence → scenario analysis → portfolio models → portfolio review
 
 - **Overview**: current risk score and regime, three material drivers, portfolio recommendation, confidence, and data freshness.
 - **Risk**: local views for the systemic bank network and composite risk score.
 - **Scenarios**: assumptions, bank-level transmission, network propagation, portfolio impact, and resulting response.
 - **Models**: local views for the RL strategy, CVaR strategy, comparison, and validation.
-- **Decision**: definitive risk budget, allocation recommendation, evidence, rebalance actions, and change conditions.
+- **Decision**: actual paper holdings versus the current CVaR snapshot target, independent signals, policy reconciliation status, and change conditions.
 - **Performance**: clearly labeled historical simulations, paper portfolios, benchmarks, drawdowns, turnover, and activity.
 - **Research**: data catalog, methodology, assumptions, limitations, and references.
 
@@ -84,6 +84,12 @@ Daily process:
 7. Compare performance against equal-weight Big Six, XFN buy-and-hold, XIU/XIC buy-and-hold, and cash.
 
 Leakage control: the simulator does not use future prices or future features to decide today's allocation. Returns from day t to day t+1 are earned by the holdings established on day t.
+
+## Interview-readiness audit
+
+See [the classified before/after record](docs/interview-audit.md) for verified bug fixes, transparency additions, diagnostics, regression results and unresolved limitations. The public Research page records actual run identities and methodology; current CVaR targets, historical CVaR holdings, two PPO evaluation periods, the standalone heuristic and editorial guidance are distinct. Headline cumulative returns use gross initial capital, with the former post-cost-NAV convention disclosed separately.
+
+Browser regression checks use `scripts/check_static_browser.cjs` with an externally installed Playwright package (`NODE_PATH`), a local `scripts/serve_site.py` server, and optional `BASE_URL` / `QA_OUTPUT` settings. No browser package is required to build or serve the static site.
 
 ## Production Deployment
 
