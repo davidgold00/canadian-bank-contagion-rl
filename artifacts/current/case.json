@@ -130168,15 +130168,15 @@
     "policy_rate": 2.25
   },
   "manifest": {
-    "case_url": "/snapshots/case-862db2950fb054ee/",
+    "case_url": "/snapshots/case-ac0158ac3c95fb87/",
     "classifier_id": "classifier-chronological-v2-9ae62b735b0c95c2",
     "feature_date": "2026-09-04",
     "feature_sha256": "b5b848e8d3a119dfd48be74df23ac9acd822d6e37fccfcbe9076b1def97f698d",
-    "generated_at": "2026-09-08T02:23:19+00:00",
+    "generated_at": "2026-09-08T15:52:19+00:00",
     "method": "research-review-v2",
     "model_id": "ppo-v2-935b4efa66041643",
     "schema_version": 1,
-    "snapshot_id": "case-862db2950fb054ee",
+    "snapshot_id": "case-ac0158ac3c95fb87",
     "source_observation_dates": {
       "macro": {
         "ca_10y": "2026-09-03",
@@ -130204,9 +130204,9 @@
         "^VIX": "2026-09-04"
       }
     },
-    "source_revision": "29b4b6c1bff6c226f592cdab6d24292909c1d646",
+    "source_revision": "e40c67a308572aaa2ea507758a5f19bb3968d097",
     "source_status": "downloaded_verified",
-    "source_tree_hash": "af66d2af0d21afe1"
+    "source_tree_hash": "f844988d6c99063d"
   },
   "mean_correlation": 0.8119516895938556,
   "node_stress": {
