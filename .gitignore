@@ -36,3 +36,8 @@ checkpoints/
 .vscode/
 .idea/
 .vercel
+
+# Generated complete local releases and unpublished intermediate cases
+build/
+artifacts/cases/
+.env*

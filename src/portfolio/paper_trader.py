@@ -1,3 +1,6 @@
+"""Legacy v1 simulation retained for archived results and Streamlit demonstrations.
+Current published research uses src.research.execution's next-close ledger.
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass

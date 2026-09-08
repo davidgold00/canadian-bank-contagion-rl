@@ -62,12 +62,6 @@
       "permanent": true
     }
   ],
-  "builds": [
-    {
-      "src": "*.html",
-      "use": "@vercel/static"
-    }
-  ],
   "cleanUrls": true,
   "trailingSlash": false,
   "headers": [
@@ -80,5 +74,9 @@
         }
       ]
     }
-  ]
+  ],
+  "buildCommand": "python3 scripts/render_release.py",
+  "outputDirectory": "build/current",
+  "installCommand": "",
+  "framework": null
 }

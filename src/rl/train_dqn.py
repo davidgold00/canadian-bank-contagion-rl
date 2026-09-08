@@ -1,7 +1,7 @@
 from pathlib import Path
 import pandas as pd
 from src.data.build_dataset import build_dataset
-from src.rl.env import CanadianBankContagionEnv
+from src.rl.legacy_env import CanadianBankContagionEnv
 from src.rl.agents import make_dqn
 
 def train_dqn(total_timesteps=2000, out='artifacts/rl/dqn_model'):

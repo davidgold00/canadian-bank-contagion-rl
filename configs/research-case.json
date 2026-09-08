@@ -1,0 +1,6 @@
+{
+  "dataset": "artifacts/intake/verified-2026-09-06/dataset",
+  "evaluation": "artifacts/evaluations/verified-v2.1",
+  "current_case": "artifacts/current/case.json",
+  "production_url": "https://canadian-bank-contagion-rl.vercel.app"
+}

@@ -3390,18 +3390,15 @@ def build_pages() -> dict[str, str]:
     }
 
 
-def write_pages() -> None:
-    if PUBLIC.exists():
-        shutil.rmtree(PUBLIC)
-    PUBLIC.mkdir(parents=True)
-    pages = build_pages()
-    for slug, html in pages.items():
-        filename = "index.html" if slug == "overview" else f"{slug}.html"
-        (PUBLIC / filename).write_text(html, encoding="utf-8")
-        (ROOT / filename).write_text(html, encoding="utf-8")
-    ROOT_INDEX.write_text(pages["overview"], encoding="utf-8")
-    print(f"Wrote {len(pages)} pages to {PUBLIC} and root HTML files")
+def write_pages(case_path='artifacts/current/case.json', output='build/current'):
+    """Render saved evidence only. Legacy helpers above are retained for archive tests."""
+    from src.dashboard.case_site import render_case
+    return render_case(case_path, output)
 
-
-if __name__ == "__main__":
-    write_pages()
+if __name__ == '__main__':
+    import argparse
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--case',default='artifacts/current/case.json')
+    parser.add_argument('--output',default='build/current')
+    args=parser.parse_args()
+    write_pages(args.case,args.output)

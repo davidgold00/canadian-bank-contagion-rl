@@ -1,0 +1,22 @@
+{
+  "artifact": "ppo-seed-17.zip",
+  "completed_steps": 100352,
+  "seed": 17,
+  "sha256": "92cb22f32fd63ad92df953196e7f11762cf3b0f554fe0bf14de88acc62e9c3c5",
+  "validation_metrics": {
+    "average_turnover": 0.11195964152448655,
+    "cagr": 0.009121507226748093,
+    "costs": 2831.585941905464,
+    "cumulative_return": 0.019280673778945934,
+    "daily_cvar_95": 0.01758657266307389,
+    "days_below_original_capital": 412,
+    "ending_value": 101928.0673778946,
+    "legacy_sortino_variant": 0.19938095860530095,
+    "max_drawdown": -0.15913147818282491,
+    "observations": 531,
+    "sharpe": 0.13507700850498433,
+    "tail_observations": 27,
+    "volatility": 0.12471850400049171
+  },
+  "validation_reward": -0.204816320005715
+}

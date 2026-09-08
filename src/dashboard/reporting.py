@@ -104,7 +104,7 @@ def scenario_leaders(values: pd.Series) -> dict:
     return {'exact':exact, 'displayed':displayed, 'saturated':values.index[values >= 100-1e-9].tolist()}
 
 
-def classifier_dataset(features: pd.DataFrame) -> tuple[pd.DataFrame, list[str], int, float]:
+def legacy_classifier_dataset(features: pd.DataFrame) -> tuple[pd.DataFrame, list[str], int, float]:
     """Reproduce existing validation intake exactly, including its documented limitations."""
     future = features['contagion_risk_score'].shift(-5)
     threshold = float(future.quantile(.80))
@@ -116,3 +116,12 @@ def classifier_dataset(features: pd.DataFrame) -> tuple[pd.DataFrame, list[str],
 
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def classifier_dataset(features, protocol):
+    """Corrected chronological intake; callers must supply a frozen protocol."""
+    from src.research.evaluation import labeled_frame, partition
+    frame,cols=labeled_frame(features,protocol['horizon_observations'])
+    if cols!=protocol['features']:raise ValueError('Classifier feature schema mismatch')
+    train,validation,test,threshold=partition(frame,protocol)
+    return {'train':train,'validation':validation,'test':test,'threshold':threshold,'features':cols}

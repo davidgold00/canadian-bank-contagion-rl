@@ -1,4 +1,4 @@
-"""Source-verified explanatory content for the static research site."""
+"""Archived v1 disclosures; current research-review pages use case_site.py."""
 from __future__ import annotations
 from datetime import datetime, timezone
 from html import escape
@@ -9,7 +9,7 @@ from urllib.parse import quote
 import numpy as np
 import pandas as pd
 
-from src.dashboard.reporting import classifier_dataset, return_reconciliation, sha256
+from src.dashboard.reporting import legacy_classifier_dataset as classifier_dataset, return_reconciliation, sha256
 from src.dashboard.investment_signals import compute_market_positioning
 from src.portfolio.allocation_policy import BANKS, FINANCIAL_EXPOSURE_ASSETS
 

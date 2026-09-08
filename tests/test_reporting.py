@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from src.dashboard.reporting import (portfolio_action, portfolio_comparison, return_reconciliation,
-    reported_summary, scenario_leaders, constraint_status, classifier_dataset)
+    reported_summary, scenario_leaders, constraint_status, legacy_classifier_dataset as classifier_dataset)
 from src.portfolio.portfolio_constraints import PortfolioConstraints
 from src.features.stress_features import make_contagion_risk_score
 from scripts.export_static_site import component_scores, composite_attribution, stress_path_chart, stress_paths, SCENARIO_SHOCKS, BANKS

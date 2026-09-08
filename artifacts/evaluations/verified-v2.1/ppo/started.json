@@ -1,0 +1,7 @@
+{
+  "device": "cpu",
+  "requested_steps_per_seed": 100000,
+  "started_at": "2026-09-08T02:17:44+00:00",
+  "stopping": "Requested budget; SB3 completes full rollouts",
+  "threads": 1
+}

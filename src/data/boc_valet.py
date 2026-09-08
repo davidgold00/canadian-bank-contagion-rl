@@ -17,12 +17,19 @@ class BankOfCanadaValetClient:
             rows.append(row)
         return pd.DataFrame(rows).assign(date=lambda d: pd.to_datetime(d.date)).set_index('date')
 
-def download_boc_series(series_map, output='data/raw/boc_yields.csv', fallback=True):
+def download_boc_series(series_map, output='data/raw/boc_yields.csv', fallback=False):
+    if fallback and 'sample' not in Path(output).parts:
+        raise ValueError('Synthetic fallback is permitted only in data/sample, never a production cache.')
     try:
         df=BankOfCanadaValetClient().fetch_series(list(series_map.values()))
         df=df.rename(columns={v:k for k,v in series_map.items()})
         if df.empty: raise ValueError('empty BoC response')
-        Path(output).parent.mkdir(parents=True, exist_ok=True); df.to_csv(output); return df
+        from src.research.provenance import validate_panel, record_download
+        validate_panel(df, list(series_map), minimum_rows=126)
+        Path(output).parent.mkdir(parents=True, exist_ok=True)
+        df.to_csv(output)
+        record_download(output, df, 'Bank of Canada Valet', series_map, list(series_map))
+        return df
     except Exception:
         if not fallback: raise
         return make_sample_macro_data(output)
