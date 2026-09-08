@@ -1,12 +1,18 @@
 """Verify identity and every route, optionally through Vercel protection bypass."""
-import argparse,json,os
+import argparse,json,os,subprocess
 from urllib.request import Request,urlopen
 from urllib.parse import urljoin
 
-def verify(base,expected):
+def verify(base,expected,vercel_cli=False):
     headers={'Cache-Control':'no-cache'}
     if os.environ.get('VERCEL_AUTOMATION_BYPASS_SECRET'):headers['x-vercel-protection-bypass']=os.environ['VERCEL_AUTOMATION_BYPASS_SECRET']
     def get(path):
+        if vercel_cli:
+            result=subprocess.run(
+                ['vercel','curl',path,'--deployment',base,'--','--location','--silent','--fail'],
+                check=True,capture_output=True,
+            )
+            return result.stdout
         with urlopen(Request(urljoin(base.rstrip('/')+'/',path.lstrip('/')),headers=headers),timeout=30) as r:
             if r.status!=200:raise RuntimeError(f'HTTP {r.status}: {path}')
             return r.read()
@@ -20,5 +26,5 @@ def verify(base,expected):
         get(manifest['case_url']+file)
     print(f'Verified {expected}: all root/pinned routes and required evidence assets')
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('url');p.add_argument('--case',default='artifacts/current/case.json');a=p.parse_args()
-    verify(a.url,json.load(open(a.case))['manifest']['snapshot_id'])
+    p=argparse.ArgumentParser();p.add_argument('url');p.add_argument('--case',default='artifacts/current/case.json');p.add_argument('--vercel-cli',action='store_true');a=p.parse_args()
+    verify(a.url,json.load(open(a.case))['manifest']['snapshot_id'],a.vercel_cli)
