@@ -20,7 +20,7 @@ data/interim/
 data/processed/
 
 # Models
-models/
+/models/
 checkpoints/
 
 # Streamlit

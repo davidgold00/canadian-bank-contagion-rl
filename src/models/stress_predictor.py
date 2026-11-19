@@ -1,0 +1,1 @@
+from .graph_neural_net import LightweightGraphNet
